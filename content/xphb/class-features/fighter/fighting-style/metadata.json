@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:fighter:fighting-style",
+  "display_name": "Fighting Style",
+  "class_id": "fighter",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/fighter/fighting-style",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "covered"
+}

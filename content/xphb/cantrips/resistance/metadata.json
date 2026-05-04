@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:resistance",
+  "display_name": "Resistance",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/resistance",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

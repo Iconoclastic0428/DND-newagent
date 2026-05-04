@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:dragon-s-breath",
+  "display_name": "Dragon's Breath",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "granted-action-breath-attack",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 dragon-s-breath player-1 --damage-type fire",
+  "duration_seconds": 60,
+  "notes": "Blocked: missing an active-effect-granted reusable breath action primitive that attaches to the touched target, stores the chosen damage type and slot scaling, and resolves a 15-foot cone from that target with a Magic action."
+}

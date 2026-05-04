@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:sanctuary",
+  "display_name": "Sanctuary",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/sanctuary",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "mechanical-runtime-missing",
+  "option_coverage_status": "not-applicable"
+}

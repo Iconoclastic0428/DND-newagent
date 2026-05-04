@@ -1,0 +1,1392 @@
+{
+    "schemaVersion": "2.0.0",
+    "mapId": "triboar_trail_goblin_ambush_v1",
+    "name": "Triboar Trail - Goblin Ambush",
+    "source": {
+        "moduleHint": "Lost Mine of Phandelver / Phandalin area",
+        "authoringMethod": "manual semantic transcription from provided image",
+        "notes": [
+            "Decorative border, title text, compass rose, and direction arrows are excluded from playable terrain.",
+            "Grid interpreted as 5-foot squares with an 18 x 26 playable battle area.",
+            "Road/trail bed is modeled at elevation 0 ft.",
+            "North and south wooded shelves are modeled at elevation 10 ft unless overridden.",
+            "The northeastern side path ramps from the lower road to the upper shelf using 5-ft intermediate ramp tiles."
+        ]
+    },
+    "grid": {
+        "cellSizeFeet": 5,
+        "width": 18,
+        "height": 26,
+        "origin": "top_left",
+        "coordinates": "x_right_y_down",
+        "playableBounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 17,
+            "maxY": 25
+        }
+    },
+    "defaults": {
+        "terrain": "upper_forest_dense",
+        "elevationFt": 10,
+        "airspaceTopFt": 40
+    },
+    "terrainTypes": {
+        "upper_forest_dense": {
+            "traversable": true,
+            "occupiable": true,
+            "movementCostFeetPer5Ft": 10,
+            "difficultTerrain": true,
+            "lightlyObscured": true,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "baseCover": "half",
+            "tags": [
+                "forest",
+                "upper_shelf",
+                "undergrowth"
+            ],
+            "ceilingFt": 40,
+            "movementModes": [
+                "walk",
+                "climb",
+                "fly"
+            ]
+        },
+        "forest_edge_brush": {
+            "traversable": true,
+            "occupiable": true,
+            "movementCostFeetPer5Ft": 10,
+            "difficultTerrain": true,
+            "lightlyObscured": true,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "baseCover": "half",
+            "tags": [
+                "brush",
+                "edge",
+                "upper_shelf"
+            ],
+            "ceilingFt": 40,
+            "movementModes": [
+                "walk",
+                "climb",
+                "fly"
+            ]
+        },
+        "lower_road": {
+            "traversable": true,
+            "occupiable": true,
+            "movementCostFeetPer5Ft": 5,
+            "difficultTerrain": false,
+            "lightlyObscured": false,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "baseCover": "none",
+            "tags": [
+                "road",
+                "lower_bed",
+                "open_ground"
+            ],
+            "ceilingFt": 40,
+            "movementModes": [
+                "walk",
+                "climb",
+                "fly"
+            ]
+        },
+        "side_path_upper": {
+            "traversable": true,
+            "occupiable": true,
+            "movementCostFeetPer5Ft": 5,
+            "difficultTerrain": false,
+            "lightlyObscured": false,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "baseCover": "none",
+            "tags": [
+                "path",
+                "upper_shelf",
+                "exit_route"
+            ],
+            "ceilingFt": 40,
+            "movementModes": [
+                "walk",
+                "climb",
+                "fly"
+            ]
+        },
+        "side_path_ramp": {
+            "traversable": true,
+            "occupiable": true,
+            "movementCostFeetPer5Ft": 10,
+            "difficultTerrain": true,
+            "lightlyObscured": false,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "baseCover": "none",
+            "tags": [
+                "path",
+                "ramp",
+                "slope"
+            ],
+            "ceilingFt": 40,
+            "movementModes": [
+                "walk",
+                "climb",
+                "fly"
+            ]
+        }
+    },
+    "terrainRegions": [
+        {
+            "id": "main_lower_road",
+            "terrain": "lower_road",
+            "elevationFt": 0,
+            "cells": [
+                [
+                    12,
+                    11
+                ],
+                [
+                    13,
+                    11
+                ],
+                [
+                    12,
+                    12
+                ],
+                [
+                    13,
+                    12
+                ],
+                [
+                    14,
+                    12
+                ],
+                [
+                    11,
+                    13
+                ],
+                [
+                    12,
+                    13
+                ],
+                [
+                    13,
+                    13
+                ],
+                [
+                    14,
+                    13
+                ],
+                [
+                    9,
+                    14
+                ],
+                [
+                    10,
+                    14
+                ],
+                [
+                    11,
+                    14
+                ],
+                [
+                    12,
+                    14
+                ],
+                [
+                    13,
+                    14
+                ],
+                [
+                    14,
+                    14
+                ],
+                [
+                    15,
+                    14
+                ],
+                [
+                    0,
+                    15
+                ],
+                [
+                    1,
+                    15
+                ],
+                [
+                    2,
+                    15
+                ],
+                [
+                    3,
+                    15
+                ],
+                [
+                    4,
+                    15
+                ],
+                [
+                    5,
+                    15
+                ],
+                [
+                    6,
+                    15
+                ],
+                [
+                    7,
+                    15
+                ],
+                [
+                    8,
+                    15
+                ],
+                [
+                    9,
+                    15
+                ],
+                [
+                    10,
+                    15
+                ],
+                [
+                    11,
+                    15
+                ],
+                [
+                    12,
+                    15
+                ],
+                [
+                    13,
+                    15
+                ],
+                [
+                    14,
+                    15
+                ],
+                [
+                    15,
+                    15
+                ],
+                [
+                    16,
+                    15
+                ],
+                [
+                    17,
+                    15
+                ],
+                [
+                    0,
+                    16
+                ],
+                [
+                    1,
+                    16
+                ],
+                [
+                    2,
+                    16
+                ],
+                [
+                    3,
+                    16
+                ],
+                [
+                    4,
+                    16
+                ],
+                [
+                    5,
+                    16
+                ],
+                [
+                    6,
+                    16
+                ],
+                [
+                    7,
+                    16
+                ],
+                [
+                    8,
+                    16
+                ],
+                [
+                    9,
+                    16
+                ],
+                [
+                    10,
+                    16
+                ],
+                [
+                    11,
+                    16
+                ],
+                [
+                    12,
+                    16
+                ],
+                [
+                    13,
+                    16
+                ],
+                [
+                    14,
+                    16
+                ],
+                [
+                    15,
+                    16
+                ],
+                [
+                    16,
+                    16
+                ],
+                [
+                    17,
+                    16
+                ],
+                [
+                    0,
+                    17
+                ],
+                [
+                    1,
+                    17
+                ],
+                [
+                    2,
+                    17
+                ],
+                [
+                    3,
+                    17
+                ],
+                [
+                    4,
+                    17
+                ],
+                [
+                    5,
+                    17
+                ],
+                [
+                    6,
+                    17
+                ],
+                [
+                    7,
+                    17
+                ],
+                [
+                    8,
+                    17
+                ],
+                [
+                    9,
+                    17
+                ],
+                [
+                    10,
+                    17
+                ],
+                [
+                    11,
+                    17
+                ],
+                [
+                    12,
+                    17
+                ],
+                [
+                    13,
+                    17
+                ],
+                [
+                    14,
+                    17
+                ],
+                [
+                    15,
+                    17
+                ],
+                [
+                    16,
+                    17
+                ],
+                [
+                    17,
+                    17
+                ],
+                [
+                    8,
+                    18
+                ],
+                [
+                    9,
+                    18
+                ],
+                [
+                    10,
+                    18
+                ],
+                [
+                    11,
+                    18
+                ],
+                [
+                    12,
+                    18
+                ],
+                [
+                    13,
+                    18
+                ],
+                [
+                    14,
+                    18
+                ],
+                [
+                    15,
+                    18
+                ],
+                [
+                    16,
+                    18
+                ],
+                [
+                    17,
+                    18
+                ]
+            ]
+        },
+        {
+            "id": "northeast_upper_path",
+            "terrain": "side_path_upper",
+            "elevationFt": 10,
+            "cells": [
+                [
+                    11,
+                    0
+                ],
+                [
+                    12,
+                    0
+                ],
+                [
+                    11,
+                    1
+                ],
+                [
+                    12,
+                    1
+                ],
+                [
+                    11,
+                    2
+                ],
+                [
+                    12,
+                    2
+                ],
+                [
+                    11,
+                    3
+                ],
+                [
+                    12,
+                    3
+                ],
+                [
+                    11,
+                    4
+                ],
+                [
+                    12,
+                    4
+                ],
+                [
+                    11,
+                    5
+                ],
+                [
+                    12,
+                    5
+                ],
+                [
+                    11,
+                    6
+                ],
+                [
+                    12,
+                    6
+                ],
+                [
+                    11,
+                    7
+                ],
+                [
+                    12,
+                    7
+                ],
+                [
+                    13,
+                    7
+                ],
+                [
+                    11,
+                    8
+                ],
+                [
+                    12,
+                    8
+                ],
+                [
+                    13,
+                    8
+                ]
+            ]
+        },
+        {
+            "id": "northeast_ramp",
+            "terrain": "side_path_ramp",
+            "elevationFt": 5,
+            "cells": [
+                [
+                    11,
+                    9
+                ],
+                [
+                    12,
+                    9
+                ],
+                [
+                    11,
+                    10
+                ],
+                [
+                    12,
+                    10
+                ]
+            ]
+        },
+        {
+            "id": "north_roadside_brush",
+            "terrain": "forest_edge_brush",
+            "elevationFt": 10,
+            "cells": [
+                [
+                    0,
+                    12
+                ],
+                [
+                    1,
+                    12
+                ],
+                [
+                    2,
+                    12
+                ],
+                [
+                    3,
+                    12
+                ],
+                [
+                    4,
+                    12
+                ],
+                [
+                    5,
+                    12
+                ],
+                [
+                    6,
+                    12
+                ],
+                [
+                    7,
+                    12
+                ],
+                [
+                    8,
+                    12
+                ],
+                [
+                    9,
+                    12
+                ],
+                [
+                    10,
+                    12
+                ],
+                [
+                    15,
+                    12
+                ],
+                [
+                    16,
+                    12
+                ],
+                [
+                    17,
+                    12
+                ],
+                [
+                    0,
+                    13
+                ],
+                [
+                    1,
+                    13
+                ],
+                [
+                    2,
+                    13
+                ],
+                [
+                    3,
+                    13
+                ],
+                [
+                    4,
+                    13
+                ],
+                [
+                    5,
+                    13
+                ],
+                [
+                    6,
+                    13
+                ],
+                [
+                    7,
+                    13
+                ],
+                [
+                    8,
+                    13
+                ],
+                [
+                    9,
+                    13
+                ],
+                [
+                    10,
+                    13
+                ],
+                [
+                    15,
+                    13
+                ],
+                [
+                    16,
+                    13
+                ],
+                [
+                    17,
+                    13
+                ],
+                [
+                    0,
+                    14
+                ],
+                [
+                    1,
+                    14
+                ],
+                [
+                    2,
+                    14
+                ],
+                [
+                    3,
+                    14
+                ],
+                [
+                    4,
+                    14
+                ],
+                [
+                    5,
+                    14
+                ],
+                [
+                    6,
+                    14
+                ],
+                [
+                    7,
+                    14
+                ],
+                [
+                    8,
+                    14
+                ],
+                [
+                    16,
+                    14
+                ],
+                [
+                    17,
+                    14
+                ]
+            ]
+        },
+        {
+            "id": "south_roadside_brush",
+            "terrain": "forest_edge_brush",
+            "elevationFt": 10,
+            "cells": [
+                [
+                    0,
+                    18
+                ],
+                [
+                    1,
+                    18
+                ],
+                [
+                    2,
+                    18
+                ],
+                [
+                    3,
+                    18
+                ],
+                [
+                    4,
+                    18
+                ],
+                [
+                    5,
+                    18
+                ],
+                [
+                    6,
+                    18
+                ],
+                [
+                    7,
+                    18
+                ],
+                [
+                    0,
+                    19
+                ],
+                [
+                    1,
+                    19
+                ],
+                [
+                    2,
+                    19
+                ],
+                [
+                    3,
+                    19
+                ],
+                [
+                    4,
+                    19
+                ],
+                [
+                    5,
+                    19
+                ],
+                [
+                    6,
+                    19
+                ],
+                [
+                    7,
+                    19
+                ],
+                [
+                    8,
+                    19
+                ],
+                [
+                    9,
+                    19
+                ],
+                [
+                    10,
+                    19
+                ],
+                [
+                    11,
+                    19
+                ],
+                [
+                    12,
+                    19
+                ],
+                [
+                    13,
+                    19
+                ],
+                [
+                    14,
+                    19
+                ],
+                [
+                    15,
+                    19
+                ],
+                [
+                    16,
+                    19
+                ],
+                [
+                    17,
+                    19
+                ]
+            ]
+        },
+        {
+            "id": "scrub_pockets",
+            "terrain": "forest_edge_brush",
+            "elevationFt": 10,
+            "cells": [
+                [
+                    14,
+                    12
+                ],
+                [
+                    15,
+                    12
+                ],
+                [
+                    14,
+                    13
+                ],
+                [
+                    15,
+                    13
+                ],
+                [
+                    16,
+                    13
+                ],
+                [
+                    17,
+                    13
+                ],
+                [
+                    8,
+                    14
+                ],
+                [
+                    7,
+                    14
+                ],
+                [
+                    6,
+                    14
+                ],
+                [
+                    5,
+                    14
+                ],
+                [
+                    4,
+                    14
+                ],
+                [
+                    3,
+                    14
+                ],
+                [
+                    2,
+                    14
+                ],
+                [
+                    1,
+                    14
+                ],
+                [
+                    0,
+                    14
+                ]
+            ]
+        }
+    ],
+    "objects": [
+        {
+            "id": "dead_horse_1",
+            "type": "dead_horse",
+            "cells": [
+                [
+                    11,
+                    15
+                ]
+            ],
+            "elevationFt": 0,
+            "traversable": false,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "coverProvided": "half",
+            "movementCostOverrideFeetPer5Ft": null,
+            "rotationDeg": 330,
+            "tags": [
+                "obstacle",
+                "corpse",
+                "ambush_marker"
+            ],
+            "occupiable": false,
+            "bottomFt": 0,
+            "topFt": 5
+        },
+        {
+            "id": "dead_horse_2",
+            "type": "dead_horse",
+            "cells": [
+                [
+                    12,
+                    16
+                ]
+            ],
+            "elevationFt": 0,
+            "traversable": false,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "coverProvided": "half",
+            "movementCostOverrideFeetPer5Ft": null,
+            "rotationDeg": 320,
+            "tags": [
+                "obstacle",
+                "corpse",
+                "ambush_marker"
+            ],
+            "occupiable": false,
+            "bottomFt": 0,
+            "topFt": 5
+        }
+    ],
+    "blockers": [
+        {
+            "id": "north_tree_cluster_west",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    1,
+                    5
+                ],
+                [
+                    1,
+                    6
+                ],
+                [
+                    2,
+                    5
+                ],
+                [
+                    3,
+                    6
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        },
+        {
+            "id": "north_tree_cluster_center",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    6,
+                    7
+                ],
+                [
+                    7,
+                    7
+                ],
+                [
+                    7,
+                    8
+                ],
+                [
+                    8,
+                    6
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        },
+        {
+            "id": "north_tree_cluster_east",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    15,
+                    4
+                ],
+                [
+                    15,
+                    5
+                ],
+                [
+                    16,
+                    6
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        },
+        {
+            "id": "south_tree_cluster_west",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    2,
+                    22
+                ],
+                [
+                    3,
+                    22
+                ],
+                [
+                    4,
+                    21
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        },
+        {
+            "id": "south_tree_cluster_center",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    8,
+                    23
+                ],
+                [
+                    9,
+                    22
+                ],
+                [
+                    10,
+                    23
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        },
+        {
+            "id": "south_tree_cluster_east",
+            "type": "tree_cluster",
+            "cells": [
+                [
+                    14,
+                    22
+                ],
+                [
+                    15,
+                    23
+                ],
+                [
+                    16,
+                    22
+                ]
+            ],
+            "elevationFt": 10,
+            "traversable": false,
+            "blocksLOS": true,
+            "blocksLOE": true,
+            "coverProvided": "total",
+            "tags": [
+                "tree",
+                "hard_blocker",
+                "forest"
+            ],
+            "occupiable": false,
+            "bottomFt": 10,
+            "topFt": 25
+        }
+    ],
+    "spatialRules": {
+        "defaultElevationTransitionRule": {
+            "thresholdFeet": 10,
+            "effect": "embankment",
+            "movement": "requires_climb_or_designated_slope",
+            "extraMovementCostFeet": 10,
+            "blocksDiagonalCornerCutting": true,
+            "coverFromLowToHigh": "half",
+            "coverFromHighToLow": "half",
+            "transitionType": "climbable_ledge",
+            "traversalRequirement": "climb",
+            "extraMovementCostFeetWithClimbSpeed": 0
+        },
+        "rampTransitionsUseNormalAdjacency": true,
+        "treeBlockersProvide": "total",
+        "deadHorseProvides": "half",
+        "defaultAirspaceTopFt": 40,
+        "defaultActorVolumeHeightFt": 5,
+        "verticalTraversalIncrementFt": 5
+    },
+    "edgeOverrides": [
+        {
+            "a": [
+                11,
+                8
+            ],
+            "b": [
+                11,
+                9
+            ],
+            "kind": "slope",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 5,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "difficult_slope"
+        },
+        {
+            "a": [
+                12,
+                8
+            ],
+            "b": [
+                12,
+                9
+            ],
+            "kind": "slope",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 5,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "difficult_slope"
+        },
+        {
+            "a": [
+                11,
+                9
+            ],
+            "b": [
+                11,
+                10
+            ],
+            "kind": "slope",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 5,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "difficult_slope"
+        },
+        {
+            "a": [
+                12,
+                9
+            ],
+            "b": [
+                12,
+                10
+            ],
+            "kind": "slope",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 5,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "difficult_slope"
+        },
+        {
+            "a": [
+                11,
+                10
+            ],
+            "b": [
+                11,
+                11
+            ],
+            "kind": "ramp_to_road",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 0,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "ramp"
+        },
+        {
+            "a": [
+                12,
+                10
+            ],
+            "b": [
+                12,
+                11
+            ],
+            "kind": "ramp_to_road",
+            "heightChangeFt": -5,
+            "extraMovementCostFeet": 0,
+            "blocksLOS": false,
+            "blocksLOE": false,
+            "traversalRequirement": "none",
+            "extraMovementCostFeetWithClimbSpeed": null,
+            "transitionType": "ramp"
+        }
+    ],
+    "spawnZones": {
+        "players": {
+            "cells": [
+                [
+                    15,
+                    17
+                ],
+                [
+                    16,
+                    17
+                ],
+                [
+                    15,
+                    18
+                ],
+                [
+                    16,
+                    18
+                ]
+            ],
+            "note": "east/southeast road entry from Phandalin"
+        },
+        "goblinNorth": {
+            "cells": [
+                [
+                    4,
+                    10
+                ],
+                [
+                    5,
+                    10
+                ],
+                [
+                    6,
+                    9
+                ],
+                [
+                    7,
+                    9
+                ]
+            ],
+            "note": "upper north shelf ambush positions"
+        },
+        "goblinSouth": {
+            "cells": [
+                [
+                    8,
+                    20
+                ],
+                [
+                    9,
+                    20
+                ],
+                [
+                    10,
+                    20
+                ]
+            ],
+            "note": "upper south shelf reserve positions"
+        }
+    },
+    "integrationHints": {
+        "battlefieldStateKey": "battlefield",
+        "recommendedQueries": [
+            "getTile(x, y)",
+            "getElevationFt(x, y)",
+            "isTraversable(x, y, actor)",
+            "getMovementCost(path, actor)",
+            "getCover(attacker, target)",
+            "hasLineOfSight(attacker, target)",
+            "hasLineOfEffect(attacker, target)",
+            "getAdjacentCells(x, y)",
+            "getReachableCells(actor)",
+            "previewMove(actor, destination, options)",
+            "findPathOnSamePlane(actor, start, dest)",
+            "findBestPathWithElevation(actor, start, dest)",
+            "getPosition3D(actor)",
+            "isVolumeOccupiable(volume, actor)",
+            "findPath3D(actor, destination, options)",
+            "previewMove3D(actor, destination, options)",
+            "hasLineOfSight3D(attacker, target)",
+            "hasLineOfEffect3D(attacker, target)",
+            "getCover3D(attacker, target)",
+            "getDistance3D(a, b)"
+        ],
+        "publicSyncFields": [
+            "grid",
+            "terrainRegions",
+            "objects",
+            "blockers",
+            "knownDynamicOverlays"
+        ]
+    }
+}

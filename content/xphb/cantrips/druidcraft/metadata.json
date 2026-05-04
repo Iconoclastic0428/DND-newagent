@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:druidcraft",
+  "display_name": "Druidcraft",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/druidcraft",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

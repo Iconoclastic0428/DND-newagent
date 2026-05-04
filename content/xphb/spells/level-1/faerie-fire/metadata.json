@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:faerie-fire",
+  "display_name": "Faerie Fire",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/faerie-fire",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

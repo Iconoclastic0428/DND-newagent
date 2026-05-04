@@ -1,0 +1,9 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "capability-loader-proof-set",
+  "mechanic_family": "deterministic-spell-capability",
+  "test_refs": [
+    "tests.xphb_level1_spells.hellish_rebuke.test_hellish_rebuke",
+    "tests.test_xphb_level1_content_pack"
+  ]
+}

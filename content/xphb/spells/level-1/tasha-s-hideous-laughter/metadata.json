@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:tasha-s-hideous-laughter",
+  "display_name": "Tasha's Hideous Laughter",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/tasha-s-hideous-laughter",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

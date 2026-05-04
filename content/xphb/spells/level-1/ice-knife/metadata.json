@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:ice-knife",
+  "display_name": "Ice Knife",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/ice-knife",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "mechanical-runtime-missing",
+  "option_coverage_status": "not-applicable"
+}

@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:mind-spike",
+  "display_name": "Mind Spike",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "save-plus-tracking",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 mind-spike monster-skeleton-1",
+  "duration_seconds": 3600,
+  "notes": "Blocked: the current runtime does not have an exact location-reveal and hidden-state suppression primitive for Mind Spike."
+}

@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:flame-blade",
+  "display_name": "Flame Blade",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "held-conjured-weapon",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 flame-blade",
+  "duration_seconds": 600,
+  "notes": "Blocked: missing a held conjured weapon lifecycle primitive that grants a reusable Flame Blade melee spell attack, tracks the blade in a free hand, dismisses it when released, and allows the spell's bonus-action resummon while concentration lasts."
+}

@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:comprehend-languages",
+  "display_name": "Comprehend Languages",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/comprehend-languages",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

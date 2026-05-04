@@ -1,0 +1,7 @@
+{
+  "runtime_support_mode": "passive-runtime",
+  "mechanic_family": "passive-runtime",
+  "test_refs": [
+    "tests.test_starter_content_pack"
+  ]
+}

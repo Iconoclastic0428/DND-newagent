@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:mind-spike",
+  "display_name": "Mind Spike",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "save-plus-tracking",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "tests/xphb_level2_spells/mind-spike/test_mind_spike.py"
+}

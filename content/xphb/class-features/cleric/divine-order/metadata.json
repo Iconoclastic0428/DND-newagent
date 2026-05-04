@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:cleric:divine-order",
+  "display_name": "Divine Order",
+  "class_id": "cleric",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/cleric/divine-order",
+  "runtime_status": "creation-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "covered"
+}

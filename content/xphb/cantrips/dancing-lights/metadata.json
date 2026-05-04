@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:dancing-lights",
+  "display_name": "Dancing Lights",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/dancing-lights",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

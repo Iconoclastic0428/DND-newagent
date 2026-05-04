@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "multi-target-vitality-buff",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/aid/tests/test_aid.py"
+                  ]
+}

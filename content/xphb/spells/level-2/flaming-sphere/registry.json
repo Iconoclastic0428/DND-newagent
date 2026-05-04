@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:flaming-sphere",
+  "display_name": "Flaming Sphere",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "movable-damaging-sphere",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-movable-damaging-sphere-primitive",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/flaming-sphere/tests/test_flaming_sphere.py"
+}

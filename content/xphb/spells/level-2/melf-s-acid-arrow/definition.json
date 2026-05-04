@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:melf-s-acid-arrow",
+    "display_name":  "Melf\u0027s Acid Arrow",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "ranged-spell-attack-delayed-damage",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 melf-s-acid-arrow monster-mage-1 --slot-level 4",
+    "range_ft":  90,
+    "action_cost":  "action",
+    "concentration":  false
+}

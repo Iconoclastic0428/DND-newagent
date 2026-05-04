@@ -1,0 +1,724 @@
+{
+  "script_id": "lmop-friendly-live-web-run",
+  "description": "Drive the browser LMOP demo through character creation, a friendly live story declaration, travel, and the goblin ambush using the running server's real DM runtime.",
+  "result_controller_id": "player-1-controller",
+  "steps": [
+    {
+      "type": "comment",
+      "label": "Character creation for all four players"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "wait_for_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "storytelling",
+      "current_scene_id": "scene-waterdeep-gundren-briefing",
+      "timeout_seconds": 5.0
+    },
+    {
+      "type": "comment",
+      "label": "Friendly live story declaration with a longer Gundren briefing"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "I thank Gundren for meeting us openly and ask what he is still being careful not to say about Phandalin."
+    },
+    {
+      "type": "command_if_prompt",
+      "controller_id": "player-1-controller",
+      "prompt_kind": "story-check",
+      "input": "/check"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "I tell Gundren I would rather hear the ugly version than the polished one, and ask what trouble he expects on the road before we ever see town."
+    },
+    {
+      "type": "command_if_prompt",
+      "controller_id": "player-2-controller",
+      "prompt_kind": "story-check",
+      "input": "/check"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "I reassure Sildar we can keep formation, then ask what kind of disappearance or rumor has him watching the trail so closely."
+    },
+    {
+      "type": "command_if_prompt",
+      "controller_id": "player-3-controller",
+      "prompt_kind": "story-check",
+      "input": "/check"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "I grin and ask whether this wagon is bait for thieves, and what name, cargo, or faction would make the wrong people in Phandalin suddenly interested in us."
+    },
+    {
+      "type": "command_if_prompt",
+      "controller_id": "player-4-controller",
+      "prompt_kind": "story-check",
+      "input": "/check"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "I tell Gundren we can keep confidence, compare watches with the others, and ask for one final piece of practical advice before departure."
+    },
+    {
+      "type": "command_if_prompt",
+      "controller_id": "player-1-controller",
+      "prompt_kind": "story-check",
+      "input": "/check"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/downtime start copy-wagon-ledger"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/downtime work copy-wagon-ledger:player-1 2"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/march set player-1 player-2 player-3 player-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/watch set player-1 player-2 player-3 player-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set navigator player-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set scout player-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set lookout player-2"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel pace normal"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel route phandalin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel advance 1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel advance 4"
+    },
+    {
+      "type": "wait_for_view",
+      "controller_id": "dm",
+      "runtime_mode": "storytelling",
+      "current_scene_id": "scene-triboar-goblin-ambush",
+      "timeout_seconds": 5.0
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/travel engage"
+    },
+    {
+      "type": "wait_for_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "current_scene_id": "scene-triboar-goblin-ambush",
+      "timeout_seconds": 5.0
+    },
+    {
+      "type": "comment",
+      "label": "Combat resolution"
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/cast {active_actor_id} magic-missile {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "dm",
+      "runtime_mode": "combat",
+      "active_actor_side": "monster",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/cast {active_actor_id} fire-bolt {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-1",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/cast {active_actor_id} fire-bolt {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-2-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-2",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/cast {active_actor_id} fire-bolt {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-3-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-3",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/cast {active_actor_id} fire-bolt {first_enemy_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "command_if_view",
+      "controller_id": "player-4-controller",
+      "runtime_mode": "combat",
+      "active_actor_id": "player-4",
+      "input": "/endturn {active_actor_id}",
+      "post_delay_seconds": 0.2
+    },
+    {
+      "type": "wait_for_view",
+      "controller_id": "player-1-controller",
+      "runtime_mode": "demo-complete",
+      "contains": [
+        "The party survived the goblin ambush."
+      ],
+      "timeout_seconds": 10.0
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# Local secrets and environment files
+.env
+.env.*
+*.env
+!.env.example
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node/frontend dependencies and build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Runtime logs and scratch output
+*.log
+*.err
+*.out
+tmp_*.txt
+tmp/
+tmp*/
+.tmp/
+.tmp*/
+story-demo-inspect-*/
+.*-tests/
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

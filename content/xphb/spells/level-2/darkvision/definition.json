@@ -1,0 +1,16 @@
+{
+  "source_id": "XPHB:spell:darkvision",
+  "display_name": "Darkvision",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "vision-buff",
+  "runtime_status": "deterministic-capability",
+  "blocker_status": "none",
+  "exact_local_text": true,
+  "cast_syntax": "/cast player-1 darkvision player-1",
+  "duration_seconds": 28800,
+  "notes": "Exact XPHB Darkvision grants 150-foot darkvision to the touched willing creature for 8 hours.",
+  "action_cost": "action",
+  "concentration": false,
+  "range_ft": 5
+}

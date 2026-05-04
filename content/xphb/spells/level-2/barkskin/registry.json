@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "touch-armor-class-floor",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/barkskin/tests/test_barkskin.py"
+                  ]
+}

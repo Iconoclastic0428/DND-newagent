@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:cloud-of-daggers",
+  "display_name": "Cloud of Daggers",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "persistent-zone-damage",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-movable-zone-primitive",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/cloud-of-daggers/tests/test_cloud_of_daggers.py"
+}

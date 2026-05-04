@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:flame-blade",
+  "display_name": "Flame Blade",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "held-conjured-weapon",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/flame-blade/tests/test_flame_blade.py"
+}

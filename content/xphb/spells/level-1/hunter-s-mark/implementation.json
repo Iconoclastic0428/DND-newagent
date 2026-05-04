@@ -1,0 +1,9 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "capability-loader-proof-set",
+  "mechanic_family": "deterministic-spell-capability",
+  "test_refs": [
+    "tests.xphb_level1_spells.hunter_s_mark.test_hunter_s_mark",
+    "tests.test_xphb_level1_content_pack"
+  ]
+}

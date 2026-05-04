@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:invisibility",
+  "display_name": "Invisibility",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "visibility-condition-buff",
+  "runtime_status": "implemented",
+  "blocker_status": "none",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/invisibility/tests/test_invisibility.py"
+}

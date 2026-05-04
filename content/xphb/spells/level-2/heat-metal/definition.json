@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:heat-metal",
+  "display_name": "Heat Metal",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "item-linked-dot",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 heat-metal --object-id metal-weapon-1",
+  "duration_seconds": 600,
+  "notes": "Blocked: missing an item-linked harmful effect primitive that anchors the spell to a specific manufactured metal object, reapplies bonus-action damage through that object, tracks holder or wearer contact, forces a drop on a failed Constitution save when possible, and applies attack-roll and ability-check disadvantage until the caster's next turn if the object stays in contact."
+}

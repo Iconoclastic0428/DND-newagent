@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:lesser-restoration",
+    "display_name":  "Lesser Restoration",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "touch-condition-removal",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 lesser-restoration player-1 --condition poisoned",
+    "range_ft":  5,
+    "action_cost":  "bonus",
+    "concentration":  false
+}

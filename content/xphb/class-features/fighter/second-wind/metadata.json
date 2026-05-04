@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:fighter:second-wind",
+  "display_name": "Second Wind",
+  "class_id": "fighter",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/fighter/second-wind",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

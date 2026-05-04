@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:wizard:ritual-adept",
+  "display_name": "Ritual Adept",
+  "class_id": "wizard",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/wizard/ritual-adept",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

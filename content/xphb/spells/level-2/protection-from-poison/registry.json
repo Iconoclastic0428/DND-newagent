@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:protection-from-poison",
+  "display_name": "Protection from Poison",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "condition-removal-plus-resistance",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "tests/test_protection_from_poison.py"
+}

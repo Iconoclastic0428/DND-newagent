@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:cloud-of-daggers",
+  "display_name": "Cloud of Daggers",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "persistent-zone-damage",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-movable-zone-primitive",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 cloud-of-daggers 5 2",
+  "duration_seconds": 60,
+  "notes": "Blocked: the runtime can create persistent zones, but it cannot yet re-anchor the zone with a legal spell action or guarantee exact once-per-turn cube movement damage."
+}

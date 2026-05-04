@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:chill-touch",
+  "display_name": "Chill Touch",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/chill-touch",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

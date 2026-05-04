@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:barbarian:unarmored-defense",
+  "display_name": "Unarmored Defense",
+  "class_id": "barbarian",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/barbarian/unarmored-defense",
+  "runtime_status": "passive-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

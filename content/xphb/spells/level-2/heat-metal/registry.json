@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:heat-metal",
+  "display_name": "Heat Metal",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "item-linked-dot",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/heat-metal/tests/test_heat_metal.py"
+}

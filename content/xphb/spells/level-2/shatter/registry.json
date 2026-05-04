@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:shatter",
+  "display_name": "Shatter",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "unattended-object-damage",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-unattended-object-damage-primitive",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/shatter/tests/test_shatter.py"
+}

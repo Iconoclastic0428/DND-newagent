@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:hold-person",
+  "display_name": "Hold Person",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 2,
+  "implementation_path": "content/xphb/spells/level-2/hold-person",
+  "runtime_support_mode": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

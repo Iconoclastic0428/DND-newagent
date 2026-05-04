@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:elementalism",
+  "display_name": "Elementalism",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/elementalism",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

@@ -1,0 +1,16 @@
+{
+  "source_id": "XPHB:spell:invisibility",
+  "display_name": "Invisibility",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "visibility-condition-buff",
+  "runtime_status": "deterministic-capability",
+  "blocker_status": "none",
+  "exact_local_text": true,
+  "cast_syntax": "/cast player-1 invisibility player-1 | /cast player-1 invisibility --targets player-1,creature-id --slot-level 3",
+  "duration_seconds": 3600,
+  "notes": "Exact XPHB Invisibility applies Invisible, ends for each target that attacks, deals damage, or casts a spell, and supports higher-slot additional targets.",
+  "action_cost": "action",
+  "concentration": true,
+  "range_ft": 5
+}

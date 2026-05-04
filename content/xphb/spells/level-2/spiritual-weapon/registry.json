@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:spiritual-weapon",
+  "display_name": "Spiritual Weapon",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "bonus-action-force-weapon",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/spiritual-weapon/tests/test_spiritual_weapon.py"
+}

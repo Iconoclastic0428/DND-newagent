@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:paladin:spellcasting",
+  "display_name": "Spellcasting",
+  "class_id": "paladin",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/paladin/spellcasting",
+  "runtime_status": "creation-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "covered"
+}

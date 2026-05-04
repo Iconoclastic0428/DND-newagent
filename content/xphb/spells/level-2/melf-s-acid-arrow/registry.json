@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "ranged-spell-attack-delayed-damage",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/melf-s-acid-arrow/tests/test_melf_s_acid_arrow.py"
+                  ]
+}

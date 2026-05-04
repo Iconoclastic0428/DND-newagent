@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:flaming-sphere",
+  "display_name": "Flaming Sphere",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "movable-damaging-sphere",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-movable-damaging-sphere-primitive",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 flaming-sphere 5 2",
+  "duration_seconds": 60,
+  "notes": "Blocked: the runtime does not yet have an exact movable damaging sphere primitive with bonus-action movement, collision-stopping movement, and unattended-combustible ignition."
+}

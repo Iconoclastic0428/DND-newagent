@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:entangle",
+  "display_name": "Entangle",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/entangle",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "mechanical-runtime-missing",
+  "option_coverage_status": "not-applicable"
+}

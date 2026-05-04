@@ -1,0 +1,16 @@
+{
+  "source_id": "XPHB:spell:enhance-ability",
+  "display_name": "Enhance Ability",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "ability-check-buff",
+  "runtime_status": "deterministic-capability",
+  "blocker_status": "none",
+  "exact_local_text": true,
+  "cast_syntax": "/cast player-1 enhance-ability player-1 --ability STR | /cast player-1 enhance-ability --targets player-1,ally-id --target-abilities player-1:STR,ally-id:DEX --slot-level 3",
+  "duration_seconds": 3600,
+  "notes": "Exact XPHB Enhance Ability grants advantage on checks using the chosen ability, with per-target ability choices on higher-slot casts.",
+  "action_cost": "action",
+  "concentration": true,
+  "range_ft": 5
+}

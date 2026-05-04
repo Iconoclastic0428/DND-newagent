@@ -1,0 +1,8 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "tier2-item-local-executor",
+  "mechanic_family": "deterministic-spell-capability",
+  "test_refs": [
+    "content/xphb/spells/level-2/blindness-deafness/tests/test_blindness_deafness.py"
+  ]
+}

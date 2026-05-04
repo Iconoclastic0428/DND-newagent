@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:arcane-vigor",
+    "display_name":  "Arcane Vigor",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "self-healing-hit-dice",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 arcane-vigor --count 2 --slot-level 3",
+    "range_ft":  0,
+    "action_cost":  "bonus",
+    "concentration":  false
+}

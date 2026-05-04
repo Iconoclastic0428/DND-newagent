@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:pass-without-trace",
+  "display_name": "Pass without Trace",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "party-aura-stealth",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 pass-without-trace",
+  "duration_seconds": 3600,
+  "notes": "Exact Pass without Trace needs a no-tracks / trail-suppression consumer; the current runtime has the stealth bonus primitive but no authoritative track suppression primitive."
+}

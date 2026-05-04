@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:silence",
+  "display_name": "Silence",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "spell-blocking-zone",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "tests/xphb_level2_spells/silence/test_silence.py"
+}

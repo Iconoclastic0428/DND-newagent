@@ -1,0 +1,8 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "tier2-item-local-executor",
+  "mechanic_family": "deterministic-spell-capability",
+  "test_refs": [
+    "content/xphb/spells/level-2/hold-person/tests/test_hold_person.py"
+  ]
+}

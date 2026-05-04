@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DND Agent Web Session</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <h1>DND Agent</h1>
+          <p id="status-line">Disconnected</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge" id="runtime-mode">mode: --</span>
+          <span class="badge" id="controller-role">role: --</span>
+          <span class="badge" id="scene-label">scene: --</span>
+        </div>
+      </header>
+
+      <section class="join-panel card">
+        <h2>Join Session</h2>
+        <div class="join-grid">
+          <label>
+            WebSocket URL
+            <input id="ws-url" type="text" />
+          </label>
+          <label>
+            Session ID
+            <input id="session-id" type="text" />
+          </label>
+          <label>
+            Controller
+            <select id="controller-id"></select>
+          </label>
+          <label>
+            Controller Token
+            <input id="controller-token" type="password" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="connect-button">Connect</button>
+          <button id="disconnect-button" class="secondary">Disconnect</button>
+        </div>
+        <div>
+          <h3>Quick Portals</h3>
+          <div id="portal-links" class="portal-links"></div>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <section class="left-column">
+          <article class="card map-card">
+            <div class="section-header">
+              <h2>Semantic Map</h2>
+              <div id="map-toolbar" class="button-row compact"></div>
+            </div>
+            <div id="map-legend" class="legend"></div>
+            <div id="map-container"></div>
+          </article>
+
+          <article class="card">
+            <h2>Inspection</h2>
+            <div id="inspection-panel" class="inspection-panel">Click a cell to inspect it.</div>
+          </article>
+        </section>
+
+        <section class="center-column">
+          <article class="card">
+            <h2>Chat And Narration</h2>
+            <div id="chat-log" class="chat-log"></div>
+            <div class="chat-compose">
+              <textarea id="command-input" rows="4" placeholder="Type a declaration, slash command, or response."></textarea>
+              <div class="button-row">
+                <button id="send-command-button">Send</button>
+                <button id="resolve-check-button" class="secondary">Resolve /check</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="right-column">
+          <article class="card">
+            <div class="section-header">
+              <h2>Character Card</h2>
+              <select id="character-card-select" class="character-card-select"></select>
+            </div>
+            <div id="character-card-panel" class="character-card-panel">No character card available yet.</div>
+          </article>
+
+          <article class="card">
+            <h2>Action Panel</h2>
+            <div id="action-panel" class="action-panel">No active actions available.</div>
+          </article>
+
+          <article class="card">
+            <h2>Prompt</h2>
+            <div id="prompt-panel">No pending prompt.</div>
+          </article>
+
+          <article class="card">
+            <h2>Summary</h2>
+            <div id="summary-panel" class="summary-panel"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+
+

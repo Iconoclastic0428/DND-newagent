@@ -1,0 +1,12 @@
+{
+  "source_id": "XPHB:spell:darkvision",
+  "display_name": "Darkvision",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "vision-buff",
+  "runtime_status": "deterministic-capability",
+  "runtime_support_mode": "deterministic-capability",
+  "blocker_status": "none",
+  "executor": "executor.py",
+  "test_path": "tests/test_darkvision.py"
+}

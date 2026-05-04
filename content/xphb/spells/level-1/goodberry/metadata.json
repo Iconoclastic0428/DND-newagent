@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:goodberry",
+  "display_name": "Goodberry",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/goodberry",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

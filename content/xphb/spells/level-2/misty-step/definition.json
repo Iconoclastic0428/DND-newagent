@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:misty-step",
+    "display_name":  "Misty Step",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "bonus-action-teleport",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 misty-step 2 2",
+    "range_ft":  30,
+    "action_cost":  "bonus-action",
+    "concentration":  false
+}

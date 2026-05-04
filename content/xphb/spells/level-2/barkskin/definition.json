@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:barkskin",
+    "display_name":  "Barkskin",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "touch-armor-class-floor",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 barkskin player-1",
+    "range_ft":  5,
+    "action_cost":  "bonus",
+    "concentration":  false
+}

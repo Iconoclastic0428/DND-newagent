@@ -1,0 +1,12 @@
+{
+  "id": "XPHB:spell:ray-of-enfeeblement",
+  "name": "Ray of Enfeeblement",
+  "level": 2,
+  "school": "Necromancy",
+  "source": "XPHB",
+  "family": "save-plus-repeatable-debuff",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "blocker_reason": "Exact Ray of Enfeeblement needs a shared active-effect primitive for ability-keyed D20-test disadvantage across attack rolls, ability checks, and saving throws, plus a persistent damage-roll penalty modifier applied to every rolled damage component from the affected source.",
+  "local_text_status": "verified-against-local-xphb"
+}

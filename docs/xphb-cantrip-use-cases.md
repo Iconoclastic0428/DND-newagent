@@ -1,0 +1,106 @@
+# XPHB Cantrip Use Cases
+
+Short cast-reference for the current cantrip rollout.
+
+- `Acid Splash`: `/cast player-1 acid-splash monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Attack-roll cantrip that splashes acid at a creature or point target.
+- `Blade Ward`: `/cast player-1 blade-ward`
+  - Support mode: `deterministic-capability`
+  - Use case: Defensive cantrip that grants short-lived weapon damage resistance support.
+- `Chill Touch`: `/cast player-1 chill-touch monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Necrotic attack cantrip that can block healing riders.
+- `Dancing Lights`: `/cast player-1 dancing-lights 1 1 --form lights`
+  - Support mode: `deterministic-capability`
+  - Use case: Creates moving light sources and can be commanded to change form.
+- `Druidcraft`: `/cast player-1 druidcraft --effect weather-sensor --description Predict tomorrow rain`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode nature utility spell; the DM/runtime verifies the declared effect.
+- `Eldritch Blast`: `/cast player-1 eldritch-blast monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Force-beam spell attack against a creature target.
+- `Elementalism`: `/cast player-1 elementalism --effect beckon-fire --description Light the lantern`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode elemental utility spell; the DM/runtime verifies the declared effect.
+- `Fire Bolt`: `/cast player-1 fire-bolt monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Fire attack cantrip that rolls spell attack and damage directly against a creature target.
+- `Friends`: `/cast player-1 friends monster-mage-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Humanoid-target social cantrip with a save, charm rider, and DM-facing descriptive note.
+- `Guidance`: `/cast player-1 guidance player-1 --skill Arcana`
+  - Support mode: `deterministic-capability`
+  - Use case: Chosen-skill bonus cantrip that applies a typed d4 bonus to the chosen check.
+- `Light`: `/cast player-1 light 3 4`
+  - Support mode: `deterministic-capability`
+  - Use case: Creates a light source at the selected point.
+- `Mage Hand`: `/cast player-1 mage-hand 1 0`
+  - Support mode: `deterministic-capability`
+  - Use case: Creates a hand effect that can move or perform simple improvised interactions.
+- `Mending`: `/cast player-1 mending --description Repair the torn wagon harness`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode repair spell; the DM/runtime verifies the declared fix.
+- `Message`: `/cast player-1 message player-2 --message Keep Gundren talking --reply I can do that`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode whisper spell; the backend stores the private message and reply.
+- `Mind Sliver`: `/cast player-1 mind-sliver monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Psychic attack cantrip with a saving throw rider.
+- `Minor Illusion`: `/cast player-1 minor-illusion 3 4 --template minor_visual_door --label Door --description Painted door`
+  - Support mode: `deterministic-capability`
+  - Use case: Creates a localized visual or auditory illusion with observer-relative state.
+- `Poison Spray`: `/cast player-1 poison-spray monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Close-range poison save cantrip with direct damage resolution.
+- `Prestidigitation`: `/cast player-1 prestidigitation --effect clean-or-soil --description Clean the mud from Gundren's map case`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode utility spell; the DM/runtime verifies the harmless effect text.
+- `Produce Flame`: `/cast player-1 produce-flame`
+  - Support mode: `deterministic-capability`
+  - Use case: Creates a flame effect that can later be thrown as an attack.
+- `Ray of Frost`: `/cast player-1 ray-of-frost monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Cold attack cantrip that reduces movement on hit.
+- `Resistance`: `/cast player-1 resistance player-1 --damage-type fire`
+  - Support mode: `deterministic-capability`
+  - Use case: Chosen-damage reduction effect that applies to the selected damage type.
+- `Sacred Flame`: `/cast player-1 sacred-flame monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Radiant save cantrip that ignores cover in the supported runtime slice.
+- `Shillelagh`: `/cast player-1 shillelagh --item quarterstaff --damage-type force`
+  - Support mode: `deterministic-capability`
+  - Use case: Enchants a qualifying item and changes its attack profile in place.
+- `Shocking Grasp`: `/cast player-1 shocking-grasp monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Lightning attack cantrip that suppresses reactions on hit.
+- `Sorcerous Burst`: `/cast player-1 sorcerous-burst monster-skeleton-1 --damage-type acid`
+  - Support mode: `deterministic-capability`
+  - Use case: Recursive exploding-die cantrip with the chosen elemental damage type.
+- `Spare the Dying`: `/cast player-1 spare-the-dying player-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Stabilize effect that stops death saves in the supported runtime slice.
+- `Starry Wisp`: `/cast player-1 starry-wisp monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Radiant attack cantrip with an invisibility-suppression rider.
+- `Thaumaturgy`: `/cast player-1 thaumaturgy --effect booming-voice --description Boom my voice through the tavern`
+  - Support mode: `story-adjudicated`
+  - Use case: Story-mode utility spell; the DM/runtime verifies the declared effect.
+- `Thorn Whip`: `/cast player-1 thorn-whip monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Reach attack cantrip that pulls the target on hit.
+- `Thunderclap`: `/cast player-1 thunderclap`
+  - Support mode: `deterministic-capability`
+  - Use case: Close-range thunder save cantrip centered on the caster.
+- `Toll the Dead`: `/cast player-1 toll-the-dead monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Necrotic save cantrip that scales its damage against a wounded target.
+- `True Strike`: `/cast player-1 true-strike monster-skeleton-1 --item dagger --damage-type radiant`
+  - Support mode: `deterministic-capability`
+  - Use case: Weapon-enchantment attack cantrip that can be pointed at a custom held item.
+- `Vicious Mockery`: `/cast player-1 vicious-mockery monster-skeleton-1`
+  - Support mode: `deterministic-capability`
+  - Use case: Psychic save cantrip that imposes an attack penalty rider.
+- `Word of Radiance`: `/cast player-1 word-of-radiance`
+  - Support mode: `deterministic-capability`
+  - Use case: Adjacent radiant save cantrip that targets surrounding creatures.

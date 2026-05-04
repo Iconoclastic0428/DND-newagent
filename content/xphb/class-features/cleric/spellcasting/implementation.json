@@ -1,0 +1,7 @@
+{
+  "runtime_support_mode": "creation-runtime",
+  "mechanic_family": "creation-runtime",
+  "test_refs": [
+    "tests.test_character_creation_kernel"
+  ]
+}

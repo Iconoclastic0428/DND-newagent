@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "weapon-enchantment-buff",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/magic-weapon/tests/test_magic_weapon.py"
+                  ]
+}

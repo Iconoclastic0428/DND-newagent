@@ -1,0 +1,9 @@
+{
+  "runtime_support_mode": "story-adjudicated",
+  "builder_id": "story-spell-adjudication",
+  "mechanic_family": "story-mode-adjudicated-spell",
+  "test_refs": [
+    "tests.xphb_level1_spells.charm_person.test_charm_person",
+    "tests.test_xphb_level1_content_pack"
+  ]
+}

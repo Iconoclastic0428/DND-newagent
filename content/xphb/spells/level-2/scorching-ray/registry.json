@@ -1,0 +1,11 @@
+{
+  "spell_id": "XPHB:spell:scorching-ray",
+  "runtime_status": "blocked",
+  "implementation": "blocked",
+  "executor": "content/xphb/spells/level-2/scorching-ray/executor.py",
+  "test_path": "tests/test_scorching_ray.py",
+  "tests": [
+    "content/xphb/spells/level-2/scorching-ray/tests/test_scorching_ray.py"
+  ],
+  "notes": "Blocked until the exact multi-ray attack primitive exists in the shared runtime."
+}

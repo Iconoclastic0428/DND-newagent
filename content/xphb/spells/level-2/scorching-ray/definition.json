@@ -1,0 +1,12 @@
+{
+  "id": "XPHB:spell:scorching-ray",
+  "name": "Scorching Ray",
+  "level": 2,
+  "school": "Evocation",
+  "source": "XPHB",
+  "family": "multi-ray-attack",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "blocker_reason": "Exact Scorching Ray needs a shared repeated spell-attack consumer that resolves an ordered list of duplicate or split per-ray targets, rolls one ranged spell attack per ray, and scales the ray count by slot level inside a single cast.",
+  "local_text_status": "verified-against-local-xphb"
+}

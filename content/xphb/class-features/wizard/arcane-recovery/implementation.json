@@ -1,0 +1,7 @@
+{
+  "runtime_support_mode": "feature-runtime",
+  "mechanic_family": "feature-runtime",
+  "test_refs": [
+    "tests.test_xphb_level1_content_pack"
+  ]
+}

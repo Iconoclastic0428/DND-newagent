@@ -1,0 +1,35 @@
+{
+  "map_id": "lmop_high_road_region_v1",
+  "campaign_id": "lmop",
+  "region_id": "high-road-to-phandalin",
+  "name": "High Road To Phandalin",
+  "coord_system": "axial",
+  "hex_scale_miles": 6,
+  "cells": [
+    {"q": 0, "r": 0, "terrain": "city", "travel_cost_units": 1, "route_kind": "road", "location_id": "waterdeep", "landmark_ids": ["waterdeep-gate"], "tags": ["city", "start"], "discovered_by_default": true},
+    {"q": 1, "r": 0, "terrain": "road", "travel_cost_units": 1, "route_kind": "high-road", "route_cost_adjustment_units": -1, "location_id": "high-road", "landmark_ids": ["northbound-road"], "tags": ["road", "travel"], "discovered_by_default": true},
+    {"q": 2, "r": 0, "terrain": "road", "travel_cost_units": 1, "route_kind": "high-road", "route_cost_adjustment_units": -1, "location_id": "high-road", "landmark_ids": ["high-road-camp"], "tags": ["road", "camp"], "discovered_by_default": true},
+    {"q": 3, "r": 0, "terrain": "road", "travel_cost_units": 1, "route_kind": "east-turn", "route_cost_adjustment_units": -1, "location_id": "high-road", "landmark_ids": ["east-turn"], "tags": ["road", "turn"], "discovered_by_default": true},
+    {"q": 4, "r": 0, "terrain": "trail", "travel_cost_units": 2, "route_kind": "triboar-trail", "route_cost_adjustment_units": 0, "location_id": "triboar-trail", "landmark_ids": ["triboar-trail-entry"], "tags": ["trail", "travel"], "discovered_by_default": true},
+    {"q": 5, "r": 0, "terrain": "trail", "travel_cost_units": 2, "route_kind": "triboar-trail", "route_cost_adjustment_units": 0, "location_id": "triboar-trail", "landmark_ids": ["ambush-horses"], "tags": ["trail", "ambush"], "discovered_by_default": true},
+    {"q": 6, "r": 0, "terrain": "settlement", "travel_cost_units": 1, "route_kind": "road", "location_id": "phandalin", "landmark_ids": ["phandalin"], "tags": ["town", "destination"], "discovered_by_default": true},
+    {"q": 5, "r": -1, "terrain": "forest", "travel_cost_units": 3, "route_kind": null, "landmark_ids": ["cragmaw-trail-signs"], "tags": ["forest", "hidden-path"], "discovered_by_default": false},
+    {"q": 4, "r": 1, "terrain": "forest", "travel_cost_units": 3, "route_kind": null, "landmark_ids": [], "tags": ["forest"], "discovered_by_default": false},
+    {"q": 5, "r": 1, "terrain": "hills", "travel_cost_units": 3, "route_kind": null, "landmark_ids": [], "tags": ["ridge"], "discovered_by_default": false}
+  ],
+  "landmarks": [
+    {"landmark_id": "waterdeep-gate", "name": "Waterdeep", "q": 0, "r": 0, "description": "The city gate and the start of the escort road.", "location_id": "waterdeep", "scene_id": "scene-waterdeep-gundren-briefing", "tags": ["city"], "hidden": false, "revealed_by_default": true, "discovery_radius": 0},
+    {"landmark_id": "northbound-road", "name": "High Road", "q": 1, "r": 0, "description": "The long northbound road out of Waterdeep.", "location_id": "high-road", "scene_id": "scene-00-high-road-journey", "tags": ["road", "travel"], "hidden": false, "revealed_by_default": true, "discovery_radius": 0},
+    {"landmark_id": "high-road-camp", "name": "Roadside Camp", "q": 2, "r": 0, "description": "A camp routine landmark on the High Road.", "location_id": "high-road", "scene_id": "scene-00-high-road-journey", "tags": ["camp", "travel"], "hidden": false, "revealed_by_default": false, "discovery_radius": 0},
+    {"landmark_id": "east-turn", "name": "Eastern Turn", "q": 3, "r": 0, "description": "Where the route bends east toward the Triboar Trail.", "location_id": "high-road", "scene_id": "scene-00-high-road-journey", "tags": ["turn", "travel"], "hidden": false, "revealed_by_default": false, "discovery_radius": 0},
+    {"landmark_id": "triboar-trail-entry", "name": "Triboar Trail", "q": 4, "r": 0, "description": "The rougher eastward trail toward Phandalin.", "location_id": "triboar-trail", "scene_id": "scene-00-high-road-journey", "tags": ["trail", "travel"], "hidden": false, "revealed_by_default": false, "discovery_radius": 0},
+    {"landmark_id": "ambush-horses", "name": "Riderless Horses", "q": 5, "r": 0, "description": "Two riderless horses and scattered gear mark the ambush site.", "location_id": "triboar-trail", "scene_id": "scene-triboar-goblin-ambush", "tags": ["ambush", "horses"], "hidden": true, "revealed_by_default": false, "discovery_radius": 0},
+    {"landmark_id": "phandalin", "name": "Phandalin", "q": 6, "r": 0, "description": "The destination town on the road east.", "location_id": "phandalin", "tags": ["town"], "hidden": false, "revealed_by_default": true, "discovery_radius": 0},
+    {"landmark_id": "cragmaw-trail-signs", "name": "Cragmaw Trail Signs", "q": 5, "r": -1, "description": "Broken brush and a narrow track hint at the goblin trail toward a hideout.", "location_id": "cragmaw-hideout", "tags": ["sidequest", "goblin", "trail"], "hidden": true, "revealed_by_default": false, "discovery_radius": 0}
+  ],
+  "hooks": [
+    {"hook_id": "hook-high-road-journey", "hook_type": "scene_transition_candidate", "trigger": "enter-hex", "q": 1, "r": 0, "summary": "The wagon settles into the High Road journey north from Waterdeep.", "location_id": "high-road", "scene_id": "scene-00-high-road-journey", "tags": ["travel", "road"], "once": true, "interrupts_travel": false, "suggested_open_loops": ["Why is Gundren so eager to reach Phandalin ahead of the wagon?", "What exactly have Gundren and his brothers found?"], "suggested_party_goals": ["Escort the wagon safely to Phandalin.", "Keep watch on the road and manage the wagon." ]},
+    {"hook_id": "hook-ambush-candidate", "hook_type": "story_encounter_candidate", "trigger": "enter-hex", "q": 5, "r": 0, "summary": "The road ahead shows riderless horses, torn packs, and signs of an ambush on the Triboar Trail.", "location_id": "triboar-trail", "scene_id": "scene-triboar-goblin-ambush", "battlefield_map_id": "goblin-ambush-triboar-trail", "tags": ["ambush", "goblin", "triboar-trail"], "once": true, "interrupts_travel": true, "suggested_open_loops": ["Who ambushed Gundren and Sildar?", "Can the party survive the goblin ambush?"], "suggested_party_goals": ["Survive the ambush.", "Secure the wagon and investigate the trail." ]},
+    {"hook_id": "hook-cragmaw-sidequest", "hook_type": "side_quest_hook", "trigger": "landmark-discovered", "landmark_id": "cragmaw-trail-signs", "summary": "Fresh goblin trail signs point toward a likely hideout off the main road.", "location_id": "cragmaw-hideout", "tags": ["cragmaw", "sidequest"], "once": true, "interrupts_travel": false, "suggested_open_loops": ["Should the party follow the goblin trail toward Cragmaw Hideout?"], "suggested_party_goals": ["Decide whether to pursue the goblin trail." ]}
+  ]
+}

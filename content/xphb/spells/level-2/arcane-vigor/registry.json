@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "self-healing-hit-dice",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/arcane-vigor/tests/test_arcane_vigor.py"
+                  ]
+}

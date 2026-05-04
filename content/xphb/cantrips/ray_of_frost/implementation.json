@@ -1,0 +1,10 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "capability-loader-proof-set",
+  "mechanic_family": "deterministic-spell-capability",
+  "test_refs": [
+    "tests.test_xphb_cantrip_capability_loader",
+    "tests.test_xphb_level1_content_pack",
+    "tests.xphb_cantrips.ray_of_frost.test_ray_of_frost"
+  ]
+}

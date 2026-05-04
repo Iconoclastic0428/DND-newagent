@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:spiritual-weapon",
+  "display_name": "Spiritual Weapon",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "bonus-action-force-weapon",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 spiritual-weapon 5 2 --target monster-skeleton-1",
+  "duration_seconds": 60,
+  "notes": "Blocked: missing a floating weapon command primitive that creates a persistent weapon anchor at a chosen point, makes the spell's immediate melee spell attack, and on later turns reuses the caster's bonus action to move up to 20 feet and attack again from the weapon's position."
+}

@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:ranger:favored-enemy",
+  "display_name": "Favored Enemy",
+  "class_id": "ranger",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/ranger/favored-enemy",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

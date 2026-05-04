@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:grease",
+  "display_name": "Grease",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/grease",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "mechanical-runtime-missing",
+  "option_coverage_status": "not-applicable"
+}

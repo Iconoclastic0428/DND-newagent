@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:warlock:pact-magic",
+  "display_name": "Pact Magic",
+  "class_id": "warlock",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/warlock/pact-magic",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

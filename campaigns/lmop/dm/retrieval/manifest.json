@@ -1,0 +1,593 @@
+{
+  "campaign": "lmop",
+  "entries": [
+    {
+      "campaign": "lmop",
+      "canonical_location": "waterdeep",
+      "chapter": "chapter-01",
+      "id": "chapter-01-index",
+      "involved_npcs": [
+        "gundren-rockseeker",
+        "sildar-hallwinter",
+        "goblin-band"
+      ],
+      "last_updated": "2026-04-03",
+      "path": "chapters/chapter-01/index.md",
+      "related_files": [
+        "scene-00-waterdeep-briefing.md",
+        "scene-00-high-road-journey.md",
+        "scene-01-goblin-ambush.md",
+        "scene-02-trail-aftermath.md",
+        "../../npcs/gundren-rockseeker.md",
+        "../../npcs/sildar-hallwinter.md",
+        "../../locations/waterdeep.md",
+        "../../locations/high-road.md",
+        "../../locations/triboar-trail.md",
+        "../../dm/scene-state/scene-waterdeep-gundren-briefing.md",
+        "../../dm/scene-state/scene-00-high-road-journey.md",
+        "../../dm/scene-state/scene-triboar-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [
+        "gundren",
+        "waterdeep",
+        "wagon",
+        "high road",
+        "triboar trail",
+        "ambush"
+      ],
+      "session_id": null,
+      "state_scope": "chapter",
+      "tags": [],
+      "title": "Chapter 1 - Gundren's Road Job",
+      "token_budget_hint": "small",
+      "type": "chapter_index",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "high-road",
+      "chapter": "chapter-01",
+      "id": "scene-00-high-road-journey",
+      "involved_npcs": [
+        "gundren-rockseeker",
+        "sildar-hallwinter"
+      ],
+      "last_updated": "2026-04-03",
+      "path": "chapters/chapter-01/scene-00-high-road-journey.md",
+      "related_files": [
+        "../../locations/high-road.md",
+        "../../locations/triboar-trail.md",
+        "../../npcs/gundren-rockseeker.md",
+        "../../npcs/sildar-hallwinter.md",
+        "../../dm/scene-state/scene-00-high-road-journey.md"
+      ],
+      "retrieval_keywords": [
+        "high road",
+        "wagon",
+        "travel",
+        "triboar trail",
+        "phandalin"
+      ],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [],
+      "title": "The High Road Journey",
+      "token_budget_hint": "small",
+      "type": "scene",
+      "visibility": "mixed"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "waterdeep",
+      "chapter": "chapter-01",
+      "id": "scene-waterdeep-gundren-briefing",
+      "involved_npcs": [
+        "gundren-rockseeker",
+        "sildar-hallwinter"
+      ],
+      "last_updated": "2026-04-03",
+      "path": "chapters/chapter-01/scene-00-waterdeep-briefing.md",
+      "related_files": [
+        "../../locations/waterdeep.md",
+        "../../npcs/gundren-rockseeker.md",
+        "../../npcs/sildar-hallwinter.md",
+        "../../dm/scene-state/scene-waterdeep-gundren-briefing.md"
+      ],
+      "retrieval_keywords": [
+        "waterdeep",
+        "gundren",
+        "mission",
+        "phandalin",
+        "wagon",
+        "escort"
+      ],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [],
+      "title": "Waterdeep Briefing with Gundren Rockseeker",
+      "token_budget_hint": "small",
+      "type": "scene",
+      "visibility": "mixed"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "triboar-trail",
+      "chapter": "chapter-01",
+      "id": "scene-triboar-goblin-ambush",
+      "involved_npcs": [
+        "goblin-band",
+        "sildar-hallwinter",
+        "gundren-rockseeker"
+      ],
+      "last_updated": "2026-04-03",
+      "path": "chapters/chapter-01/scene-01-goblin-ambush.md",
+      "related_files": [
+        "../../locations/triboar-trail.md",
+        "../../npcs/gundren-rockseeker.md",
+        "../../npcs/sildar-hallwinter.md",
+        "../../dm/scene-state/scene-triboar-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [
+        "ambush",
+        "goblins",
+        "horses",
+        "arrows",
+        "trail",
+        "roadside"
+      ],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [],
+      "title": "Goblin Ambush on Triboar Trail",
+      "token_budget_hint": "small",
+      "type": "scene",
+      "visibility": "mixed"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "triboar-trail",
+      "chapter": "chapter-01",
+      "id": "scene-trail-aftermath",
+      "involved_npcs": [
+        "gundren-rockseeker",
+        "sildar-hallwinter"
+      ],
+      "last_updated": "2026-04-03",
+      "path": "chapters/chapter-01/scene-02-trail-aftermath.md",
+      "related_files": [
+        "../../locations/triboar-trail.md",
+        "../../npcs/gundren-rockseeker.md",
+        "../../npcs/sildar-hallwinter.md",
+        "../../dm/scene-state/scene-triboar-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [
+        "aftermath",
+        "clue",
+        "trail",
+        "tracking",
+        "survivors"
+      ],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [],
+      "title": "Trail Aftermath",
+      "token_budget_hint": "small",
+      "type": "scene",
+      "visibility": "mixed"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "gundren-rockseeker",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/npc-playbooks/gundren-rockseeker.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "npc",
+      "tags": [
+        "npc-playbook"
+      ],
+      "title": "Gundren Rockseeker Playbook",
+      "token_budget_hint": "small",
+      "type": "npc_playbook",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "sildar-hallwinter",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/npc-playbooks/sildar-hallwinter.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "npc",
+      "tags": [
+        "npc-playbook"
+      ],
+      "title": "Sildar Hallwinter Playbook",
+      "token_budget_hint": "small",
+      "type": "npc_playbook",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "high-road",
+      "chapter": null,
+      "id": "scene-state-00-high-road-journey",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/scene-state/scene-00-high-road-journey.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [
+        "scene-state",
+        "high-road"
+      ],
+      "title": "Scene 00 High Road Journey",
+      "token_budget_hint": "small",
+      "type": "scene_state",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "triboar-trail",
+      "chapter": null,
+      "id": "scene-state-scene-triboar-goblin-ambush",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/scene-state/scene-triboar-goblin-ambush.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [
+        "scene-state",
+        "triboar-trail"
+      ],
+      "title": "Scene Triboar Goblin Ambush",
+      "token_budget_hint": "small",
+      "type": "scene_state",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "waterdeep",
+      "chapter": null,
+      "id": "scene-state-scene-waterdeep-gundren-briefing",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/scene-state/scene-waterdeep-gundren-briefing.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "scene",
+      "tags": [
+        "scene-state",
+        "waterdeep"
+      ],
+      "title": "Scene Waterdeep Gundren Briefing",
+      "token_budget_hint": "small",
+      "type": "scene_state",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "session-0001",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/sessions/session-0001.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "session",
+      "tags": [
+        "session"
+      ],
+      "title": "Demo Session Log",
+      "token_budget_hint": "small",
+      "type": "session_log",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "lmop-campaign-state",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/summaries/campaign-state.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "campaign",
+      "tags": [
+        "campaign-state"
+      ],
+      "title": "Campaign State",
+      "token_budget_hint": "small",
+      "type": "dm_summary",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "lmop-discovered-secrets",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/summaries/discovered-secrets.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "campaign",
+      "tags": [
+        "discovered-secrets"
+      ],
+      "title": "Discovered Secrets",
+      "token_budget_hint": "small",
+      "type": "dm_summary",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "lmop-open-loops",
+      "involved_npcs": [],
+      "last_updated": null,
+      "path": "dm/summaries/open-loops.md",
+      "related_files": [],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "campaign",
+      "tags": [
+        "open-loops"
+      ],
+      "title": "Open Loops",
+      "token_budget_hint": "small",
+      "type": "dm_summary",
+      "visibility": "dm"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "lmop-index",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "index.md",
+      "related_files": [
+        "chapters/chapter-01/index.md",
+        "npcs/gundren-rockseeker.md",
+        "npcs/sildar-hallwinter.md",
+        "locations/waterdeep.md",
+        "locations/high-road.md",
+        "locations/triboar-trail.md",
+        "locations/cragmaw-hideout.md",
+        "dm/summaries/campaign-state.md",
+        "dm/summaries/open-loops.md",
+        "dm/summaries/discovered-secrets.md",
+        "dm/sessions/session-0001.md",
+        "dm/npc-playbooks/gundren-rockseeker.md",
+        "dm/npc-playbooks/sildar-hallwinter.md",
+        "dm/scene-state/scene-waterdeep-gundren-briefing.md",
+        "dm/scene-state/scene-00-high-road-journey.md",
+        "dm/scene-state/scene-triboar-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [],
+      "session_id": null,
+      "state_scope": "canonical",
+      "tags": [
+        "campaign",
+        "index",
+        "lmop"
+      ],
+      "title": "Lost Mine of Phandelver",
+      "token_budget_hint": "medium",
+      "type": "campaign_index",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "cragmaw-hideout",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "locations/cragmaw-hideout.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-01-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [
+        "hideout",
+        "cave",
+        "goblins",
+        "waterfall"
+      ],
+      "session_id": null,
+      "state_scope": "location",
+      "tags": [
+        "location",
+        "cave",
+        "goblins"
+      ],
+      "title": "Cragmaw Hideout",
+      "token_budget_hint": "small",
+      "type": "location",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "high-road",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "locations/high-road.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-00-high-road-journey.md",
+        "../locations/triboar-trail.md",
+        "../dm/scene-state/scene-00-high-road-journey.md"
+      ],
+      "retrieval_keywords": [
+        "high road",
+        "travel",
+        "wagon",
+        "road north"
+      ],
+      "session_id": null,
+      "state_scope": "location",
+      "tags": [
+        "location",
+        "road",
+        "travel"
+      ],
+      "title": "High Road",
+      "token_budget_hint": "small",
+      "type": "location",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "triboar-trail",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "locations/triboar-trail.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-00-high-road-journey.md",
+        "../chapters/chapter-01/scene-01-goblin-ambush.md",
+        "../chapters/chapter-01/scene-02-trail-aftermath.md",
+        "../dm/scene-state/scene-triboar-goblin-ambush.md"
+      ],
+      "retrieval_keywords": [
+        "road",
+        "trail",
+        "embankment",
+        "forest",
+        "wagon",
+        "horses"
+      ],
+      "session_id": null,
+      "state_scope": "location",
+      "tags": [
+        "location",
+        "road",
+        "trail"
+      ],
+      "title": "Triboar Trail",
+      "token_budget_hint": "small",
+      "type": "location",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": null,
+      "chapter": null,
+      "id": "waterdeep",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "locations/waterdeep.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-00-waterdeep-briefing.md",
+        "../dm/scene-state/scene-waterdeep-gundren-briefing.md"
+      ],
+      "retrieval_keywords": [
+        "waterdeep",
+        "city of splendors",
+        "tavern",
+        "hiring scene"
+      ],
+      "session_id": null,
+      "state_scope": "location",
+      "tags": [
+        "location",
+        "city",
+        "waterdeep"
+      ],
+      "title": "Waterdeep",
+      "token_budget_hint": "small",
+      "type": "location",
+      "visibility": "public"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "waterdeep",
+      "chapter": null,
+      "id": "gundren-rockseeker",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "npcs/gundren-rockseeker.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-00-waterdeep-briefing.md",
+        "../chapters/chapter-01/scene-00-high-road-journey.md",
+        "../chapters/chapter-01/scene-01-goblin-ambush.md",
+        "../dm/npc-playbooks/gundren-rockseeker.md"
+      ],
+      "retrieval_keywords": [
+        "gundren",
+        "dwarf",
+        "miner",
+        "map",
+        "prospect",
+        "phandalin"
+      ],
+      "session_id": null,
+      "state_scope": "npc",
+      "tags": [
+        "npc",
+        "ally",
+        "miner"
+      ],
+      "title": "Gundren Rockseeker",
+      "token_budget_hint": "small",
+      "type": "npc",
+      "visibility": "mixed"
+    },
+    {
+      "campaign": "lmop",
+      "canonical_location": "waterdeep",
+      "chapter": null,
+      "id": "sildar-hallwinter",
+      "involved_npcs": [],
+      "last_updated": "2026-04-03",
+      "path": "npcs/sildar-hallwinter.md",
+      "related_files": [
+        "../chapters/chapter-01/scene-00-waterdeep-briefing.md",
+        "../chapters/chapter-01/scene-00-high-road-journey.md",
+        "../chapters/chapter-01/scene-01-goblin-ambush.md",
+        "../dm/npc-playbooks/sildar-hallwinter.md"
+      ],
+      "retrieval_keywords": [
+        "sildar",
+        "guard",
+        "ally",
+        "phandalin",
+        "road"
+      ],
+      "session_id": null,
+      "state_scope": "npc",
+      "tags": [
+        "npc",
+        "ally",
+        "guard"
+      ],
+      "title": "Sildar Hallwinter",
+      "token_budget_hint": "small",
+      "type": "npc",
+      "visibility": "mixed"
+    }
+  ],
+  "root": "D:\\DND-newagent\\campaigns\\lmop"
+}

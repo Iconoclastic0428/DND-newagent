@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:shatter",
+  "display_name": "Shatter",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "unattended-object-damage",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-unattended-object-damage-primitive",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 shatter 5 2",
+  "duration_seconds": 0,
+  "notes": "Blocked: the runtime does not yet have a primitive for dealing exact damage to unattended nonmagical objects while still resolving creature saves and construct disadvantage."
+}

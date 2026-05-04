@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:silence",
+  "display_name": "Silence",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "spell-blocking-zone",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 silence 5 2",
+  "duration_seconds": 600,
+  "notes": "Blocked: the current runtime does not have an exact sound-propagation and verbal-component suppression zone primitive."
+}

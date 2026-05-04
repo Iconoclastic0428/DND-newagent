@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:aid",
+    "display_name":  "Aid",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "multi-target-vitality-buff",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 aid --targets player-1,monster-skeleton-1,monster-mage-1 --slot-level 3",
+    "range_ft":  30,
+    "action_cost":  "action",
+    "concentration":  false
+}

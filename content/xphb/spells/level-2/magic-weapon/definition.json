@@ -1,0 +1,14 @@
+{
+    "source_id":  "XPHB:spell:magic-weapon",
+    "display_name":  "Magic Weapon",
+    "category":  "spell",
+    "level":  2,
+    "implementation_family":  "weapon-enchantment-buff",
+    "runtime_status":  "deterministic-capability",
+    "blocker_status":  "none",
+    "exact_local_text":  true,
+    "cast_syntax":  "/cast player-1 magic-weapon player-1 --item quarterstaff --slot-level 3",
+    "range_ft":  5,
+    "action_cost":  "bonus-action",
+    "concentration":  false
+}

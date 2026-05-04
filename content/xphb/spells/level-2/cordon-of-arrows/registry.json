@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:cordon-of-arrows",
+  "display_name": "Cordon of Arrows",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "armed-ward",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-ward-charge-primitive",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/cordon-of-arrows/tests/test_cordon_of_arrows.py"
+}

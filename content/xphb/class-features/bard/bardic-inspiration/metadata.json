@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:bard:bardic-inspiration",
+  "display_name": "Bardic Inspiration",
+  "class_id": "bard",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/bard/bardic-inspiration",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

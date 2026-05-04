@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:paladin:lay-on-hands",
+  "display_name": "Lay on Hands",
+  "class_id": "paladin",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/paladin/lay-on-hands",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

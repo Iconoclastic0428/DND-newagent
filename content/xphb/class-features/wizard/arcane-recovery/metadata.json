@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:wizard:arcane-recovery",
+  "display_name": "Arcane Recovery",
+  "class_id": "wizard",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/wizard/arcane-recovery",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

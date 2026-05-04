@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:monk:martial-arts",
+  "display_name": "Martial Arts",
+  "class_id": "monk",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/monk/martial-arts",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

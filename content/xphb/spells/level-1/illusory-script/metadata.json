@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:illusory-script",
+  "display_name": "Illusory Script",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/illusory-script",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:ray-of-frost",
+  "display_name": "Ray of Frost",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "cantrips/ray-of-frost",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

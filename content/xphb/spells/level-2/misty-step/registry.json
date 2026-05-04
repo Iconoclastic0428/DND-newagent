@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "bonus-action-teleport",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/misty-step/tests/test_misty_step.py"
+                  ]
+}

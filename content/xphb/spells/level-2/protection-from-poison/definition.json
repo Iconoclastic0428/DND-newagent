@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:protection-from-poison",
+  "display_name": "Protection from Poison",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "condition-removal-plus-resistance",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 protection-from-poison player-1",
+  "duration_seconds": 3600,
+  "notes": "Exact Protection from Poison needs source-aware poison-save advantage plus poison-condition cleanup; the current runtime does not have a poison-specific save hook without guessing."
+}

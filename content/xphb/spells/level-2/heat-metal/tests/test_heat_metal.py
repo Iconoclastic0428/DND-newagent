@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+import unittest
+
+from tests.xphb_level2_spells.support import load_local_spell_record
+
+
+ROOT = Path(__file__).resolve().parents[6]
+ITEM_ROOT = ROOT / 'content' / 'xphb' / 'spells' / 'level-2' / 'heat-metal'
+SPELL_NAME = 'Heat Metal'
+SOURCE_ID = 'XPHB:spell:heat-metal'
+IMPLEMENTATION_FAMILY = 'item-linked-dot'
+PLANNED_CAST_SYNTAX = '/cast player-1 heat-metal --object-id metal-weapon-1'
+BLOCKER_PHRASE = 'item-linked harmful effect primitive'
+
+
+def load_executor_module():
+    spec = importlib.util.spec_from_file_location('heat_metal_executor', ITEM_ROOT / 'executor.py')
+    if spec is None or spec.loader is None:
+        raise AssertionError('Could not load Heat Metal executor module.')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class HeatMetalBlockerContractTests(unittest.TestCase):
+    def test_definition_records_blocked_runtime_and_precise_blocker(self) -> None:
+        definition = json.loads((ITEM_ROOT / 'definition.json').read_text(encoding='utf-8'))
+        self.assertEqual(definition['source_id'], SOURCE_ID)
+        self.assertEqual(definition['runtime_status'], 'blocked')
+        self.assertEqual(definition['implementation_family'], IMPLEMENTATION_FAMILY)
+        self.assertEqual(definition['cast_syntax'], PLANNED_CAST_SYNTAX)
+        self.assertIn(BLOCKER_PHRASE, definition['notes'])
+
+    def test_registry_points_to_the_local_blocker_test_module(self) -> None:
+        registry = json.loads((ITEM_ROOT / 'registry.json').read_text(encoding='utf-8'))
+        self.assertEqual(registry['runtime_status'], 'blocked')
+        self.assertEqual(registry['executor'], 'executor.py')
+        self.assertEqual(
+            registry['test_path'],
+            'content/xphb/spells/level-2/heat-metal/tests/test_heat_metal.py',
+        )
+
+    def test_executor_returns_none_for_the_exact_local_spell(self) -> None:
+        module = load_executor_module()
+        raw_spell = load_local_spell_record(SPELL_NAME)
+        self.assertIsNone(module.build_capability_definition(raw_spell))
+        self.assertIn(BLOCKER_PHRASE, module.BLOCKER_REASON)
+
+    def test_executor_ignores_non_matching_spell_records(self) -> None:
+        module = load_executor_module()
+        other_spell = load_local_spell_record('Aid')
+        self.assertIsNone(module.build_capability_definition(other_spell))
+
+    def test_readme_lists_exact_behavior_and_missing_primitive(self) -> None:
+        text = (ITEM_ROOT / 'README.md').read_text(encoding='utf-8')
+        for snippet in (
+            'Action, 60 feet, concentration up to 1 minute.',
+            'visible manufactured metal object',
+            '2d8 fire damage',
+            'Constitution save',
+            'must drop the object if it can',
+            'disadvantage on attack rolls and ability checks until your next turn',
+            BLOCKER_PHRASE,
+        ):
+            self.assertIn(snippet, text)
+
+    def test_implementation_doc_keeps_the_blocker_contract_explicit(self) -> None:
+        text = (ITEM_ROOT / 'IMPLEMENTATION.md').read_text(encoding='utf-8')
+        for snippet in (
+            'Runtime status stays `blocked`.',
+            '`build_capability_definition(...)` intentionally returns `None`',
+            BLOCKER_PHRASE,
+            'Current disadvantage support only includes one-shot next-attack disadvantage',
+            'apply attack-roll and ability-check disadvantage until the caster\'s next turn',
+        ):
+            self.assertIn(snippet, text)
+
+    def test_local_xphb_record_matches_the_blocked_summary(self) -> None:
+        raw_spell = load_local_spell_record(SPELL_NAME)
+        self.assertEqual(raw_spell['time'][0]['unit'], '动作')
+        self.assertEqual(raw_spell['range']['distance']['amount'], 60)
+        self.assertTrue(raw_spell['duration'][0]['concentration'])
+        self.assertEqual(raw_spell['duration'][0]['duration']['amount'], 1)
+        self.assertIn('2d8', raw_spell['entries'][0])
+        self.assertIn('体质豁免', raw_spell['entries'][1])
+        self.assertIn('1d8', raw_spell['entriesHigherLevel'][0]['entries'][0])
+
+
+if __name__ == '__main__':
+    unittest.main()

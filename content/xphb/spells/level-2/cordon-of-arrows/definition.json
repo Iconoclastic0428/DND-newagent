@@ -1,0 +1,13 @@
+{
+  "source_id": "XPHB:spell:cordon-of-arrows",
+  "display_name": "Cordon of Arrows",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "armed-ward",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-ward-charge-primitive",
+  "exact_local_text": false,
+  "cast_syntax": "/cast player-1 cordon-of-arrows player-1",
+  "duration_seconds": 28800,
+  "notes": "Blocked: the runtime does not yet have an exact armed ward primitive that can track four planted arrows, trigger them on proximity or end-turn entry, and destroy spent arrows one by one."
+}

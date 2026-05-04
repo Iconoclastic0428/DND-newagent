@@ -1,0 +1,717 @@
+{
+  "script_id": "lmop-friendly-full-run",
+  "description": "Friendly Waterdeep briefing, story check, helpful public magic, downtime, travel, and successful goblin-ambush resolution.",
+  "consume_all_llm_payloads": true,
+  "llm_payloads": [
+    {
+      "public_narration": "Gundren softens a fraction when you approach him with patience and real curiosity.",
+      "transcript_entries": [
+        {
+          "speaker": "Gundren",
+          "text": "Phandalin matters, and I would rather not trumpet every reason in a taproom.",
+          "visibility": "public"
+        }
+      ],
+      "check_request": {
+        "actor_id": "player-1",
+        "ability": "WIS",
+        "skill_name": "Insight",
+        "dc": 12,
+        "prompt": "Make a Wisdom (Insight) check to read how much Gundren is still holding back.",
+        "reason": "Gauge Gundren's caution without pushing him away.",
+        "requires_sight": false,
+        "requires_hearing": true,
+        "interacting_with_actor_id": null
+      },
+      "scene_update": null,
+      "mode_switch_decision": null,
+      "memory_note": "Player 1 approached Gundren in a friendly way and looked for the truth behind his caution."
+    },
+    {
+      "public_narration": "You catch that Gundren is excited, not duplicitous; he is guarding a discovery, not setting a trap for you.",
+      "transcript_entries": [
+        {
+          "speaker": "DM",
+          "text": "His caution looks like protectiveness around news from Phandalin, not deceit aimed at the party.",
+          "visibility": "public"
+        }
+      ],
+      "check_request": null,
+      "scene_update": {
+        "summary": "The party reads Gundren as excited and protective rather than treacherous.",
+        "party_beliefs": [
+          "Gundren is hiding the scale of a discovery near Phandalin, not preparing a betrayal."
+        ],
+        "open_loops": [
+          "What exactly did Gundren and his brothers find?",
+          "Why is he so eager to get there first?"
+        ],
+        "party_goals": [
+          "Take the wagon north.",
+          "Keep Gundren's trust while learning more on the road."
+        ]
+      },
+      "mode_switch_decision": null,
+      "memory_note": "The party interpreted Gundren's secrecy as excitement and caution."
+    },
+    {
+      "public_narration": "Gundren notices the healing prayer, decides it is practical magic, and keeps the meeting moving.",
+      "witness_reactions": [
+        {
+          "witness_id": "gundren-rockseeker",
+          "reaction_category": "notices_but_ignores",
+          "summary": "Gundren reads the magic as harmless support.",
+          "public_text": "Useful trick. Save the rest of your strength for the road.",
+          "private_note": "He files it away but does not object."
+        }
+      ],
+      "scene_note": "Helpful public magic lands as useful rather than threatening here.",
+      "dm_note": "No escalation from the healing spell.",
+      "escalation": {
+        "recommended": false,
+        "reason": "",
+        "mode_switch_decision": null
+      }
+    }
+  ],
+  "steps": [
+    {
+      "type": "comment",
+      "label": "Character creation for all four players"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create begin"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose species aasimar"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose class wizard"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose class-skills Arcana History"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose background acolyte"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice class:wizard:cantrips fire-bolt mage-hand light"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice class:wizard:spells magic-missile shield detect-magic charm-person"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:ability WIS"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:cantrips guidance resistance"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create choose choice background:acolyte:origin-feat:magic-initiate-spellcasting:spell cure-wounds"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create ability generate point-buy 15 14 13 12 10 8"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create ability assign 8 14 13 15 12 10"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create background-asi choose acolyte-int2-wis1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create equipment background gold"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create equipment class package wizard-package-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/create confirm"
+    },
+    {
+      "type": "assert_view",
+      "controller_id": "player-1-controller",
+      "contains": [
+        "Runtime mode: storytelling",
+        "Current scene: scene-waterdeep-gundren-briefing"
+      ]
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "session",
+        "story_session",
+        "story_state",
+        "runtime_mode"
+      ],
+      "equals": "storytelling"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "I thank Gundren for meeting us openly and ask what he is still being careful not to say about Phandalin.",
+      "view_contains": [
+        "Story check pending: waiting on you.",
+        "Gundren softens a fraction when you approach him with patience and real curiosity."
+      ]
+    },
+    {
+      "type": "assert_prompt",
+      "controller_id": "player-1-controller",
+      "prompt_kind": "story-check",
+      "contains": [
+        "Wisdom (Insight)",
+        "DC: 12."
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/check",
+      "view_contains": [
+        "Recent check results:",
+        "vs DC 12",
+        "His caution looks like protectiveness around news from Phandalin, not deceit aimed at the party."
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/cast player-1 cure-wounds player-1",
+      "view_contains": [
+        "Gundren notices the healing prayer"
+      ]
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "session",
+        "story_session",
+        "story_state",
+        "social_state",
+        "location_reputations",
+        "waterdeep",
+        "respect"
+      ],
+      "gte": 1
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/downtime help",
+      "view_contains": [
+        "/downtime start <activity-id> [actor-id]",
+        "copy-wagon-ledger: Copy Gundren's Wagon Ledger"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/downtime start copy-wagon-ledger",
+      "view_contains": [
+        "Exploration mode: downtime",
+        "Downtime project started: Copy Gundren's Wagon Ledger."
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/downtime work copy-wagon-ledger:player-1 2",
+      "view_contains": [
+        "Recent check results:",
+        "Investigation",
+        "Barthen's Provisions as the delivery point in Phandalin."
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/march set player-1 player-2 player-3 player-4",
+      "view_contains": [
+        "Marching order: Player 1 (scout) -> Player 2 (front) -> Player 3 (center) -> Player 4 (rear)"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/watch set player-1 player-2 player-3 player-4",
+      "view_contains": [
+        "Watch order: shift 0: Player 1; shift 1: Player 2; shift 2: Player 3; shift 3: Player 4"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set navigator player-1",
+      "view_contains": [
+        "Roles: Navigator Player 1"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set scout player-1",
+      "view_contains": [
+        "Navigator Player 1; Scout Player 1"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/role set lookout player-2",
+      "view_contains": [
+        "Lookout Player 2"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel pace normal"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel route phandalin",
+      "view_contains": [
+        "Travel status: route-planned"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel advance 1",
+      "view_contains": [
+        "Current scene: scene-00-high-road-journey",
+        "Travel hex: (1,0)",
+        "Travel status: in-progress"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/travel advance 4",
+      "view_contains": [
+        "Current scene: scene-triboar-goblin-ambush",
+        "Travel status: interrupted",
+        "Travel interruption: The road ahead shows riderless horses, torn packs, and signs of an ambush on the Triboar Trail."
+      ]
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "session",
+        "story_session",
+        "story_state",
+        "travel_state",
+        "pending_hook",
+        "hook_id"
+      ],
+      "equals": "hook-ambush-candidate"
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/travel engage",
+      "view_contains": [
+        "Runtime mode: combat",
+        "Current scene: scene-triboar-goblin-ambush",
+        "Active actor: monster-goblin-1"
+      ]
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/endturn monster-goblin-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/endturn monster-goblin-2"
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/endturn monster-goblin-3"
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/endturn monster-goblin-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/cast player-1 magic-missile monster-goblin-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/endturn player-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/cast player-2 magic-missile monster-goblin-2"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/endturn player-2"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/cast player-3 magic-missile monster-goblin-3"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/endturn player-3"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/cast player-4 magic-missile monster-goblin-3"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-4-controller",
+      "input": "/endturn player-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "dm",
+      "input": "/endturn monster-goblin-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/cast player-1 fire-bolt monster-goblin-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-1-controller",
+      "input": "/endturn player-1"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/cast player-2 magic-missile monster-goblin-4"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-2-controller",
+      "input": "/endturn player-2"
+    },
+    {
+      "type": "command",
+      "controller_id": "player-3-controller",
+      "input": "/cast player-3 magic-missile monster-goblin-4"
+    },
+    {
+      "type": "assert_view",
+      "controller_id": "player-1-controller",
+      "contains": [
+        "Runtime mode: demo-complete",
+        "The party survived the goblin ambush."
+      ]
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "session",
+        "story_session",
+        "state",
+        "winning_side"
+      ],
+      "equals": "player"
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "transport",
+        "requests"
+      ],
+      "len_equals": 3
+    },
+    {
+      "type": "assert_value",
+      "path": [
+        "transport",
+        "payloads"
+      ],
+      "len_equals": 0
+    }
+  ]
+}

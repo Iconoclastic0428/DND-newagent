@@ -1,0 +1,16 @@
+{
+  "source_id": "XPHB:spell:blur",
+  "display_name": "Blur",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "self-defense-attack-modifier",
+  "runtime_status": "deterministic-capability",
+  "blocker_status": "none",
+  "exact_local_text": true,
+  "cast_syntax": "/cast player-1 blur",
+  "duration_seconds": 60,
+  "notes": "Exact XPHB Blur imposes disadvantage on attacks against the blurred target unless the attacker can rely on blindsight or truesight.",
+  "action_cost": "action",
+  "concentration": true,
+  "range_ft": 0
+}

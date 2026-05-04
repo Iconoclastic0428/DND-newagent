@@ -1,0 +1,8 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "builder_id": "story-spell-adjudication",
+  "mechanic_family": "story-mode-adjudicated-spell",
+  "test_refs": [
+    "tests.test_xphb_level1_content_pack"
+  ]
+}

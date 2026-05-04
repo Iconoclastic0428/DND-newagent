@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:paladin:weapon-mastery",
+  "display_name": "Weapon Mastery",
+  "class_id": "paladin",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/paladin/weapon-mastery",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "covered"
+}

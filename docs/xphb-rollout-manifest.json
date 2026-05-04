@@ -1,0 +1,2361 @@
+{
+  "manifest_id": "xphb-full-rollout-target-set",
+  "generated_from": "file:///D:/5etools-mirror-2.github.io/",
+  "generated_on": "2026-04-05",
+  "scope": {
+    "sources": [
+      "XPHB"
+    ],
+    "content_types": [
+      "weapon",
+      "ammunition",
+      "spell",
+      "class-feature"
+    ],
+    "spell_levels": [
+      0,
+      1
+    ],
+    "class_feature_scope": "base-class level-1"
+  },
+  "summary": {
+    "weapon_count": 38,
+    "ammunition_count": 5,
+    "cantrip_count": 34,
+    "spell_level_1_count": 64,
+    "class_feature_count": 40,
+    "implemented_now": {
+      "weapons": 0,
+      "spells": 8,
+      "class_features": 10
+    }
+  },
+  "entries": [
+    {
+      "entry_id": "weapon:battleaxe",
+      "entry_name": "Battleaxe",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "versatile"
+      ],
+      "masteries": [
+        "失衡|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:blowgun",
+      "entry_name": "Blowgun",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "loading"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": "针|xphb"
+    },
+    {
+      "entry_id": "weapon:club",
+      "entry_name": "Club",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "light"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:dagger",
+      "entry_name": "Dagger",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse",
+        "light",
+        "thrown"
+      ],
+      "masteries": [
+        "迅击|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:dart",
+      "entry_name": "Dart",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse",
+        "thrown"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:flail",
+      "entry_name": "Flail",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:glaive",
+      "entry_name": "Glaive",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "reach",
+        "two-handed"
+      ],
+      "masteries": [
+        "擦掠|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:greataxe",
+      "entry_name": "Greataxe",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "two-handed"
+      ],
+      "masteries": [
+        "横扫|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:greatclub",
+      "entry_name": "Greatclub",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "two-handed"
+      ],
+      "masteries": [
+        "推离|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:greatsword",
+      "entry_name": "Greatsword",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "two-handed"
+      ],
+      "masteries": [
+        "擦掠|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:halberd",
+      "entry_name": "Halberd",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "reach",
+        "two-handed"
+      ],
+      "masteries": [
+        "横扫|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:hand-crossbow",
+      "entry_name": "Hand Crossbow",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "light",
+        "loading"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": "弩矢|xphb"
+    },
+    {
+      "entry_id": "weapon:handaxe",
+      "entry_name": "Handaxe",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "light",
+        "thrown"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:heavy-crossbow",
+      "entry_name": "Heavy Crossbow",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "heavy",
+        "loading",
+        "two-handed"
+      ],
+      "masteries": [
+        "推离|XPHB"
+      ],
+      "ammunition_type": "弩矢|xphb"
+    },
+    {
+      "entry_id": "weapon:javelin",
+      "entry_name": "Javelin",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "thrown"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:lance",
+      "entry_name": "Lance",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "reach",
+        "two-handed"
+      ],
+      "masteries": [
+        "失衡|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:light-crossbow",
+      "entry_name": "Light Crossbow",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "loading",
+        "two-handed"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": "弩矢|xphb"
+    },
+    {
+      "entry_id": "weapon:light-hammer",
+      "entry_name": "Light Hammer",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "light",
+        "thrown"
+      ],
+      "masteries": [
+        "迅击|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:longbow",
+      "entry_name": "Longbow",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "heavy",
+        "two-handed"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": "箭|xphb"
+    },
+    {
+      "entry_id": "weapon:longsword",
+      "entry_name": "Longsword",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "versatile"
+      ],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:mace",
+      "entry_name": "Mace",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:maul",
+      "entry_name": "Maul",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "two-handed"
+      ],
+      "masteries": [
+        "失衡|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:morningstar",
+      "entry_name": "Morningstar",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:musket",
+      "entry_name": "Musket",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "loading",
+        "two-handed"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": "枪械子弹|xphb"
+    },
+    {
+      "entry_id": "weapon:pike",
+      "entry_name": "Pike",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "heavy",
+        "reach",
+        "two-handed"
+      ],
+      "masteries": [
+        "推离|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:pistol",
+      "entry_name": "Pistol",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "loading"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": "枪械子弹|xphb"
+    },
+    {
+      "entry_id": "weapon:quarterstaff",
+      "entry_name": "Quarterstaff",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "versatile"
+      ],
+      "masteries": [
+        "失衡|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:rapier",
+      "entry_name": "Rapier",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:scimitar",
+      "entry_name": "Scimitar",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse",
+        "light"
+      ],
+      "masteries": [
+        "迅击|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:shortbow",
+      "entry_name": "Shortbow",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition",
+        "two-handed"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": "箭|xphb"
+    },
+    {
+      "entry_id": "weapon:shortsword",
+      "entry_name": "Shortsword",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse",
+        "light"
+      ],
+      "masteries": [
+        "侵扰|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:sickle",
+      "entry_name": "Sickle",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "light"
+      ],
+      "masteries": [
+        "迅击|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:sling",
+      "entry_name": "Sling",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-ranged",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "ammunition"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": "投石索子弹|xphb"
+    },
+    {
+      "entry_id": "weapon:spear",
+      "entry_name": "Spear",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "simple-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "thrown",
+        "versatile"
+      ],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:trident",
+      "entry_name": "Trident",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "thrown",
+        "versatile"
+      ],
+      "masteries": [
+        "失衡|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:war-pick",
+      "entry_name": "War Pick",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "versatile"
+      ],
+      "masteries": [
+        "削弱|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:warhammer",
+      "entry_name": "Warhammer",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "versatile"
+      ],
+      "masteries": [
+        "推离|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "weapon:whip",
+      "entry_name": "Whip",
+      "source": "XPHB",
+      "content_type": "weapon",
+      "subtype": "martial-melee",
+      "mechanic_family": "weapon-attack",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-weapon-runtime-model",
+      "properties": [
+        "finesse",
+        "reach"
+      ],
+      "masteries": [
+        "缓速|XPHB"
+      ],
+      "ammunition_type": null
+    },
+    {
+      "entry_id": "ammunition:弩矢",
+      "entry_name": "弩矢",
+      "source": "XPHB",
+      "content_type": "ammunition",
+      "subtype": "mundane-ammunition",
+      "mechanic_family": "ammunition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-ammunition-ledger"
+    },
+    {
+      "entry_id": "ammunition:投石索子弹",
+      "entry_name": "投石索子弹",
+      "source": "XPHB",
+      "content_type": "ammunition",
+      "subtype": "mundane-ammunition",
+      "mechanic_family": "ammunition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-ammunition-ledger"
+    },
+    {
+      "entry_id": "ammunition:枪械子弹",
+      "entry_name": "枪械子弹",
+      "source": "XPHB",
+      "content_type": "ammunition",
+      "subtype": "mundane-ammunition",
+      "mechanic_family": "ammunition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-ammunition-ledger"
+    },
+    {
+      "entry_id": "ammunition:箭",
+      "entry_name": "箭",
+      "source": "XPHB",
+      "content_type": "ammunition",
+      "subtype": "mundane-ammunition",
+      "mechanic_family": "ammunition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-ammunition-ledger"
+    },
+    {
+      "entry_id": "ammunition:针",
+      "entry_name": "针",
+      "source": "XPHB",
+      "content_type": "ammunition",
+      "subtype": "mundane-ammunition",
+      "mechanic_family": "ammunition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "missing-ammunition-ledger"
+    },
+    {
+      "entry_id": "spell:acid-splash",
+      "entry_name": "Acid Splash",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:blade-ward",
+      "entry_name": "Blade Ward",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:chill-touch",
+      "entry_name": "Chill Touch",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:dancing-lights",
+      "entry_name": "Dancing Lights",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:druidcraft",
+      "entry_name": "Druidcraft",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:eldritch-blast",
+      "entry_name": "Eldritch Blast",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:elementalism",
+      "entry_name": "Elementalism",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:fire-bolt",
+      "entry_name": "Fire Bolt",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:friends",
+      "entry_name": "Friends",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:guidance",
+      "entry_name": "Guidance",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:light",
+      "entry_name": "Light",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:mage-hand",
+      "entry_name": "Mage Hand",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:mending",
+      "entry_name": "Mending",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:message",
+      "entry_name": "Message",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:mind-sliver",
+      "entry_name": "Mind Sliver",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:minor-illusion",
+      "entry_name": "Minor Illusion",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:poison-spray",
+      "entry_name": "Poison Spray",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:prestidigitation",
+      "entry_name": "Prestidigitation",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:produce-flame",
+      "entry_name": "Produce Flame",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:ray-of-frost",
+      "entry_name": "Ray of Frost",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:resistance",
+      "entry_name": "Resistance",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:sacred-flame",
+      "entry_name": "Sacred Flame",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:shillelagh",
+      "entry_name": "Shillelagh",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:shocking-grasp",
+      "entry_name": "Shocking Grasp",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:sorcerous-burst",
+      "entry_name": "Sorcerous Burst",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:spare-the-dying",
+      "entry_name": "Spare the Dying",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "stabilize",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:starry-wisp",
+      "entry_name": "Starry Wisp",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:thaumaturgy",
+      "entry_name": "Thaumaturgy",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "utility",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:thorn-whip",
+      "entry_name": "Thorn Whip",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:thunderclap",
+      "entry_name": "Thunderclap",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:toll-the-dead",
+      "entry_name": "Toll the Dead",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:true-strike",
+      "entry_name": "True Strike",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:vicious-mockery",
+      "entry_name": "Vicious Mockery",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:word-of-radiance",
+      "entry_name": "Word of Radiance",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "cantrip",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:alarm",
+      "entry_name": "Alarm",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:animal-friendship",
+      "entry_name": "Animal Friendship",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:armor-of-agathys",
+      "entry_name": "Armor of Agathys",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:arms-of-hadar",
+      "entry_name": "Arms of Hadar",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:bane",
+      "entry_name": "Bane",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:bless",
+      "entry_name": "Bless",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:burning-hands",
+      "entry_name": "Burning Hands",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:charm-person",
+      "entry_name": "Charm Person",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:chromatic-orb",
+      "entry_name": "Chromatic Orb",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:color-spray",
+      "entry_name": "Color Spray",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:command",
+      "entry_name": "Command",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:compelled-duel",
+      "entry_name": "Compelled Duel",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:comprehend-languages",
+      "entry_name": "Comprehend Languages",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:create-or-destroy-water",
+      "entry_name": "Create or Destroy Water",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:cure-wounds",
+      "entry_name": "Cure Wounds",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "healing",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:detect-evil-and-good",
+      "entry_name": "Detect Evil and Good",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:detect-magic",
+      "entry_name": "Detect Magic",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:detect-poison-and-disease",
+      "entry_name": "Detect Poison and Disease",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:disguise-self",
+      "entry_name": "Disguise Self",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:dissonant-whispers",
+      "entry_name": "Dissonant Whispers",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:divine-favor",
+      "entry_name": "Divine Favor",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:divine-smite",
+      "entry_name": "Divine Smite",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:ensnaring-strike",
+      "entry_name": "Ensnaring Strike",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:entangle",
+      "entry_name": "Entangle",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:expeditious-retreat",
+      "entry_name": "Expeditious Retreat",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:faerie-fire",
+      "entry_name": "Faerie Fire",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:false-life",
+      "entry_name": "False Life",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:feather-fall",
+      "entry_name": "Feather Fall",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:find-familiar",
+      "entry_name": "Find Familiar",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:fog-cloud",
+      "entry_name": "Fog Cloud",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:goodberry",
+      "entry_name": "Goodberry",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "healing",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:grease",
+      "entry_name": "Grease",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:guiding-bolt",
+      "entry_name": "Guiding Bolt",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:hail-of-thorns",
+      "entry_name": "Hail of Thorns",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:healing-word",
+      "entry_name": "Healing Word",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "healing",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:hellish-rebuke",
+      "entry_name": "Hellish Rebuke",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:heroism",
+      "entry_name": "Heroism",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:hex",
+      "entry_name": "Hex",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:hunters-mark",
+      "entry_name": "Hunter's Mark",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:ice-knife",
+      "entry_name": "Ice Knife",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:identify",
+      "entry_name": "Identify",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:illusory-script",
+      "entry_name": "Illusory Script",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:inflict-wounds",
+      "entry_name": "Inflict Wounds",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:jump",
+      "entry_name": "Jump",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:longstrider",
+      "entry_name": "Longstrider",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:mage-armor",
+      "entry_name": "Mage Armor",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:magic-missile",
+      "entry_name": "Magic Missile",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "damage",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:protection-from-evil-and-good",
+      "entry_name": "Protection from Evil and Good",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:purify-food-and-drink",
+      "entry_name": "Purify Food and Drink",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:ray-of-sickness",
+      "entry_name": "Ray of Sickness",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:sanctuary",
+      "entry_name": "Sanctuary",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:searing-smite",
+      "entry_name": "Searing Smite",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:shield",
+      "entry_name": "Shield",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:shield-of-faith",
+      "entry_name": "Shield of Faith",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:silent-image",
+      "entry_name": "Silent Image",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "concentration-effect",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:sleep",
+      "entry_name": "Sleep",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:speak-with-animals",
+      "entry_name": "Speak with Animals",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:tashas-hideous-laughter",
+      "entry_name": "Tasha's Hideous Laughter",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:tensers-floating-disk",
+      "entry_name": "Tenser's Floating Disk",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:thunderous-smite",
+      "entry_name": "Thunderous Smite",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:thunderwave",
+      "entry_name": "Thunderwave",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-damage",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "spell-capability",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "spell:unseen-servant",
+      "entry_name": "Unseen Servant",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "spell-other",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:witch-bolt",
+      "entry_name": "Witch Bolt",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "attack-roll",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "spell:wrathful-smite",
+      "entry_name": "Wrathful Smite",
+      "source": "XPHB",
+      "content_type": "spell",
+      "subtype": "spell-level-1",
+      "mechanic_family": "save-condition",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-mapped",
+      "blocker_status": "mapping-or-primitive-missing"
+    },
+    {
+      "entry_id": "class-feature:barbarian:rage",
+      "entry_name": "Rage",
+      "class_id": "barbarian",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "self-buff-resource",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:barbarian:unarmored-defense",
+      "entry_name": "Unarmored Defense",
+      "class_id": "barbarian",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "passive-defense",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:barbarian:weapon-mastery",
+      "entry_name": "Weapon Mastery",
+      "class_id": "barbarian",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "weapon-mastery-unlock",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:bard:bardic-inspiration",
+      "entry_name": "Bardic Inspiration",
+      "class_id": "bard",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "resource-buff",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:bard:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "bard",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:cleric:divine-order",
+      "entry_name": "Divine Order",
+      "class_id": "cleric",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:cleric:protector",
+      "entry_name": "Protector",
+      "class_id": "cleric",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice-option",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:cleric:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "cleric",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:cleric:thaumaturge",
+      "entry_name": "Thaumaturge",
+      "class_id": "cleric",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice-option",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:druid:druidic",
+      "entry_name": "Druidic",
+      "class_id": "druid",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "language-ribbon",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:druid:magician",
+      "entry_name": "Magician",
+      "class_id": "druid",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice-option",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:druid:primal-order",
+      "entry_name": "Primal Order",
+      "class_id": "druid",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:druid:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "druid",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:druid:warden",
+      "entry_name": "Warden",
+      "class_id": "druid",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "class-choice-option",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:fighter:fighting-style",
+      "entry_name": "Fighting Style",
+      "class_id": "fighter",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "combat-style-choice",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:fighter:second-wind",
+      "entry_name": "Second Wind",
+      "class_id": "fighter",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "self-heal-resource",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:fighter:weapon-mastery",
+      "entry_name": "Weapon Mastery",
+      "class_id": "fighter",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "weapon-mastery-unlock",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:monk:bonus-unarmed-strike",
+      "entry_name": "Bonus Unarmed Strike",
+      "class_id": "monk",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "martial-subfeature",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:monk:dexterous-attacks",
+      "entry_name": "Dexterous Attacks",
+      "class_id": "monk",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "martial-subfeature",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:monk:martial-arts",
+      "entry_name": "Martial Arts",
+      "class_id": "monk",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "martial-combat-core",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:monk:martial-arts-die",
+      "entry_name": "Martial Arts Die",
+      "class_id": "monk",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "martial-subfeature",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:monk:unarmored-defense",
+      "entry_name": "Unarmored Defense",
+      "class_id": "monk",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "passive-defense",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:paladin:lay-on-hands",
+      "entry_name": "Lay on Hands",
+      "class_id": "paladin",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "healing-resource",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:paladin:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "paladin",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:paladin:weapon-mastery",
+      "entry_name": "Weapon Mastery",
+      "class_id": "paladin",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "weapon-mastery-unlock",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:ranger:favored-enemy",
+      "entry_name": "Favored Enemy",
+      "class_id": "ranger",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "marking-feature",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:ranger:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "ranger",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:ranger:weapon-mastery",
+      "entry_name": "Weapon Mastery",
+      "class_id": "ranger",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "weapon-mastery-unlock",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:rogue:expertise",
+      "entry_name": "Expertise",
+      "class_id": "rogue",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "skill-modifier",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:rogue:sneak-attack",
+      "entry_name": "Sneak Attack",
+      "class_id": "rogue",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "extra-damage-rider",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:rogue:thieves-cant",
+      "entry_name": "Thieves' Cant",
+      "class_id": "rogue",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "language-ribbon",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:rogue:weapon-mastery",
+      "entry_name": "Weapon Mastery",
+      "class_id": "rogue",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "weapon-mastery-unlock",
+      "implementation_status": "implemented",
+      "runtime_execution_path": "runtime-capability-or-passive",
+      "blocker_status": null
+    },
+    {
+      "entry_id": "class-feature:sorcerer:innate-sorcery",
+      "entry_name": "Innate Sorcery",
+      "class_id": "sorcerer",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "self-buff-resource",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:sorcerer:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "sorcerer",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:warlock:eldritch-invocation-options",
+      "entry_name": "Eldritch Invocation Options",
+      "class_id": "warlock",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "invocation-choice-option-set",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:warlock:eldritch-invocations",
+      "entry_name": "Eldritch Invocations",
+      "class_id": "warlock",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "invocation-choice",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:warlock:pact-magic",
+      "entry_name": "Pact Magic",
+      "class_id": "warlock",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:wizard:arcane-recovery",
+      "entry_name": "Arcane Recovery",
+      "class_id": "wizard",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "slot-recovery",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:wizard:ritual-adept",
+      "entry_name": "Ritual Adept",
+      "class_id": "wizard",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "ritual-casting",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    },
+    {
+      "entry_id": "class-feature:wizard:spellcasting",
+      "entry_name": "Spellcasting",
+      "class_id": "wizard",
+      "source": "XPHB",
+      "content_type": "class-feature",
+      "subtype": "base-class-level-1",
+      "mechanic_family": "spellcasting-setup",
+      "implementation_status": "pending",
+      "runtime_execution_path": "not-yet-modeled",
+      "blocker_status": "feature-runtime-gap"
+    }
+  ]
+}

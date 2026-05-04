@@ -1,0 +1,12 @@
+{
+  "content_id": "class-feature:sorcerer:innate-sorcery",
+  "display_name": "Innate Sorcery",
+  "class_id": "sorcerer",
+  "source_id": "XPHB",
+  "category": "class-feature",
+  "implementation_path": "content/xphb/class-features/sorcerer/innate-sorcery",
+  "runtime_status": "feature-runtime",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

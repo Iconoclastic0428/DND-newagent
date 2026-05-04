@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:enhance-ability",
+  "display_name": "Enhance Ability",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "ability-check-buff",
+  "runtime_status": "implemented",
+  "blocker_status": "none",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/enhance-ability/tests/test_enhance_ability.py"
+}

@@ -1,0 +1,7 @@
+{
+  "runtime_support_mode": "deterministic-capability",
+  "mechanic_family": "deterministic-capability",
+  "test_refs": [
+    "tests.test_starter_content_pack"
+  ]
+}

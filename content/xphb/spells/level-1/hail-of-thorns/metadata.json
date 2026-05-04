@@ -1,0 +1,12 @@
+{
+  "content_id": "spell:hail-of-thorns",
+  "display_name": "Hail of Thorns",
+  "source_id": "XPHB",
+  "category": "spell",
+  "level": 1,
+  "implementation_path": "content/xphb/spells/level-1/hail-of-thorns",
+  "runtime_status": "story-adjudicated",
+  "test_status": "covered",
+  "blocker_status": "mechanical-runtime-missing",
+  "option_coverage_status": "not-applicable"
+}

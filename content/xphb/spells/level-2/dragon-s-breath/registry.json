@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:dragon-s-breath",
+  "display_name": "Dragon's Breath",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "granted-action-breath-attack",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "content/xphb/spells/level-2/dragon-s-breath/tests/test_dragon_s_breath.py"
+}

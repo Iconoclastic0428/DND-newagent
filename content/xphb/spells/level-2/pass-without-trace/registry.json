@@ -1,0 +1,11 @@
+{
+  "source_id": "XPHB:spell:pass-without-trace",
+  "display_name": "Pass without Trace",
+  "category": "spell",
+  "level": 2,
+  "implementation_family": "party-aura-stealth",
+  "runtime_status": "blocked",
+  "blocker_status": "needs-runtime-mechanic",
+  "executor": "executor.py",
+  "test_path": "tests/test_pass_without_trace.py"
+}

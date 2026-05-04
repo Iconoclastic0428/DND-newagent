@@ -1,0 +1,12 @@
+{
+  "content_id": "cantrip:eldritch-blast",
+  "display_name": "Eldritch Blast",
+  "source_id": "XPHB",
+  "category": "cantrip",
+  "level": 0,
+  "implementation_path": "content/xphb/cantrips/eldritch-blast",
+  "runtime_status": "deterministic-capability",
+  "test_status": "covered",
+  "blocker_status": "none",
+  "option_coverage_status": "not-applicable"
+}

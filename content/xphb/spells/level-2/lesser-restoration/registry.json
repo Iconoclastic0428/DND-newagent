@@ -1,0 +1,8 @@
+{
+    "runtime_support_mode":  "deterministic-capability",
+    "builder_id":  "tier2-item-local-executor",
+    "mechanic_family":  "touch-condition-removal",
+    "test_refs":  [
+                      "content/xphb/spells/level-2/lesser-restoration/tests/test_lesser_restoration.py"
+                  ]
+}

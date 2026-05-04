@@ -1,0 +1,49 @@
+{
+  "campaign_id": "lmop",
+  "profiles": [
+    {
+      "npc_id": "gundren-rockseeker",
+      "display_name": "Gundren Rockseeker",
+      "monster_record_id": "noble-xmm",
+      "preferred_archetype": "noble_merchant_civilian",
+      "default_goal": "flee",
+      "protector_npc_ids": [
+        "sildar-hallwinter"
+      ],
+      "faction_tags": [
+        "rockseeker",
+        "civilian",
+        "employer"
+      ],
+      "current_stance_hint": "Protective of the contract and quick to get clear of real violence."
+    },
+    {
+      "npc_id": "sildar-hallwinter",
+      "display_name": "Sildar Hallwinter",
+      "monster_record_id": "veteran",
+      "preferred_archetype": "veteran_bodyguard",
+      "default_goal": "protect",
+      "protector_npc_ids": [],
+      "faction_tags": [
+        "lords-alliance",
+        "authority",
+        "escort"
+      ],
+      "current_stance_hint": "Interposes himself to protect Gundren and regain control of the room."
+    },
+    {
+      "npc_id": "waterdeep-watch",
+      "display_name": "Waterdeep Watch",
+      "monster_record_id": "guard-xmm",
+      "preferred_archetype": "guard_watchman",
+      "default_goal": "arrest",
+      "protector_npc_ids": [],
+      "faction_tags": [
+        "watch",
+        "authority",
+        "reinforcement"
+      ],
+      "current_stance_hint": "Move to arrest or contain the brawl, not to kill unless forced."
+    }
+  ]
+}
