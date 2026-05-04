@@ -15,8 +15,8 @@
 - [x] Tighten `.gitignore` for common local secret, cache, virtualenv, editor, and generated-log files.
 - [x] Initialize Git and configure the GitHub remote if the repository is still uninitialized.
 - [x] Scan candidate tracked files for likely credentials before staging.
-- [ ] Stage, review status, create the initial commit, and push to `origin`.
-- [ ] Record verification results here and append a request summary to `tasks/SUMMARIES.md`.
+- [x] Stage, review status, create the initial commit, and push to `origin`.
+- [x] Record verification results here and append a request summary to `tasks/SUMMARIES.md`.
 
 ### Verification Plan
 - `git status --short --branch`
@@ -26,7 +26,12 @@
 - `git remote -v`
 
 ### Review
-- Pending implementation.
+- Initialized Git on `main`, configured `origin` as `https://github.com/Iconoclastic0428/DND-newagent`, and created the initial source commit `0af9722`.
+- Tightened `.gitignore` before the first commit so `.env`, `.env.*`, `*.env` except `.env.example`, caches, virtualenvs, frontend dependency/build output, logs, scratch dirs, root `tmp_*.txt` command files, and IDE/OS files are ignored.
+- Verified ignored behavior with `git check-ignore -v .env .tmp-friendly.env .tmp-unfriendly.env tmp_dm_commands.txt tmp_player_illegal_commands.txt tmp_dm.log tmp_system.out .idea`.
+- Scanned Git-visible and staged files for credential-like paths and high-risk token signatures; no staged env files, private key paths, logs, cache dirs, dependency folders, or high-risk token signatures were found. Broad keyword hits were reviewed as placeholders, config field names, test literals, or non-secret D&D/UI text.
+- The first push initially failed because Windows Git was authenticated as `shl142`, which did not have repository write permission. Git Credential Manager was updated through its normal GitHub login flow, confirmed `Iconoclastic0428` was available, and `git -c safe.directory=D:/DND-newagent push -u origin main` then pushed `main` successfully.
+- No code tests were run for this request because the only implementation changes were Git repository initialization, ignore-file hardening, and task documentation.
 
 ## 2026-04-17 - Live Four-Subagent Test Run And Transcript Logging
 
