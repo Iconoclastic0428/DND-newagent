@@ -15,3 +15,9 @@ Local XPHB notes:
 Test coverage: [tests/xphb_level1_spells/illusory_script/test_illusory_script.py](../../../../../tests/xphb_level1_spells/illusory_script/test_illusory_script.py)
 
 Use cases and exact local text notes live in [docs/xphb-level1-spell-use-cases.md](../../../../../docs/xphb-level1-spell-use-cases.md).
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> illusory-script --readers <comma-separated actor ids> --description <requested use>`
+- Support: story-mode spell command. The runtime records the typed cast and validates/adjudicates the declared effect through the story spell path.

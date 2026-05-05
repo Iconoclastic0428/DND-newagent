@@ -1,6 +1,6 @@
 {
   "script_id": "lmop-friendly-live-web-run",
-  "description": "Drive the browser LMOP demo through character creation, a friendly live story declaration, travel, and the goblin ambush using the running server's real DM runtime.",
+  "description": "Drive the browser LMOP demo through character creation, a friendly live story declaration, travel, and the goblin ambush using the running server's real DM runtime. Start the browser server with --start-in-character-creation for this legacy setup script.",
   "result_controller_id": "player-1-controller",
   "steps": [
     {

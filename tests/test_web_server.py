@@ -197,7 +197,7 @@ class SessionWebServerTests(unittest.TestCase):
             dm_runtime=None,
         )
 
-    def _build_full_story_demo_session(self):
+    def _build_full_story_demo_session(self, *, precreate_characters: bool = False):
         temp_root = REPO_ROOT / '.web-server-demo-tests' / uuid4().hex
         temp_root.mkdir(parents=True, exist_ok=False)
         self._temp_dirs.append(temp_root)
@@ -208,7 +208,11 @@ class SessionWebServerTests(unittest.TestCase):
             'OPENAI_RESPONSES_MODEL=test-model\n',
             encoding='utf-8',
         )
-        return build_full_story_demo_manual_session(base_url=LOCAL_MIRROR_BASE_URL, env_path=env_path)
+        return build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=env_path,
+            precreate_characters=precreate_characters,
+        )
 
 
     def _timing_order_prompt(self, *, controller_id: str = 'player-1-controller', label: str = 'Player 1', actor_id: str = 'player-1') -> ControllerPrompt:
@@ -519,6 +523,27 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertEqual(begin_choice['command_insert_text'], '/create begin')
         self.assertEqual(dm_view['action_groups'], [])
 
+
+    def test_precreated_full_story_demo_wrapper_projects_storytelling_to_browser(self) -> None:
+        session = self._build_full_story_demo_session(precreate_characters=True)
+        server = self._start_server(session, session_id='lmop-web-demo')
+
+        player_ws, _joined, player_view_message, prompt = self._connect_and_join(server, 'player-1-controller')
+        dm_ws, _dm_joined, dm_view_message, _ = self._connect_and_join(server, 'dm')
+        self.addCleanup(player_ws.close)
+        self.addCleanup(dm_ws.close)
+
+        self.assertIsNone(prompt)
+        player_view = player_view_message['view']
+        dm_view = dm_view_message['view']
+        self.assertEqual(player_view['runtime_mode'], 'storytelling')
+        self.assertEqual(dm_view['runtime_mode'], 'storytelling')
+        self.assertEqual(player_view['current_scene_id'], 'scene-waterdeep-gundren-briefing')
+        self.assertIsNotNone(player_view['travel'])
+        self.assertEqual(len(player_view['character_cards']), 1)
+        self.assertEqual(player_view['character_cards'][0]['actor_id'], 'player-1')
+        self.assertEqual({card['actor_id'] for card in dm_view['character_cards']}, {'player-1', 'player-2', 'player-3', 'player-4'})
+        self.assertFalse(any(group['group_id'] == 'create-flow' for group in player_view['action_groups']))
 
 
     def test_character_creation_action_groups_include_full_create_command_helpers(self) -> None:

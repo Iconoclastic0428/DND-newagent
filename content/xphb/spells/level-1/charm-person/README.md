@@ -14,3 +14,9 @@ Local XPHB notes:
 Test coverage: [tests/xphb_level1_spells/charm_person/test_charm_person.py](../../../../../tests/xphb_level1_spells/charm_person/test_charm_person.py)
 
 Use cases and exact local text notes live in [docs/xphb-level1-spell-use-cases.md](../../../../../docs/xphb-level1-spell-use-cases.md).
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> charm-person <target-id> --description <requested use>`
+- Support: story-mode spell command. The runtime records the typed cast and validates/adjudicates the declared effect through the story spell path.

@@ -72,7 +72,31 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertEqual(config.api_key, 'test-key')
         self.assertEqual(config.base_url, 'https://example.invalid/v1')
         self.assertEqual(config.responses_model, 'test-model')
+        self.assertEqual(config.api_format, 'responses')
         self.assertNotIn('test-key', repr(config))
+
+    def test_config_loads_explicit_chat_completions_format(self) -> None:
+        root = Path.cwd() / '_dm_runtime_test_artifacts'
+        root.mkdir(exist_ok=True)
+        env_path = root / '.env'
+        try:
+            env_path.write_text(
+                '\n'.join(
+                    [
+                        'OPENAI_API_KEY=test-key',
+                        'OPENAI_BASE_URL=https://api.deepseek.com',
+                        'OPENAI_RESPONSES_MODEL=deepseek-v4-pro',
+                        'OPENAI_API_FORMAT=chat_completions',
+                    ]
+                ),
+                encoding='utf-8',
+            )
+            config = load_llm_config(env_path=env_path)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+        self.assertEqual(config.base_url, 'https://api.deepseek.com')
+        self.assertEqual(config.responses_model, 'deepseek-v4-pro')
+        self.assertEqual(config.api_format, 'chat_completions')
 
     def test_config_validation_rejects_missing_values(self) -> None:
         with self.assertRaises(LLMConfigError):
@@ -81,6 +105,8 @@ class DMRuntimeTests(unittest.TestCase):
             LLMConfig(api_key='x', base_url='not-a-url', responses_model='model')
         with self.assertRaises(LLMConfigError):
             LLMConfig(api_key='x', base_url='https://example.invalid/v1', responses_model='')
+        with self.assertRaises(LLMConfigError):
+            LLMConfig(api_key='x', base_url='https://example.invalid/v1', responses_model='model', api_format='bad-format')
 
     def test_env_example_placeholder_validation(self) -> None:
         root = Path.cwd() / '_dm_runtime_test_artifacts'
@@ -129,6 +155,91 @@ class DMRuntimeTests(unittest.TestCase):
                 ]
             },
         )
+        self.assertEqual(response.output_text, '{"ok": true}')
+
+    def test_chat_completions_mode_uses_chat_endpoint_and_payload(self) -> None:
+        transport = FakeTransport({'choices': [{'message': {'role': 'assistant', 'content': '{"ok": true}'}}]})
+        client = LLMClient(
+            LLMConfig(
+                api_key='k',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            transport=transport,
+        )
+        request = client.build_request(
+            instructions='Return JSON.',
+            input_messages=({'role': 'user', 'content': [{'type': 'input_text', 'text': 'ping'}]},),
+            metadata={'request_type': 'live_check'},
+            response_format={'type': 'json_object'},
+            max_output_tokens=64,
+        )
+        response = client.create_response(request)
+        recorded = transport.requests[0]
+        self.assertEqual(recorded['url'], 'https://api.deepseek.com/chat/completions')
+        self.assertEqual(recorded['payload']['model'], 'deepseek-v4-pro')
+        self.assertEqual(recorded['payload']['messages'][0]['role'], 'system')
+        self.assertTrue(recorded['payload']['messages'][0]['content'].startswith('Return JSON.'))
+        self.assertIn('DeepSeek JSON final-output contract', recorded['payload']['messages'][0]['content'])
+        self.assertIn('reviewed by a separate GPT verifier', recorded['payload']['messages'][0]['content'])
+        self.assertIn('Do not emit markdown fences, backticks, prose', recorded['payload']['messages'][0]['content'])
+        self.assertEqual(recorded['payload']['messages'][1], {'role': 'user', 'content': 'ping'})
+        self.assertEqual(recorded['payload']['max_tokens'], 64)
+        self.assertEqual(recorded['payload']['thinking'], {'type': 'enabled'})
+        self.assertEqual(recorded['payload']['reasoning_effort'], 'high')
+        self.assertEqual(recorded['payload']['response_format'], {'type': 'json_object'})
+        self.assertNotIn('metadata', recorded['payload'])
+        self.assertEqual(response.output_text, '{"ok": true}')
+
+    def test_chat_completions_non_json_request_does_not_add_json_hardening(self) -> None:
+        transport = FakeTransport({'choices': [{'message': {'role': 'assistant', 'content': 'ok'}}]})
+        client = LLMClient(
+            LLMConfig(
+                api_key='k',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            transport=transport,
+        )
+        request = client.build_request(
+            instructions='Answer plainly.',
+            input_messages=({'role': 'user', 'content': [{'type': 'input_text', 'text': 'ping'}]},),
+            max_output_tokens=64,
+        )
+        client.create_response(request)
+        recorded = transport.requests[0]
+        self.assertEqual(recorded['payload']['messages'][0], {'role': 'system', 'content': 'Answer plainly.'})
+        self.assertNotIn('thinking', recorded['payload'])
+        self.assertNotIn('reasoning_effort', recorded['payload'])
+
+    def test_chat_completions_stream_accumulates_output_and_reasoning(self) -> None:
+        transport = FakeTransport(
+            {'unused': True},
+            stream_events=[
+                {'choices': [{'delta': {'reasoning_content': 'Thinking.'}}]},
+                {'choices': [{'delta': {'content': '{"ok"'}}]},
+                {'choices': [{'delta': {'content': ': true}'}}]},
+            ],
+        )
+        client = LLMClient(
+            LLMConfig(
+                api_key='k',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            transport=transport,
+        )
+        request = client.build_request(
+            instructions='json',
+            input_messages=({'role': 'user', 'content': [{'type': 'input_text', 'text': 'hi'}]},),
+            response_format={'type': 'json_object'},
+        )
+        events = []
+        response = client.create_response(request, stream_handler=events.append)
+        self.assertEqual([event.kind for event in events], ['reasoning', 'output', 'output'])
         self.assertEqual(response.output_text, '{"ok": true}')
 
     def test_streamed_response_emits_reasoning_and_returns_final_payload(self) -> None:
@@ -260,6 +371,8 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertIn('public_narration', retry_payload['instructions'])
         self.assertIn('The first non-whitespace character of your reply must be `{`', retry_payload['instructions'])
         self.assertIn('Do not emit ```json, ```JSON, or ``` anywhere in the reply.', retry_payload['instructions'])
+        self.assertIn('reviewed by a separate GPT verifier', retry_payload['instructions'])
+        self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', retry_payload['instructions'])
 
 
     def test_story_turn_prompt_explicitly_requires_bare_json_object(self) -> None:
@@ -285,8 +398,10 @@ class DMRuntimeTests(unittest.TestCase):
             actors_with_resolved_scene_checks=(),
         )
         self.assertIn('The first non-whitespace character of your reply must be `{`', payload['instructions'])
-        self.assertIn('Do not emit ```json, ```JSON, or ``` anywhere in the reply.', payload['instructions'])
+        self.assertIn('do not emit ```json, ```json, or ``` anywhere in the reply.', payload['instructions'].lower())
         self.assertIn('Return exactly one JSON object and nothing else.', payload['instructions'])
+        self.assertIn('reviewed by a separate GPT verifier', payload['instructions'])
+        self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', payload['instructions'])
 
     def test_adjudication_prompt_explicitly_requires_bare_json_object(self) -> None:
         planner = DMAdjudicationPlanner(
@@ -315,8 +430,10 @@ class DMRuntimeTests(unittest.TestCase):
         )
         payload = planner._build_prompt(context, ())
         self.assertIn('The first non-whitespace character of your reply must be `{`', payload['instructions'])
-        self.assertIn('Do not emit ```json, ```JSON, or ``` anywhere in the reply.', payload['instructions'])
+        self.assertIn('do not emit ```json, ```json, or ``` anywhere in the reply.', payload['instructions'].lower())
         self.assertIn('Return exactly one JSON object and nothing else.', payload['instructions'])
+        self.assertIn('reviewed by a separate GPT verifier', payload['instructions'])
+        self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', payload['instructions'])
 
     def test_story_turn_retries_after_schema_validation_error(self) -> None:
         transport = FakeTransport(

@@ -1,3 +1,185 @@
+## 2026-05-05 - DeepSeek JSON Output Hardening
+
+### Scope
+- Harden DeepSeek JSON-only requests so the final assistant content is much less likely to include markdown wrappers, prose, hidden-thinking tags, comments, or non-JSON tokens.
+- Keep the change at the LLM boundary and shared JSON contract rather than duplicating wording inside every DM prompt builder.
+- Preserve fail-closed behavior: invalid JSON should still retry through the existing deterministic parser/validation loop instead of being silently cleaned up.
+- Verify with focused unit tests and at least one live DeepSeek JSON request that does not include repo campaign content.
+
+### Design Direction
+- Strengthen `dm_agent/json_contract.py` so runtime/adjudication prompts tell the model to think internally, self-check strict JSON validity, avoid wrapper tokens, and expect parser/GPT-style review.
+- Add DeepSeek chat-completions hardening in `dm_agent/client.py` whenever `response_format={"type":"json_object"}` is requested, because not every caller necessarily uses the DM JSON contract helper.
+- For DeepSeek V4 models, request `thinking={"type":"enabled"}` and `reasoning_effort="high"` on JSON requests, matching DeepSeek's official chat API shape.
+
+### Steps
+- [x] Update shared JSON-only and retry contracts.
+- [x] Add DeepSeek chat JSON hardening and reasoning parameters in the client payload.
+- [x] Extend focused tests for prompt text and DeepSeek chat-completions payloads.
+- [x] Run compile/unit verification.
+- [x] Run a live minimal DeepSeek JSON request through the configured `.env`.
+- [x] Record review notes and append the request summary.
+
+### Verification Plan
+- `python -m py_compile dm_agent\json_contract.py dm_agent\client.py tests\test_dm_runtime.py`
+- `python -m unittest tests.test_dm_runtime -v`
+- Live DeepSeek request using a minimal synthetic prompt, expecting parseable bare JSON with no wrapper/prose.
+
+### Review
+- Strengthened the shared JSON-only contract in `dm_agent/json_contract.py` so every DM runtime/adjudication JSON prompt now explicitly requires internal careful checking, deterministic parser/GPT-verifier review, no wrapper keys, and no non-JSON token classes such as markdown fences, `<think>` blocks, YAML/comments, BOM/zero-width characters, Python literals, NaN/Infinity, single quotes, control characters, or trailing commas.
+- Added client-level DeepSeek JSON hardening in `dm_agent/client.py` for chat-completions requests with `response_format={"type":"json_object"}`. This protects callers that request JSON but do not use the shared prompt helper.
+- DeepSeek V4 JSON requests now include `thinking={"type":"enabled"}` and `reasoning_effort="high"` while still keeping the final assistant content as bare JSON only.
+- Kept invalid-output handling fail-closed: no wrapper stripping or JSON repair was added. Bad JSON still goes through the existing deterministic parser error and bounded retry loop.
+- Verification:
+  - `python -m py_compile dm_agent\json_contract.py dm_agent\client.py tests\test_dm_runtime.py` passed.
+  - `python -m unittest tests.test_dm_runtime -v` passed 26 tests.
+  - Live minimal DeepSeek request through `.env` parsed successfully as bare JSON and reported first character `{`, last character `}`, keys `invalid_token_count`, `model`, `ok`, `provider`, `wrapper_free`, `wrapper_free=true`, and `invalid_token_count=0`.
+
+## 2026-05-05 - DeepSeek V4 LLM Config
+
+### Scope
+- Update the local `.env` LLM endpoint/model from the old NRP endpoint to DeepSeek V4.
+- Preserve the secret key without printing it.
+- Align the repo's LLM client with DeepSeek's official Chat Completions API shape.
+- Prove the configured LLM works with a real request before declaring done.
+
+### Design Direction
+- Official DeepSeek docs list OpenAI-format `base_url` as `https://api.deepseek.com`.
+- DeepSeek V4 is selected by model name, with `deepseek-v4-pro` and `deepseek-v4-flash` currently available.
+- DeepSeek's OpenAI-compatible invocation uses `/chat/completions`, while the existing repo client defaults to `/responses`; add an explicit `OPENAI_API_FORMAT=chat_completions` mode rather than guessing.
+
+### Steps
+- [x] Record DeepSeek V4 config plan.
+- [x] Add explicit chat-completions client mode.
+- [x] Update `.env` DeepSeek endpoint/model fields.
+- [x] Run focused unit tests for config/client behavior.
+- [x] Run one live DeepSeek request using the configured `.env`.
+- [x] Record verification and append request summary.
+
+### Verification Plan
+- `python -m unittest tests.test_dm_runtime -v`
+- Live request through `dm_agent` config/client using `.env`, expecting valid JSON response from `deepseek-v4-pro`.
+
+### Review
+- `.env` now points at DeepSeek's OpenAI-compatible base URL with `OPENAI_BASE_URL=https://api.deepseek.com`, `OPENAI_RESPONSES_MODEL=deepseek-v4-pro`, and `OPENAI_API_FORMAT=chat_completions`. The API key was preserved and never printed.
+- Added explicit Chat Completions support to the DM LLM client instead of routing DeepSeek through the existing Responses endpoint. The client now posts DeepSeek requests to `/chat/completions`, converts system/input payloads into chat `messages`, maps `max_output_tokens` to `max_tokens`, and supports streamed `reasoning_content` plus output deltas.
+- Extended config validation/tests so the default remains `responses`, while DeepSeek can opt into `chat_completions` through `.env`.
+- Verification:
+  - `python -m py_compile dm_agent\config.py dm_agent\client.py tests\test_dm_runtime.py` passed.
+  - `python -m unittest tests.test_dm_runtime -v` passed 25 tests.
+  - Live DeepSeek smoke request through the configured `.env` returned valid JSON from `deepseek-v4-pro`: `{"ok":true,"provider":"deepseek","model":"deepseek-v4-pro"}`.
+- Note: a broader live DM-runtime request using campaign context was not sent because the escalation policy rejected transmitting repo campaign data to the external DeepSeek API. The local parser/runtime path remains covered by the passing `tests.test_dm_runtime` suite.
+
+## 2026-05-05 - Five-Subagent Character Creation Run
+
+### Scope
+- Spawn four player subagents and one DM observer subagent for a character-creation smoke run.
+- Use the authoritative full-story demo wrapper in character-creation mode, not the precreated browser default.
+- Replay player-created `/create ...` commands through the real session so validation still belongs to the character-creation/rules path.
+- Write a durable log summary under `user-test/full-story-demo/logs/` for review.
+
+### Design Direction
+- Subagents can propose player/DM behavior, but the main process will execute commands through `FullStoryDemoManualSession` so the session remains authoritative.
+- Keep this as a user-test run artifact, not a reusable runtime subsystem.
+- If a proposed command sequence fails, record the validation failure and rerun only a corrected exact sequence rather than adding fallback runtime logic.
+
+### Steps
+- [x] Record subagent character-creation run plan.
+- [x] Spawn four player agents and one DM observer.
+- [x] Replay proposed creation commands through authoritative session.
+- [x] Write log summary file.
+- [x] Verify the log file exists and update the request summary.
+
+### Verification Plan
+- Run an authoritative replay script or inline harness against `build_full_story_demo_manual_session(..., precreate_characters=False)`.
+- Confirm all four controllers produce confirmed records and the wrapper hands off to `storytelling`.
+- Inspect the generated log summary file.
+
+### Review
+- Spawned five subagents:
+  - Player 1: Banach, `019dfa5f-bf5b-77c2-b4ce-d8402e1491f9`
+  - Player 2: Carson, `019dfa5f-d36e-7a52-800e-851713dfaa71`
+  - Player 3: Chandrasekhar, `019dfa5f-e77a-76d3-9f33-10cf778e5e63`
+  - Player 4: Dewey, `019dfa5f-fbcc-7842-a2f2-ddc977533571`
+  - DM observer: Arendt, `019dfa60-0fee-7202-8b51-be79660d3ee3`
+- All four player agents chose the proven default Aasimar Wizard Acolyte command sequence rather than inventing unverified choices.
+- Replayed all 64 player `/create` commands through `build_full_story_demo_manual_session(..., precreate_characters=False)`.
+- Confirmed the DM observer boundary: `/create begin` from `dm` returned the expected permission error instead of mutating player state.
+- Result: PASS. Four confirmed records were created with unique ids `level-1-character-p1` through `level-1-character-p4`, and the wrapper transitioned into `storytelling` at `scene-waterdeep-gundren-briefing`.
+- Log summary written to `user-test/full-story-demo/logs/2026-05-05-five-subagent-character-creation.md`.
+
+## 2026-05-05 - Precreate Browser Demo Party
+
+### Scope
+- Find the existing default character command sequence and reuse it for the browser full-story demo.
+- Make the browser launch start with all four player characters already confirmed.
+- Preserve the existing manual character-creation wrapper path unless explicitly opted into precreation.
+- Keep the change in the user-test/browser demo bootstrap layer, not in the generic rules engine or DM runtime.
+
+### Design Direction
+- `session_server/bootstrap.py::build_default_character_record` is the source of the pre-created character command sequence.
+- Add an explicit `precreate_characters` option to `FullStoryDemoManualSession` so the browser server can start story mode immediately while tests/manual paths can still exercise character creation.
+- Reuse the existing story-session construction from confirmed records so controller ownership, event authority, and DM-vs-rules boundaries stay unchanged.
+
+### Steps
+- [x] Review lessons and locate the browser/manual full-story demo bootstrap path.
+- [x] Add precreated-party support to the full-story wrapper using the existing default character builder.
+- [x] Switch `user-test/web_story_demo_server.py` to start with precreated characters.
+- [x] Update tests/docs/scripts that assume the browser server starts in `character-creation`.
+- [x] Run focused compile/unit verification and record results here.
+
+### Verification Plan
+- `python -m py_compile user-test\story_demo_system_server.py user-test\web_story_demo_server.py tests\test_full_story_demo_session.py tests\test_web_server.py`
+- `python -m unittest tests.test_full_story_demo_session -v`
+- `python -m unittest tests.test_web_server -v`
+
+### Review
+- The command sequence that creates a ready default character is `session_server/bootstrap.py::build_default_character_record`; it runs the deterministic `/create ...` list and returns a confirmed `CharacterRecord`.
+- Added `precreate_characters` to `FullStoryDemoManualSession`, reusing `build_default_character_record` and the existing four-record story-session handoff rather than duplicating character creation logic.
+- `user-test/web_story_demo_server.py` now defaults to `precreate_characters=True`, so normal browser startup opens in `storytelling` with all four player actors/cards already present. The old browser creation phase remains available with `--start-in-character-creation`.
+- Updated browser docs and the legacy live-web script description so the creation-first script is clearly tied to `--start-in-character-creation`.
+- Verification:
+  - `python -m py_compile user-test\story_demo_system_server.py user-test\web_story_demo_server.py tests\test_full_story_demo_session.py tests\test_web_server.py` passed.
+  - `python -m unittest tests.test_full_story_demo_session -v` passed 4 tests.
+  - `python -m unittest tests.test_web_server -v` passed 21 tests; the existing websocket shutdown-time assertion trace still appears, but the suite result is OK.
+  - `python -c "import json, pathlib; json.loads(pathlib.Path('user-test/full-story-demo/scripts/lmop-friendly-live-web-run.json').read_text(encoding='utf-8')); print('live-web script json ok')"` passed.
+  - `git diff --check -- user-test/story_demo_system_server.py user-test/web_story_demo_server.py tests/test_full_story_demo_session.py tests/test_web_server.py docs/web-frontend.md docs/starter-content-pack.md user-test/full-story-demo/README.md user-test/full-story-demo/scripts/lmop-friendly-live-web-run.json tasks/TODO.md` passed with only Git line-ending warnings.
+
+## 2026-05-04 - XPHB Cantrip And Level-1 Spell Command Usage Docs
+
+### Scope
+- Update every per-item README under `content/xphb/cantrips` and `content/xphb/spells/level-1` with explicit slash-command usage.
+- Preserve current runtime support truth: supported deterministic/story spells get concrete `/cast` or reaction examples; unsupported or blocked command mechanisms must be called out instead of invented.
+- Keep this as documentation-only work. Do not add new spell mechanics, command handlers, or runtime fallback behavior.
+
+### Design Direction
+- Standardize a `## Command Usage` section in each README so users can quickly see how to try a spell from the command layer.
+- Reuse command examples already proven in per-item tests and existing READMEs wherever available.
+- For item folders that only have generic support metadata, document the safest known generic command form from the current `/cast` parser.
+- Verify coverage mechanically by checking every cantrip and level-1 spell README has exactly one command usage section and either a supported command or an explicit no-command-support note.
+
+### Steps
+- [x] Review `tasks/LESSONS.md`, XPHB skill instructions, branch state, and existing README/metadata patterns.
+- [x] Build the command usage map from existing READMEs, tests, parser syntax, and implementation metadata.
+- [x] Update all cantrip and level-1 spell READMEs with the standardized command usage section.
+- [x] Run documentation consistency checks over all target folders.
+- [x] Record verification results here and append a request summary to `tasks/SUMMARIES.md`.
+
+### Verification Plan
+- README coverage check for every folder under `content/xphb/cantrips` and `content/xphb/spells/level-1`.
+- Duplicate-section check for `## Command Usage`.
+- Placeholder/no-support consistency check for command usage sections.
+- `git diff --check`.
+
+### Review
+- Added a standardized `## Command Usage` section to all 104 target README files under `content/xphb/cantrips` and `content/xphb/spells/level-1`.
+- Reused existing README/test command examples where available and filled missing level-1 examples from the current `/cast` parser and per-item tests. Reaction spells now call out the trigger-plus-`/react` flow and warn users to use the concrete option id shown by the active reaction prompt.
+- Preserved current support truth in docs: deterministic-capability spells describe authoritative typed `/cast` resolution, story-adjudicated spells describe story-mode spell command handling, and metadata blocker notes explicitly warn not to invent unsupported parameters or edge mechanics.
+- Verification:
+  - README coverage check over all 104 folders: 0 missing `## Command Usage`, 0 duplicate sections, 0 missing examples, 0 UTF-8 BOM files.
+  - `git diff --check` passed.
+  - `python -m unittest tests.test_xphb_level1_content_pack -v` passed 7 tests.
+  - `python -m unittest tests.test_xphb_cantrip_capability_loader -v` passed 6 tests.
+
 ## 2026-05-04 - Push Migration Branch To ElijahZY DnD-Agents
 
 ### Scope

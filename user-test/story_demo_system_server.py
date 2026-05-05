@@ -13,7 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 from character_creation import build_default_kernel
 from player_interface import SlashCommandInterface
 from session_server import StoryOrchestratorServer
-from session_server.bootstrap import build_lmop_story_demo_session_from_records
+from session_server.bootstrap import build_default_character_record, build_lmop_story_demo_session_from_records
 from shared_types.encounter_control import ControllerBinding, ControllerRole
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
@@ -42,6 +42,7 @@ class FullStoryDemoManualSession:
         campaign_root: str | Path | None = None,
         env_path: str | Path = '.env',
         client_transport=None,
+        precreate_characters: bool = False,
     ) -> None:
         self.base_url = base_url
         self.campaign_root = campaign_root
@@ -55,7 +56,7 @@ class FullStoryDemoManualSession:
         }
         self.confirmed_records: dict[str, CharacterRecord] = {}
         self.story_session = None
-        self.llm_feedback_sink = None
+        self._llm_feedback_sink = None
         self._completion_state: _CompletionState | None = None
         self._controllers = {
             'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
@@ -64,6 +65,18 @@ class FullStoryDemoManualSession:
             'player-3-controller': ControllerBinding(controller_id='player-3-controller', role=ControllerRole.PLAYER, label='Player 3'),
             'player-4-controller': ControllerBinding(controller_id='player-4-controller', role=ControllerRole.PLAYER, label='Player 4'),
         }
+        if precreate_characters:
+            self._precreate_default_party()
+
+    @property
+    def llm_feedback_sink(self):
+        return self._llm_feedback_sink
+
+    @llm_feedback_sink.setter
+    def llm_feedback_sink(self, sink) -> None:
+        self._llm_feedback_sink = sink
+        if self.story_session is not None:
+            self.story_session.llm_feedback_sink = sink
 
     @property
     def encounter_session(self):
@@ -188,6 +201,16 @@ class FullStoryDemoManualSession:
         cloned.record_id = f'level-1-character-p{slot}'
         return cloned
 
+    def _precreate_default_party(self) -> None:
+        if self.story_session is not None:
+            raise EncounterValidationError('The story session is already active.')
+        if self.confirmed_records:
+            raise EncounterValidationError('Cannot precreate characters after character creation has started.')
+        base_record = build_default_character_record(base_url=self.base_url)
+        for controller_id in self._PLAYER_CONTROLLER_IDS:
+            self.confirmed_records[controller_id] = self._confirmed_record_copy(controller_id, base_record)
+        self._start_story_if_ready()
+
     def _start_story_if_ready(self) -> None:
         if self.story_session is not None:
             return
@@ -257,12 +280,14 @@ def build_full_story_demo_manual_session(
     campaign_root: str | Path | None = None,
     env_path: str | Path = '.env',
     client_transport=None,
+    precreate_characters: bool = False,
 ) -> FullStoryDemoManualSession:
     return FullStoryDemoManualSession(
         base_url=base_url,
         campaign_root=campaign_root,
         env_path=env_path,
         client_transport=client_transport,
+        precreate_characters=precreate_characters,
     )
 
 

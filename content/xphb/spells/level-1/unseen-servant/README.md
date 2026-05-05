@@ -13,3 +13,9 @@ Local mirror notes:
 - It can receive transferable allied inventory items and use carried item capabilities while controlled by its owner.
 
 Dedicated tests live in `tests/xphb_level1_spells/unseen_servant/test_unseen_servant.py`.
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> unseen-servant x y --description Carry the supplies`
+- Support: authoritative rules command. The slash command becomes a typed cast intent and resolves through the rules-engine capability path when the caster knows the spell and has the required action/resources.

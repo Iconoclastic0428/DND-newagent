@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Path to the local .env file for DM runtime config.')
     parser.add_argument('--campaign-root', type=Path, help='Optional override for the campaign markdown root.')
     parser.add_argument('--base-url', help='Optional override for the 5etools mirror base URL.')
+    parser.add_argument(
+        '--start-in-character-creation',
+        action='store_true',
+        help='Start in the old character-creation phase instead of precreating the four default player characters.',
+    )
     return parser.parse_args()
 
 
@@ -64,6 +69,7 @@ def main() -> int:
             base_url=args.base_url,
             campaign_root=args.campaign_root,
             env_path=args.env_path,
+            precreate_characters=not args.start_in_character_creation,
         )
         server = SessionWebServer(
             session=session,

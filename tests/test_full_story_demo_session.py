@@ -91,6 +91,41 @@ class FullStoryDemoSessionTests(unittest.TestCase):
         self.assertIn('Demo phase: waiting for four player characters', dm_view.summary_lines)
         self.assertIsNone(session.story_session)
 
+    def test_precreated_demo_starts_in_storytelling_with_four_players(self) -> None:
+        session = build_full_story_demo_manual_session(
+            base_url=self.base_url,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+        )
+        self.assertIsNotNone(session.story_session)
+        assert session.story_session is not None
+        self.assertEqual(session.story_session.story_state.runtime_mode, RuntimeMode.STORYTELLING)
+        self.assertEqual(set(session.confirmed_records), {
+            'player-1-controller',
+            'player-2-controller',
+            'player-3-controller',
+            'player-4-controller',
+        })
+        self.assertEqual(
+            set(session.story_session.state.actors),
+            {
+                'player-1',
+                'player-2',
+                'player-3',
+                'player-4',
+                'monster-goblin-1',
+                'monster-goblin-2',
+                'monster-goblin-3',
+                'monster-goblin-4',
+            },
+        )
+        player_view = session.view_for_controller('player-1-controller')
+        text = '\n'.join(player_view.summary_lines)
+        self.assertIn('Runtime mode: storytelling', text)
+        self.assertIn('Current scene: scene-waterdeep-gundren-briefing', text)
+        self.assertIn('A stout dwarf with dust still caught in his beard', text)
+
     def test_demo_hands_off_to_story_after_all_four_players_confirm(self) -> None:
         session = self._build_session()
         for controller_id in ('player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller'):

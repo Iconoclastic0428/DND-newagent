@@ -71,8 +71,9 @@ Default tokens:
 
 ### Browser Interaction Notes
 
-- The initial browser action panel offers `Begin character creation` before anyone types `/create begin`.
-- During character creation, each projected option offers both `Insert id` and `Insert command` so you can paste either an option id or a full `/create ...` stub into the chat box.
+- The browser demo now starts in storytelling with four precreated default player characters.
+- If you launch with `--start-in-character-creation`, the initial browser action panel offers `Begin character creation` before anyone types `/create begin`.
+- During the optional character-creation phase, each projected option offers both `Insert id` and `Insert command` so you can paste either an option id or a full `/create ...` stub into the chat box.
 - Left click a combat tile or travel hex to inspect it.
 - In travel mode, clicking a reachable known hex previews a route.
 - In combat, clicking reachable tiles previews movement for the active owned actor.
@@ -81,8 +82,8 @@ Default tokens:
 
 ### Mode Flow
 
-The browser demo starts in `character-creation`.
-After all four players confirm, it hands off to `storytelling`.
+The browser demo starts in `storytelling` with all four default player characters already confirmed.
+If launched with `--start-in-character-creation`, it starts in `character-creation` and hands off after all four players confirm.
 Travel, social scenes, traps, puzzles, and downtime all happen in storytelling mode.
 If a hostile action or initiative-sensitive scene occurs, the backend can switch to `combat`.
 When combat ends, the session can return to storytelling while keeping story/exploration/social state.

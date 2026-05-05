@@ -13,3 +13,9 @@ Local XPHB notes:
 Test coverage: [tests/xphb_level1_spells/identify/test_identify.py](../../../../../tests/xphb_level1_spells/identify/test_identify.py)
 
 Use cases and exact local text notes live in [docs/xphb-level1-spell-use-cases.md](../../../../../docs/xphb-level1-spell-use-cases.md).
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> identify --item <item-id> --material pearl`
+- Support: authoritative rules command. The slash command becomes a typed cast intent and resolves through the rules-engine capability path when the caster knows the spell and has the required action/resources.

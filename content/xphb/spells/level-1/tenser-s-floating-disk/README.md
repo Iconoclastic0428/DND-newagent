@@ -13,3 +13,9 @@ Local mirror notes:
 - It cannot cross a vertical distance of more than 10 feet.
 
 Dedicated tests live in `tests/xphb_level1_spells/tenser_s_floating_disk/test_tenser_s_floating_disk.py`.
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> tenser-s-floating-disk x y --description Lift the cargo`
+- Support: authoritative rules command. The slash command becomes a typed cast intent and resolves through the rules-engine capability path when the caster knows the spell and has the required action/resources.

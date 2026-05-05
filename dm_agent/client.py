@@ -13,6 +13,16 @@ class LLMResponseError(RuntimeError):
     pass
 
 
+_CHAT_JSON_HARDENING_INSTRUCTION = (
+    'DeepSeek JSON final-output contract: return one bare, parseable JSON object only. '
+    'Think hard internally before answering, but do not reveal reasoning in the final content. '
+    'The final content will be parsed by deterministic code and reviewed by a separate GPT verifier; malformed JSON, markdown wrappers, or extra text fails. '
+    'Do not emit markdown fences, backticks, prose, headings, labels, XML/HTML tags, <think> blocks, YAML, comments, byte-order marks, zero-width characters, ellipses, Python literals such as None/True/False, NaN, Infinity, single-quoted strings, unescaped control characters, or trailing commas. '
+    'Do not wrap the object inside another key such as json, response, data, result, or output unless the caller-provided schema explicitly requires that exact key. '
+    'The first non-whitespace character must be { and the last non-whitespace character must be }.'
+)
+
+
 @dataclass(frozen=True)
 class ResponsesRequest:
     model: str
@@ -56,6 +66,18 @@ class LLMResponse:
         direct = self.payload.get('output_text')
         if isinstance(direct, str) and direct.strip():
             return direct
+        choice_chunks: list[str] = []
+        for choice in self.payload.get('choices', []) or []:
+            if not isinstance(choice, dict):
+                continue
+            message = choice.get('message')
+            if not isinstance(message, dict):
+                continue
+            content = message.get('content')
+            if isinstance(content, str) and content:
+                choice_chunks.append(content)
+        if choice_chunks:
+            return ''.join(choice_chunks)
         assistant_chunks: list[str] = []
         fallback_chunks: list[str] = []
         for item in self.payload.get('output', []) or []:
@@ -169,6 +191,8 @@ class LLMClient:
         *,
         stream_handler: Callable[[LLMStreamEvent], None] | None = None,
     ) -> LLMResponse:
+        if self.config.api_format == 'chat_completions':
+            return self._create_chat_completion_response(request_spec, stream_handler=stream_handler)
         payload = request_spec.to_payload(stream=stream_handler is not None)
         url = urljoin(self.config.base_url.rstrip('/') + '/', 'responses')
         headers = {
@@ -180,6 +204,82 @@ class LLMClient:
             return LLMResponse(request=request_spec, payload=raw)
         raw = self._stream_response(url=url, headers=headers, payload=payload, stream_handler=stream_handler)
         return LLMResponse(request=request_spec, payload=raw)
+
+    def _create_chat_completion_response(
+        self,
+        request_spec: ResponsesRequest,
+        *,
+        stream_handler: Callable[[LLMStreamEvent], None] | None = None,
+    ) -> LLMResponse:
+        payload = self._chat_completion_payload(request_spec, stream=stream_handler is not None)
+        url = urljoin(self.config.base_url.rstrip('/') + '/', 'chat/completions')
+        headers = {
+            'Authorization': f'Bearer {self.config.api_key}',
+            'Content-Type': 'application/json',
+        }
+        if stream_handler is None:
+            raw = self.transport.post(url=url, headers=headers, payload=payload)
+            return LLMResponse(request=request_spec, payload=raw)
+        raw = self._stream_chat_completion_response(url=url, headers=headers, payload=payload, stream_handler=stream_handler)
+        return LLMResponse(request=request_spec, payload=raw)
+
+    def _chat_completion_payload(self, request_spec: ResponsesRequest, *, stream: bool = False) -> dict[str, Any]:
+        messages: list[dict[str, str]] = []
+        if request_spec.instructions.strip():
+            messages.append({'role': 'system', 'content': request_spec.instructions})
+        for message in request_spec.input:
+            role = str(message.get('role', 'user')).strip() or 'user'
+            messages.append({'role': role, 'content': self._chat_message_content(message.get('content'))})
+        json_object_request = self._is_json_object_request(request_spec)
+        if json_object_request:
+            messages = self._with_chat_json_hardening(messages)
+        payload: dict[str, Any] = {
+            'model': request_spec.model,
+            'messages': messages,
+            'temperature': request_spec.temperature,
+            'max_tokens': request_spec.max_output_tokens,
+        }
+        if json_object_request and self._is_deepseek_v4_model(request_spec.model):
+            payload['thinking'] = {'type': 'enabled'}
+            payload['reasoning_effort'] = 'high'
+        if request_spec.response_format is not None:
+            payload['response_format'] = dict(request_spec.response_format)
+        if stream:
+            payload['stream'] = True
+        return payload
+
+    def _is_json_object_request(self, request_spec: ResponsesRequest) -> bool:
+        if not isinstance(request_spec.response_format, dict):
+            return False
+        return request_spec.response_format.get('type') == 'json_object'
+
+    def _is_deepseek_v4_model(self, model: str) -> bool:
+        return model.strip().lower() in {'deepseek-v4-pro', 'deepseek-v4-flash'}
+
+    def _with_chat_json_hardening(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
+        if not messages or messages[0].get('role') != 'system':
+            return [{'role': 'system', 'content': _CHAT_JSON_HARDENING_INSTRUCTION}] + messages
+        hardened = list(messages)
+        first = dict(hardened[0])
+        first['content'] = f"{first.get('content', '').rstrip()} {_CHAT_JSON_HARDENING_INSTRUCTION}".strip()
+        hardened[0] = first
+        return hardened
+
+    def _chat_message_content(self, content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            chunks: list[str] = []
+            for entry in content:
+                if not isinstance(entry, dict):
+                    continue
+                text = entry.get('text')
+                if isinstance(text, str):
+                    chunks.append(text)
+            return '\n'.join(chunks)
+        if content is None:
+            return ''
+        return json.dumps(content, separators=(',', ':'))
 
     def _stream_response(
         self,
@@ -207,6 +307,44 @@ class LLMClient:
         if final_payload is None:
             raise LLMResponseError('LLM streaming response completed without a final payload.')
         return final_payload
+
+    def _stream_chat_completion_response(
+        self,
+        *,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+        stream_handler: Callable[[LLMStreamEvent], None],
+    ) -> dict[str, Any]:
+        events = self.transport.stream(url=url, headers=headers, payload=payload)
+        output_chunks: list[str] = []
+        for event in events:
+            error = event.get('error')
+            if isinstance(error, dict):
+                raise LLMResponseError(str(error.get('message', 'LLM streaming response failed.')))
+            for choice in event.get('choices', []) or []:
+                if not isinstance(choice, dict):
+                    continue
+                delta = choice.get('delta')
+                if not isinstance(delta, dict):
+                    continue
+                reasoning = delta.get('reasoning_content')
+                if isinstance(reasoning, str) and reasoning:
+                    stream_handler(LLMStreamEvent(kind='reasoning', text=reasoning))
+                content = delta.get('content')
+                if isinstance(content, str) and content:
+                    output_chunks.append(content)
+                    stream_handler(LLMStreamEvent(kind='output', text=content))
+        return {
+            'choices': [
+                {
+                    'message': {
+                        'role': 'assistant',
+                        'content': ''.join(output_chunks),
+                    }
+                }
+            ]
+        }
 
     def _extract_stream_delta(self, event: dict[str, Any]) -> LLMStreamEvent | None:
         event_type = str(event.get('type', ''))

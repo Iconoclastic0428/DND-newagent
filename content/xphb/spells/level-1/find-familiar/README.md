@@ -10,3 +10,9 @@ Local mirror notes:
 - The familiar shares telepathic contact within 100 ft and can deliver touch spells.
 
 Dedicated tests live in `tests/xphb_level1_spells/find_familiar/test_find_familiar.py`.
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> find-familiar 2 0 --form owl --type celestial --material incense --description Summon an owl familiar`
+- Support: authoritative rules command. The slash command becomes a typed cast intent and resolves through the rules-engine capability path when the caster knows the spell and has the required action/resources.

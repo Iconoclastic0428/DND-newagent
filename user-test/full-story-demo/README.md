@@ -154,12 +154,14 @@ The replay runner uses queued LLM JSON payloads embedded in the script file, so 
 
 ## Live Web UI Script Driver
 
-If you want the browser UI to show the run as if the players are typing in their own portals, use the browser demo server plus the live web runner instead of the in-memory replay harness.
+If you want the browser UI to show the run as if the players are typing in their own portals, use the browser demo server plus the live web runner instead of the in-memory replay harness. The browser server now precreates the four default characters and starts in Waterdeep story mode by default.
 
 1. Start the browser demo server:
 ```powershell
-python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --start-in-character-creation
 ```
+
+Omit `--start-in-character-creation` for normal browser play, where the four default characters are already created when the portals load.
 
 2. Open the browser portals you want to watch:
 - `http://127.0.0.1:8000/?portal=dm&autoconnect=1`
@@ -182,14 +184,14 @@ Behavior:
 
 ## Four-Player Agent Connector
 
-If you want four autonomous player agents to take over after character creation, use the party connector against the same browser demo server:
+If you want four autonomous player agents to take over from the precreated story start, use the party connector against the same browser demo server:
 
 ```powershell
 python user-test\web_story_demo_party_connector.py --base-url http://127.0.0.1:8000 --env-path .env --verbose
 ```
 
 Behavior:
-- the connector waits until all four players are out of the character-creation phase before acting
+- the connector waits until the browser session is out of the character-creation phase before acting
 - each player uses a fixed personality and conversational focus instead of sharing one generic voice
 - the connector feeds each player only that controller's visible browser snapshot, including recent chat history and prior visible check results
 - storytelling turns run one player at a time in round-robin order so players can build on the previous turn without talking over each other

@@ -9,3 +9,9 @@ Local XPHB use case: Visual-only illusion created from a limited template set; s
 Test module: `tests.xphb_level1_spells.silent_image.test_silent_image`
 
 Blocker note: The test module exercises the illusion template, observer-state, and reveal flow. Freeform movement/scene-scale illusion motion remains outside the current runtime hook set.
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast player-1 silent-image 2 3 --template minor_visual_door --label Door --description "Painted door"`
+- Support: story-mode spell command. The runtime records the typed cast and validates/adjudicates the declared effect through the story spell path. Metadata blocker status is `mechanical-runtime-missing`; do not invent unsupported parameters or edge-case mechanics beyond the documented command path.

@@ -11,3 +11,9 @@ Local mirror notes:
 - Uneaten berries vanish after 24 hours.
 
 Dedicated tests live in `tests/xphb_level1_spells/goodberry/test_goodberry.py`.
+
+## Command Usage
+
+- Parser form: `/cast <actor-id> <spell-id> [target-id|x y [z]] [--ritual] [--key value ...]`.
+- Example: `/cast <actor-id> goodberry`
+- Support: authoritative rules command. The slash command becomes a typed cast intent and resolves through the rules-engine capability path when the caster knows the spell and has the required action/resources.

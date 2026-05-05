@@ -18,6 +18,7 @@ class LLMConfig:
     api_key: str = field(repr=False)
     base_url: str
     responses_model: str
+    api_format: str = 'responses'
 
     def __post_init__(self) -> None:
         if not self.api_key.strip():
@@ -29,6 +30,8 @@ class LLMConfig:
             raise LLMConfigError('OPENAI_BASE_URL must be an http(s) URL.')
         if not parsed.netloc:
             raise LLMConfigError('OPENAI_BASE_URL must include a host.')
+        if self.api_format not in {'responses', 'chat_completions'}:
+            raise LLMConfigError('OPENAI_API_FORMAT must be `responses` or `chat_completions`.')
 
     @classmethod
     def from_sources(
@@ -46,6 +49,7 @@ class LLMConfig:
             api_key=merged.get('OPENAI_API_KEY', '').strip(),
             base_url=merged.get('OPENAI_BASE_URL', '').strip(),
             responses_model=merged.get('OPENAI_RESPONSES_MODEL', '').strip(),
+            api_format=merged.get('OPENAI_API_FORMAT', 'responses').strip() or 'responses',
         )
 
     def redacted(self) -> dict[str, str]:
@@ -53,6 +57,7 @@ class LLMConfig:
             'OPENAI_API_KEY': '***',
             'OPENAI_BASE_URL': self.base_url,
             'OPENAI_RESPONSES_MODEL': self.responses_model,
+            'OPENAI_API_FORMAT': self.api_format,
         }
 
 

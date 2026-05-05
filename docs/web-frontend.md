@@ -4,7 +4,7 @@
 - The Python backend remains authoritative for rules, legality, randomness, initiative, movement, HP, conditions, prompts, and DM runtime decisions.
 - The browser client is only a synchronized view and interaction surface.
 - No `.env` LLM secrets are exposed to the frontend bundle.
-- The browser demo now reuses the manual full-story-demo harness, so play starts in four-player character creation and then hands off automatically into the LMOP story and ambush.
+- The browser demo reuses the manual full-story-demo harness, but the browser launcher precreates the four default player characters and starts directly in the LMOP story.
 
 ## Package Structure
 - `session_server/web_server.py`: authoritative HTTP + WebSocket server for browser clients.
@@ -13,7 +13,7 @@
 - `web_frontend/index.html`: browser shell.
 - `web_frontend/app.js`: realtime client logic and semantic map interactions.
 - `web_frontend/styles.css`: semantic map and UI styling.
-- `user-test/web_story_demo_server.py`: manual full-story-demo web launcher.
+- `user-test/web_story_demo_server.py`: manual full-story-demo web launcher; defaults to four precreated player characters.
 - `user-test/story_demo_system_server.py`: authoritative manual demo wrapper that owns character creation before story handoff.
 
 ## Run The Web Demo
@@ -22,6 +22,8 @@
 ```powershell
 python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767
 ```
+
+Add `--start-in-character-creation` only when you want the old browser setup phase where all four players manually run `/create ...` commands.
 
 2. Open the browser at:
 
@@ -46,11 +48,12 @@ http://127.0.0.1:8000
 ## Live Script Injection
 - The user-test browser launcher now also exposes a local automation API on the same HTTP port.
 - `user-test/web_story_demo_live_runner.py` can drive a running browser session through that API without replacing the browser websocket for any controller.
-- `user-test/web_story_demo_party_connector.py` can use that same API to run four autonomous player agents after character creation while the browser remains the visible UI.
+- `user-test/web_story_demo_party_connector.py` can use that same API to run four autonomous player agents from the precreated story start while the browser remains the visible UI.
 - This is the path to use when you want the web UI to show a scripted full-story run while the DM runtime still uses the live `.env` model configuration instead of queued fake LLM payloads.
 
 Example:
 ```powershell
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --start-in-character-creation
 python user-test\web_story_demo_live_runner.py --base-url http://127.0.0.1:8000 --script user-test/full-story-demo/scripts/lmop-friendly-live-web-run.json --verbose
 ```
 
@@ -69,7 +72,7 @@ The party connector keeps one player voice per controller, feeds each player onl
 - Inspection panel: coordinates, terrain semantics, traversability, cover, blockers, movement previews, and teleport legality.
 - Chat/narration log: DM narration, story transcript, combat log, and system feedback.
 - Character card sidebar: controller-aware player card projection with core stats, abilities, skills, attacks, spellcasting, resources, conditions, active effects, and explicit `main hand` / `off hand` / `armor` slot lines.
-- Action panel: backend-projected legal actions during combat, plus creation-time choice pools when the current `/create` step exposes option ids. During character creation, each option now offers both `Insert id` and `Insert command` helpers.
+- Action panel: backend-projected legal actions during combat, plus creation-time choice pools if the server is launched with `--start-in-character-creation`.
 - Prompt panel: reaction prompts and story-check prompts.
 
 ## Semantic Map Layers
@@ -95,8 +98,8 @@ The party connector keeps one player voice per controller, feeds each player onl
 - Hidden backend-only state and `.env` secrets remain server-side and are never included in the browser config or card payloads.
 
 ## Interaction Model
-- Character creation uses the same command box as the terminal demo. Enter deterministic `/create ...` commands until all four players confirm.
-- Freeform declarations and slash commands go through the chat box after character creation hands off into storytelling.
+- The default browser launcher starts in storytelling with four precreated characters. Freeform declarations and slash commands go through the chat box immediately.
+- With `--start-in-character-creation`, character creation uses the same command box as the terminal demo until all four players confirm.
 - In storytelling travel, click a known hex to inspect it and preview a route. Use the map toolbar to change pace, advance one step, resume after an interruption, or engage a pending hook as the DM.
 - In combat, clicking a tile inspects it, and reachable tiles also get a movement preview for the active owned actor.
 - Clicking an action with targeting enters target-selection mode; the browser submits a proposal, and the backend validates it.
@@ -117,7 +120,7 @@ The party connector keeps one player voice per controller, feeds each player onl
   - prompt responses
 
 ## Current Scope
-- The web launcher now follows the same manual demo path as `user-test/full-story-demo`: four players create characters first, then the campaign begins automatically.
+- The web launcher follows the same manual demo story path as `user-test/full-story-demo`, but it now precreates the four default player characters before serving browser portals.
 - The first exploration travel fixture is LMOP-specific and covers Waterdeep -> High Road -> Triboar Trail -> Phandalin, including the goblin ambush interruption hook and the hidden Cragmaw trail reveal hook.
 - The frontend is semantic-first and intentionally uses backend-derived map data instead of client-only art logic.
 - Browser UI is static HTML/CSS/JS served by Python. No Node or frontend build step is required in the current repo.
