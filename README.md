@@ -1,6 +1,8 @@
-# DnD Agents Browser Demo
+# DnD Agents Simulation
 
-This branch runs a browser-based D&D 5e demo that starts in deterministic character creation, then hands the confirmed party into the Lost Mine of Phandelver story demo. The current flow is intended for manual testing now and cleaner RL-style automation later.
+This branch contains a new D&D simulation built from the core idea of the original project: a party of player controllers, an AI-assisted DM, and an authoritative rules engine sharing one evolving tabletop state. It is not a direct continuation of the original prototype. The new version rebuilds the simulation around deterministic state transitions, explicit controller actions, browser-based multi-user play, local 5e rules data, and cleaner boundaries between rules, campaign content, and LLM narration.
+
+The bundled demo uses Lost Mine of Phandelver because it is a familiar starter adventure with useful social, exploration, and combat beats. The simulation is intended to support many plots, not only LMOP. To run a different plot, the system needs campaign content, scene data, maps or fallback encounter plans, NPC/context memory, and an appropriate bootstrap script. The rules engine and character/monster content are deliberately kept separate from the LMOP campaign layer so future campaigns can reuse the same simulation core.
 
 ## Requirements
 
@@ -30,18 +32,18 @@ If the zip creates an extra wrapper directory, move `5etools-mirror-2.github.io`
 
 ## 2. Create `.env`
 
-Create a `.env` file in the repository root. Use forward slashes in the `file:///` URL and keep the trailing slash.
+Create a `.env` file in the repository root. The mirror path can be relative to the repository root; keep the trailing slash.
 
 ```env
 DND_DETERMINISTIC_SEED=20260401-character-creation-kernel
-FIVEETOOLS_MIRROR_BASE_URL=file:///C:/Users/Elija/Documents/Codex/2026-05-04/dnd-agents-workspace/DnD-Agents/5etools-mirror-2.github.io/
+FIVEETOOLS_MIRROR_BASE_URL=5etools-mirror-2.github.io/
 OPENAI_API_KEY=your-deepseek-api-key
 OPENAI_BASE_URL=https://api.deepseek.com
 OPENAI_RESPONSES_MODEL=deepseek-v4-flash
 OPENAI_API_FORMAT=chat_completions
 ```
 
-Adjust `FIVEETOOLS_MIRROR_BASE_URL` if your local repository lives somewhere else. Do not commit `.env`; it contains your API key and is ignored by git.
+Adjust `FIVEETOOLS_MIRROR_BASE_URL` only if you unzip the mirror somewhere else. Plain relative paths, absolute Windows paths, and `file://` URLs are supported. Do not commit `.env`; it contains your API key and is ignored by git.
 
 ## 3. Start The Web Demo
 

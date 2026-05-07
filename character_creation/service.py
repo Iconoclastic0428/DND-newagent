@@ -8,7 +8,7 @@ from rules_engine.fiveetools_loader import DocumentFetcher, load_catalog
 from .kernel import CharacterCreationKernel
 
 
-DEFAULT_MIRROR_BASE_URL = "file:///D:/5etools-mirror-2.github.io/"
+DEFAULT_MIRROR_BASE_URL = "5etools-mirror-2.github.io/"
 
 
 def build_default_kernel(
