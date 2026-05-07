@@ -9,7 +9,7 @@ from shared_types.errors import ValidationError
 from shared_types.models import Ability, ChoiceSourceKind, ContentKind, CreationChoiceCategory, CreationPhase, SpellSelectionKind
 
 
-LOCAL_MIRROR_BASE_URL = Path("D:/5etools-mirror-2.github.io").resolve().as_uri().rstrip("/") + "/"
+LOCAL_MIRROR_BASE_URL = (Path(__file__).resolve().parents[1] / "5etools-mirror-2.github.io").resolve().as_uri().rstrip("/") + "/"
 
 
 class CharacterCreationKernelTests(unittest.TestCase):
@@ -164,6 +164,53 @@ class CharacterCreationKernelTests(unittest.TestCase):
         self.assertEqual(self.kernel.phase(state), CreationPhase.GENERATE_ABILITIES)
         self.assertIn("Phase: generate-abilities", output)
 
+
+    def test_creation_snapshot_prompts_choice_counts_assignment_order_and_confirm_command(self) -> None:
+        background_id = self._background_id(name="Acolyte", source="XPHB")
+        state = self.kernel.new_state()
+        for command in (
+            "/create begin",
+            "/create choose species human",
+            "/create choose class bard",
+        ):
+            state, _ = self.ui.execute(state, command)
+
+        snapshot = self.kernel.snapshot(state)
+        summary = "\n".join(snapshot.summary_lines)
+        self.assertIn("Class skill choices: Choose exactly 3 option(s).", summary)
+        self.assertIn("Command: /create choose class-skills <skill-id ...>", summary)
+        self.assertIn("Choose exactly 3 option(s).", snapshot.available_choices['class-skills'][0].detail)
+
+        state, _ = self._start()
+        state, _ = self.ui.execute(state, f"/create choose background {background_id}")
+        snapshot = self.kernel.snapshot(state)
+        summary = "\n".join(snapshot.summary_lines)
+        self.assertIn("Pending creation choice: Choose 3 cantrip(s).", summary)
+        self.assertIn("Choose exactly 3 option(s).", summary)
+        self.assertIn("Command: /create choose choice class:wizard:cantrips <option-id ...>", summary)
+        cantrip_group = snapshot.available_choices['choice:class:wizard:cantrips']
+        self.assertIn("Choose exactly 3 option(s).", cantrip_group[0].detail)
+
+        state, _ = self._resolve_all_pending_choices(state)
+        state, _ = self.ui.execute(state, "/create ability generate point-buy 15 14 13 12 10 8")
+        snapshot = self.kernel.snapshot(state)
+        summary = "\n".join(snapshot.summary_lines)
+        self.assertIn("Ability order: STR DEX CON INT WIS CHA", summary)
+        self.assertIn("Command: /create ability assign 15 14 13 12 10 8", summary)
+        assignment_choice = snapshot.available_choices['ability-assignment'][0]
+        self.assertEqual(assignment_choice.option_id, '15 14 13 12 10 8')
+        self.assertIn("STR DEX CON INT WIS CHA", assignment_choice.detail)
+
+        state, _ = self.ui.execute(state, "/create ability assign 15 14 13 12 10 8")
+        background = self.kernel.catalog.backgrounds[background_id]
+        class_record = self.kernel.catalog.classes[state.class_id]
+        state, _ = self.ui.execute(state, f"/create background-asi choose {background.ability_increase_options()[0].option_id}")
+        state, _ = self.ui.execute(state, f"/create equipment background package {background.package_options[0].package_id}")
+        state, _ = self.ui.execute(state, f"/create equipment class package {class_record.package_options[0].package_id}")
+        snapshot = self.kernel.snapshot(state)
+        self.assertEqual(snapshot.phase, CreationPhase.REVIEW)
+        self.assertIn("Command: /create confirm", "\n".join(snapshot.summary_lines))
+        self.assertIn('confirm', snapshot.available_choices)
 
     def test_bard_class_skill_pool_supports_any_three_skills(self) -> None:
         state = self.kernel.new_state()
