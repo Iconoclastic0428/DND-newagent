@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -35,14 +37,63 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Path to the local .env file for DM runtime config.')
     parser.add_argument('--campaign-root', type=Path, help='Optional override for the campaign markdown root.')
     parser.add_argument('--base-url', help='Optional override for the 5etools mirror base URL.')
+    parser.add_argument('--local-llm', action='store_true', help='Use a deterministic in-process LLM transport for local demo verification.')
     parser.add_argument(
         '--start-in-character-creation',
         action='store_true',
-        help='Start in the old character-creation phase instead of precreating the four default player characters.',
+        help='Start in character creation instead of precreating the four default player characters.',
     )
+    parser.add_argument('--save-characters', type=Path, help='Write confirmed character records to this JSON party file.')
+    parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file and start the story immediately.')
     return parser.parse_args()
 
 
+class LocalDemoLLMTransport:
+    def post(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
+        del url, headers
+        return {'output_text': json.dumps(self._response_payload(payload), ensure_ascii=False)}
+
+    def stream(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> list[dict[str, Any]]:
+        return [{'type': 'response.completed', 'response': self.post(url=url, headers=headers, payload=payload)}]
+
+    def _response_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        metadata = payload.get('metadata')
+        request_type = metadata.get('request_type') if isinstance(metadata, dict) else None
+        if request_type == 'mode_switch':
+            return {
+                'decision_type': 'stay_in_storytelling',
+                'reason': 'Local demo transport keeps the scene in storytelling mode.',
+                'enter_combat_plan': None,
+                'exit_combat_plan': None,
+                'confidence': 1.0,
+            }
+        if request_type == 'story_spellcasting_reaction':
+            return {
+                'public_narration': 'The local demo DM treats the harmless magic as routine and keeps the scene moving.',
+                'witness_reactions': [],
+                'scene_note': 'Local deterministic verification response.',
+                'dm_note': 'No escalation in local demo mode.',
+                'escalation': {'recommended': False, 'reason': '', 'mode_switch_decision': None},
+            }
+        return {
+            'public_narration': 'The local demo DM acknowledges the declaration and keeps the party moving toward Phandalin.',
+            'transcript_entries': [
+                {
+                    'speaker': 'DM',
+                    'text': 'The conversation stays friendly, practical details are shared, and the road remains the next priority.',
+                    'visibility': 'public',
+                }
+            ],
+            'check_request': None,
+            'scene_update': {
+                'summary': 'The party keeps Gundren and Sildar cooperative before setting out for Phandalin.',
+                'open_loops': ['Reach Phandalin safely.', 'Learn why Gundren is protecting his discovery.'],
+                'party_goals': ['Escort the wagon north.', 'Watch the road for trouble.'],
+                'party_beliefs': ['Gundren is cautious but friendly.'],
+            },
+            'mode_switch_decision': None,
+            'memory_note': 'Local deterministic demo response used for web-runner verification.',
+        }
 
 def _controller_grants(session, *, session_id: str) -> tuple[WebControllerGrant, ...]:
     grants: list[WebControllerGrant] = []
@@ -69,7 +120,10 @@ def main() -> int:
             base_url=args.base_url,
             campaign_root=args.campaign_root,
             env_path=args.env_path,
-            precreate_characters=not args.start_in_character_creation,
+            client_transport=LocalDemoLLMTransport() if args.local_llm else None,
+            precreate_characters=not args.start_in_character_creation and args.load_characters is None,
+            character_load_path=args.load_characters,
+            character_save_path=args.save_characters,
         )
         server = SessionWebServer(
             session=session,

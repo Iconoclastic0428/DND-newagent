@@ -23,6 +23,7 @@ build/
 *.tsbuildinfo
 
 # Runtime logs and scratch output
+user-test/saved-characters/
 *.log
 *.err
 *.out

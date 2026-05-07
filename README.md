@@ -50,7 +50,7 @@ Adjust `FIVEETOOLS_MIRROR_BASE_URL` only if you unzip the mirror somewhere else.
 Start the server from the repository root:
 
 ```powershell
-python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --start-in-character-creation
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --start-in-character-creation --save-characters user-test\saved-characters\lmop-party.json
 ```
 
 Keep this terminal open while using the demo. The server prints the HTTP URL, WebSocket URL, and join tokens. By default, the browser app is available at:
@@ -60,6 +60,18 @@ http://127.0.0.1:8000
 ```
 
 Stop the server with `Ctrl+C`.
+
+### Loading Saved Characters
+
+For training runs, create the party once and save it with `--save-characters`. The file is updated as players confirm characters, and the parent folder is created automatically.
+
+After the party has been saved, future runs can skip character creation and start the story immediately:
+
+```powershell
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --load-characters user-test\saved-characters\lmop-party.json
+```
+
+Saved party files are keyed by controller id, so the same `player-1-controller` through `player-4-controller` slots are restored every time. The suggested `user-test/saved-characters/` folder is ignored by git.
 
 ## 4. Open The Web UIs
 

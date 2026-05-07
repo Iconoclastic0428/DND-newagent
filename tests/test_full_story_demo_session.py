@@ -47,7 +47,7 @@ class FullStoryDemoSessionTests(unittest.TestCase):
             'OPENAI_RESPONSES_MODEL=test-model\n',
             encoding='utf-8',
         )
-        self.base_url = Path('D:/5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/'
+        self.base_url = (REPO_ROOT / '5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/'
 
     def tearDown(self) -> None:
         shutil.rmtree(self._tempdir, ignore_errors=True)
@@ -125,6 +125,38 @@ class FullStoryDemoSessionTests(unittest.TestCase):
         self.assertIn('Runtime mode: storytelling', text)
         self.assertIn('Current scene: scene-waterdeep-gundren-briefing', text)
         self.assertIn('A stout dwarf with dust still caught in his beard', text)
+
+    def test_demo_can_save_and_reload_confirmed_character_party(self) -> None:
+        save_path = self._tempdir / 'saved-party.json'
+        session = build_full_story_demo_manual_session(
+            base_url=self.base_url,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            character_save_path=save_path,
+        )
+        for controller_id in ('player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller'):
+            self._confirm_default_character(session, controller_id)
+        self.assertTrue(save_path.exists())
+
+        loaded_session = build_full_story_demo_manual_session(
+            base_url=self.base_url,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            character_load_path=save_path,
+        )
+        self.assertIsNotNone(loaded_session.story_session)
+        self.assertEqual(set(loaded_session.confirmed_records), {
+            'player-1-controller',
+            'player-2-controller',
+            'player-3-controller',
+            'player-4-controller',
+        })
+        assert loaded_session.story_session is not None
+        self.assertEqual(loaded_session.story_session.story_state.runtime_mode, RuntimeMode.STORYTELLING)
+        self.assertEqual(
+            tuple(record.record_id for record in loaded_session.confirmed_records.values()),
+            ('level-1-character-p1', 'level-1-character-p2', 'level-1-character-p3', 'level-1-character-p4'),
+        )
 
     def test_demo_hands_off_to_story_after_all_four_players_confirm(self) -> None:
         session = self._build_session()
