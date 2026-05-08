@@ -21,8 +21,8 @@
 - [x] Merge/pull the remote branch and resolve conflicts.
 - [x] Review the listed feature areas after conflict resolution.
 - [x] Run focused compile/unit/web verification.
-- [ ] Push the resolved branch to GitHub.
-- [ ] Record review notes and append a summary to `tasks/SUMMARIES.md`.
+- [x] Push the resolved branch to GitHub.
+- [x] Record review notes and append a summary to `tasks/SUMMARIES.md`.
 
 ### Verification Plan
 - `git status --short --branch` before and after merge.
@@ -43,6 +43,7 @@
   - `node --check web_frontend\chat_state.js`
   - `python -m unittest tests.test_character_creation_kernel tests.test_character_record_io tests.test_fiveetools_loader tests.test_full_story_demo_session tests.test_web_frontend_chat tests.test_web_server tests.test_dm_runtime -v` passed 75 tests.
   - `git diff --check` passed with only line-ending warnings.
+- Pushed resolved commits to `elijah/dnd-newagent-migration`. GitHub reported that branch had been renamed to `newdndagents`, so the same resolved HEAD was also fast-forward pushed to `elijah/newdndagents`.
 
 ## 2026-05-07 - Web UI Thinking Row Ordering Fix
 
