@@ -73,6 +73,35 @@ python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws
 
 Saved party files are keyed by controller id, so the same `player-1-controller` through `player-4-controller` slots are restored every time. The suggested `user-test/saved-characters/` folder is ignored by git.
 
+### Mixing Human And LLM Players
+
+The web server can let some player controllers be driven by LLMs while the rest remain normal browser-controlled human players. Each LLM player uses its own env file, so different player slots can use different providers or models.
+
+Create one env file per LLM player, for example:
+
+```env
+OPENAI_API_KEY=your-deepseek-api-key
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_RESPONSES_MODEL=deepseek-v4-flash
+OPENAI_API_FORMAT=chat_completions
+```
+
+Then assign env files to player controllers with repeated `--llm-player` flags:
+
+```powershell
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --load-characters user-test\saved-characters\lmop-party.json --llm-player player-1-controller=user-test\llm-players\deepseek.env --llm-player player-2-controller=user-test\llm-players\chatgpt.env
+```
+
+In that example, `player-1-controller` and `player-2-controller` are LLM-driven, while `player-3-controller` and `player-4-controller` can still be opened by humans in the browser. LLM players submit commands through the same action path as human players. In storytelling they use `/say`, `/do`, `/story`, or `/check`; in combat they can use visible slash-command actions and fall back to ending their turn if uncertain.
+
+By default, the server lets at most one LLM player action run after each web input. Increase that for more autonomous training runs:
+
+```powershell
+python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws-port 8767 --env-path .env --load-characters user-test\saved-characters\lmop-party.json --llm-player player-1-controller=user-test\llm-players\deepseek.env --llm-player-max-actions-per-pump 4
+```
+
+Use `--disable-llm-player-autopump` if you want to configure LLM players without automatically submitting their actions. Env files are ignored by git, but keep API keys out of committed docs and scripts.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

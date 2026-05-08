@@ -14,6 +14,7 @@ from character_creation import build_default_kernel
 from player_interface import SlashCommandInterface
 from session_server import StoryOrchestratorServer
 from session_server.bootstrap import build_default_character_record, build_lmop_story_demo_session_from_records
+from session_server.llm_player import LLMPlayerAgent
 from shared_types.character_record_io import load_character_party, save_character_party
 from shared_types.encounter_control import ControllerBinding, ControllerRole
 from shared_types.encounter_models import ActorSide, EncounterPhase
@@ -46,6 +47,9 @@ class FullStoryDemoManualSession:
         precreate_characters: bool = False,
         character_load_path: str | Path | None = None,
         character_save_path: str | Path | None = None,
+        llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
+        llm_player_autopump: bool = False,
+        llm_player_max_actions_per_pump: int = 1,
     ) -> None:
         self.base_url = base_url
         self.campaign_root = campaign_root
@@ -61,6 +65,10 @@ class FullStoryDemoManualSession:
         self.confirmed_records: dict[str, CharacterRecord] = {}
         self.story_session = None
         self._llm_feedback_sink = None
+        self._llm_player_agents = tuple(llm_player_agents)
+        self._llm_player_autopump = llm_player_autopump
+        self._llm_player_max_actions_per_pump = max(1, int(llm_player_max_actions_per_pump))
+        self._llm_player_pump_active = False
         self._completion_state: _CompletionState | None = None
         self._controllers = {
             'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
@@ -69,6 +77,9 @@ class FullStoryDemoManualSession:
             'player-3-controller': ControllerBinding(controller_id='player-3-controller', role=ControllerRole.PLAYER, label='Player 3'),
             'player-4-controller': ControllerBinding(controller_id='player-4-controller', role=ControllerRole.PLAYER, label='Player 4'),
         }
+        for agent in self._llm_player_agents:
+            if agent.controller_id not in self._PLAYER_CONTROLLER_IDS:
+                raise EncounterValidationError(f'LLM player controller must be one of {", ".join(self._PLAYER_CONTROLLER_IDS)}: {agent.controller_id!r}')
         if character_load_path is not None:
             self._load_saved_party(character_load_path)
         elif precreate_characters:
@@ -137,6 +148,44 @@ class FullStoryDemoManualSession:
                 return self.view_for_controller(controller_id)
             return result
         return self._handle_creation_input(controller_id, raw_input)
+
+    def pump_llm_players(self, *, max_actions: int | None = None) -> tuple[tuple[str, str], ...]:
+        if (
+            not self._llm_player_autopump
+            or self.story_session is None
+            or self._completion_state is not None
+            or self._llm_player_pump_active
+        ):
+            return ()
+        limit = max(1, int(max_actions or self._llm_player_max_actions_per_pump))
+        actions: list[tuple[str, str]] = []
+        self._llm_player_pump_active = True
+        try:
+            for _step in range(limit):
+                acted = False
+                for agent in self._llm_player_agents:
+                    decision = agent.decide(self.story_session)
+                    if decision is None:
+                        continue
+                    self._emit_llm_player_feedback(
+                        decision.controller_id,
+                        f'{agent.label} submits `{decision.command}`. {decision.reason}',
+                    )
+                    self.story_session.handle_input(decision.controller_id, decision.command)
+                    self._refresh_demo_completion()
+                    actions.append((decision.controller_id, decision.command))
+                    acted = True
+                    break
+                if not acted or self._completion_state is not None:
+                    break
+        finally:
+            self._llm_player_pump_active = False
+        return tuple(actions)
+
+    def _emit_llm_player_feedback(self, controller_id: str, text: str) -> None:
+        if self._llm_feedback_sink is None:
+            return
+        self._llm_feedback_sink(controller_id, 'info', text)
 
     def _handle_creation_input(self, controller_id: str, raw_input: str):
         binding = self._controllers[controller_id]
@@ -319,6 +368,9 @@ def build_full_story_demo_manual_session(
     precreate_characters: bool = False,
     character_load_path: str | Path | None = None,
     character_save_path: str | Path | None = None,
+    llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
+    llm_player_autopump: bool = False,
+    llm_player_max_actions_per_pump: int = 1,
 ) -> FullStoryDemoManualSession:
     return FullStoryDemoManualSession(
         base_url=base_url,
@@ -328,6 +380,9 @@ def build_full_story_demo_manual_session(
         precreate_characters=precreate_characters,
         character_load_path=character_load_path,
         character_save_path=character_save_path,
+        llm_player_agents=llm_player_agents,
+        llm_player_autopump=llm_player_autopump,
+        llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
     )
 
 

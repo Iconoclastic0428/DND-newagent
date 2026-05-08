@@ -733,8 +733,12 @@ class SessionWebServer:
 
     def _submit_input(self, controller_id: str, text: str):
         if hasattr(self.session, 'handle_input'):
-            return self.session.handle_input(controller_id, text)
-        return self.session.execute_for_controller(controller_id, text)
+            result = self.session.handle_input(controller_id, text)
+        else:
+            result = self.session.execute_for_controller(controller_id, text)
+        if hasattr(self.session, 'pump_llm_players'):
+            self.session.pump_llm_players()
+        return result
 
     def _validate_controller(self, controller_id: str):
         if hasattr(self.session, 'validate_controller'):
