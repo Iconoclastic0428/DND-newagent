@@ -420,7 +420,7 @@ def project_story_session_projection(session, controller_id: str, *, session_id:
             if waiting_binding is not None:
                 waiting_label = waiting_binding.label
     transcript_entries = tuple(
-        WebTranscriptEntryProjection(speaker=entry.speaker, text=entry.text, visibility=entry.visibility.value)
+        WebTranscriptEntryProjection(speaker=_story_speaker_label(session, entry.speaker), text=entry.text, visibility=entry.visibility.value)
         for entry in session.story_state.transcript_entries
         if (entry.visibility != StoryTranscriptVisibility.DM_ONLY or binding.role == ControllerRole.DM)
         and (entry.visibility != StoryTranscriptVisibility.PRIVATE_CONTROLLERS or binding.role == ControllerRole.DM or controller_id in entry.controller_ids)
@@ -1698,7 +1698,7 @@ def _project_story_chat_entries(session, controller_id: str) -> tuple[WebChatEnt
                 entries.append(
                     WebChatEntryView(
                         entry_id=f'story-transcript:{index}:{transcript_index}',
-                        speaker=entry.speaker,
+                        speaker=_story_speaker_label(session, entry.speaker),
                         text=entry.text,
                         category='story',
                         visibility=entry.visibility.value,
@@ -1814,6 +1814,16 @@ def _actor_label(session, actor_id: str | None) -> str:
         return actor.name
     pretty = actor_id.replace('-', ' ').replace('_', ' ').strip()
     return pretty.title() if pretty else actor_id
+
+
+def _story_speaker_label(session, speaker: str) -> str:
+    if speaker in {'DM', 'System', 'Travel', 'Exploration', 'Senses'}:
+        return speaker
+    if speaker in session.encounter_session.control_runtime.controllers:
+        return _controller_label(session, speaker)
+    if speaker in session.state.actors:
+        return _actor_label(session, speaker)
+    return _humanize_label(speaker) or speaker
 
 
 

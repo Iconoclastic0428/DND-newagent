@@ -144,9 +144,21 @@ class LLMPlayerAgent:
             lines.extend(('', 'Available action choices:', *action_lines))
         transcript_lines = self._transcript_lines(story_state)
         if transcript_lines:
-            lines.extend(('', 'Recent transcript:', *transcript_lines))
+            lines.extend(
+                (
+                    '',
+                    'Recent transcript:',
+                    'Use this as fresh table memory. Do not ask for information that was already answered here; acknowledge it or move to a new useful action.',
+                    *transcript_lines,
+                )
+            )
         lines.extend(
             (
+                '',
+                'Decision guardrails:',
+                '- Before asking a question, check whether the answer is already in the recent transcript or controller summary.',
+                '- If another character just asked a question and the DM/NPC answered, react to that answer instead of asking the same question again.',
+                '- Prefer party-forward actions: accept, clarify a new unresolved detail, prepare, help another player, or state a concrete plan.',
                 '',
                 'Return JSON with this exact shape:',
                 '{"command": "/do ...", "reason": "brief tactical or roleplay reason"}',
@@ -186,11 +198,21 @@ class LLMPlayerAgent:
             visibility = getattr(entry, 'visibility', StoryTranscriptVisibility.PUBLIC)
             if visibility == StoryTranscriptVisibility.DM_ONLY:
                 continue
-            speaker = getattr(entry, 'speaker', 'Unknown')
+            speaker = self._speaker_label(story_state, speaker=getattr(entry, 'speaker', 'Unknown'))
             text = getattr(entry, 'text', '')
             if text:
                 lines.append(f'- {speaker}: {text}')
         return lines
+
+    def _speaker_label(self, story_state, *, speaker: str) -> str:
+        del story_state
+        if speaker in {'DM', 'System', 'Travel', 'Exploration', 'Senses'}:
+            return speaker
+        cleaned = speaker.replace('_', '-').strip('- ')
+        tokens = [token for token in cleaned.split('-') if token]
+        if not tokens:
+            return speaker
+        return ' '.join(token.title() for token in tokens)
 
     def _sanitize_command(self, command: str, *, fallback: str) -> str:
         command = command.splitlines()[0].strip() if command.strip() else ''
@@ -221,6 +243,8 @@ def _parse_json_object(text: str) -> dict[str, Any]:
 _PLAYER_INSTRUCTIONS = """You control one Dungeons & Dragons player character.
 You are a player, not the DM: never narrate outcomes, invent hidden facts, decide monster behavior, or rewrite rules.
 Choose one concise command for this controller only.
+Never repeat a question or request that was already answered in the recent transcript.
+If an NPC just answered another player's question, respond to the answer or advance the party plan instead of re-asking it.
 In storytelling mode, prefer /say, /do, or /story.
 If there is an active check prompt, use /check.
 In combat mode, use a legal slash command from the visible options when obvious; if uncertain, use the provided fallback.

@@ -20,7 +20,7 @@ from session_server.bootstrap import (
     build_lmop_story_demo_session_from_records,
 )
 from session_server.storytelling_session import StorytellingSession
-from session_server.web_projection import _project_creation_choice_groups
+from session_server.web_projection import _project_creation_choice_groups, project_story_session_view
 from session_server.web_server import SessionWebServer
 from shared_types.capabilities import ActiveEffectDefinition, CapabilityDefinition, CapabilityKind, CompositeEffect, DurationSpec, EffectDurationType, TargetAffinity, TargetSelectionKind, TargetingSpec
 from shared_types.conditions import ConditionInstance, ConditionType
@@ -31,7 +31,7 @@ from shared_types.effects import CheckRequest, ResolutionContext
 from shared_types.models import Ability, ChoiceView
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
-from shared_types.storytelling import RuntimeMode, StoryCheckRequestState, StoryRuntimeState
+from shared_types.storytelling import RuntimeMode, StoryCheckRequestState, StoryRuntimeState, StoryTranscriptEntry, StoryTranscriptVisibility
 from shared_types.web_ui import WebControllerGrant
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -284,6 +284,28 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertNotIn('OPENAI_API_KEY', chat_body)
         self.assertNotIn('OPENAI_BASE_URL', chat_body)
         self.assertNotIn('OPENAI_RESPONSES_MODEL', chat_body)
+
+    def test_story_chat_humanizes_raw_transcript_speaker_ids(self) -> None:
+        session = self._build_story_session()
+        session.story_state.pending_check = None
+        session._append_transcript((
+            StoryTranscriptEntry(
+                speaker='gundren-rockseeker',
+                text='Supplies, mostly.',
+                visibility=StoryTranscriptVisibility.PUBLIC,
+            ),
+            StoryTranscriptEntry(
+                speaker='player-1',
+                text='I nod and check the wagon harness.',
+                visibility=StoryTranscriptVisibility.PUBLIC,
+            ),
+        ))
+
+        view = project_story_session_view(session, 'player-1-controller', session_id='test-session')
+        speakers_by_text = {entry.text: entry.speaker for entry in view.chat_entries}
+
+        self.assertEqual(speakers_by_text['Supplies, mostly.'], 'Gundren Rockseeker')
+        self.assertNotEqual(speakers_by_text['I nod and check the wagon harness.'], 'player-1')
 
     def test_websocket_join_separates_dm_and_player_views(self) -> None:
         session = build_goblin_ambush_encounter_session()

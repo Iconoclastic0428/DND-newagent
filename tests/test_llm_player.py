@@ -99,6 +99,8 @@ class LLMPlayerAgentTests(unittest.TestCase):
         self.assertEqual(decision.controller_id, 'player-1-controller')
         self.assertEqual(decision.command, '/say We accept the job.')
         self.assertEqual(transport.payloads[0]['metadata']['request_type'], 'llm_player_action')
+        prompt_text = transport.payloads[0]['input'][0]['content']
+        self.assertIn('Do not ask for information that was already answered', prompt_text)
 
     def test_agent_wraps_plain_text_as_story_action(self) -> None:
         transport = QueueTransport('{"command": "I inspect the wagon.", "reason": "Check for problems."}')
@@ -123,6 +125,22 @@ class LLMPlayerAgentTests(unittest.TestCase):
 
         self.assertIsNotNone(agent.decide(session))
         self.assertIsNone(agent.decide(session))
+
+    def test_agent_context_humanizes_raw_speaker_ids(self) -> None:
+        transport = QueueTransport('{"command": "/do I check the harness.", "reason": "Act on the answer."}')
+        session = FakeSession()
+        session.story_state.transcript_entries = session.story_state.transcript_entries + (
+            StoryTranscriptEntry(
+                speaker='gundren-rockseeker',
+                text='Supplies, mostly.',
+                visibility=StoryTranscriptVisibility.PUBLIC,
+            ),
+        )
+
+        self._agent(transport).decide(session)
+
+        prompt_text = transport.payloads[0]['input'][0]['content']
+        self.assertIn('Gundren Rockseeker: Supplies, mostly.', prompt_text)
 
 
 if __name__ == '__main__':
