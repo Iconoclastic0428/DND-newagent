@@ -10,6 +10,7 @@ from rules_engine.encounter_math import ability_modifier
 from session_server.bootstrap import build_default_character_record
 from shared_types.conditions import ConditionType
 from shared_types.encounter_events import CapabilityRechargeRolledEvent, DamageAppliedEvent, HazardTriggeredEvent, TerrainEffectCreatedEvent
+from shared_types.encounter_intents import ContinueTimingIntent
 from shared_types.encounter_models import CharacterPlacement, GridPosition, MonsterPlacement, RuntimeSpellState
 from shared_types.models import ABILITY_ORDER, Ability, slugify
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
@@ -36,6 +37,7 @@ class StarterContentPackTests(unittest.TestCase):
         background_skills: tuple[str, ...] = (),
         saving_throw_proficiencies: tuple[Ability, ...] = (),
         inventory: dict[str, int] | None = None,
+        class_feature_names: tuple[str, ...] = (),
     ):
         record = copy.deepcopy(build_default_character_record(base_url=LOCAL_MIRROR_BASE_URL))
         record.record_id = record_id
@@ -49,6 +51,18 @@ class StarterContentPackTests(unittest.TestCase):
         record.background_skill_proficiencies = background_skills
         record.saving_throw_proficiencies = saving_throw_proficiencies
         record.inventory = dict(inventory or {})
+        record.proficiency_selections = ()
+        record.spell_selections = ()
+        record.feat_grants = ()
+        record.resolved_creation_choices = ()
+        record.class_levels = ()
+        record.subclass_selections = ()
+        record.resolved_advancement_choices = ()
+        record.expertise_skill_ids = ()
+        record.expertise_tool_ids = ()
+        record.fighting_style_names = ()
+        record.weapon_mastery_item_ids = ()
+        record.class_feature_names = class_feature_names
         return record
 
     def _build_state(self, *, player_record, player_position=GridPosition(0, 0, 0), monster_name='Skeleton', monster_source='XMM', monster_actor_id='monster-1', monster_position=GridPosition(6, 0, 0), battlefield=None):
@@ -162,6 +176,7 @@ class StarterContentPackTests(unittest.TestCase):
             class_skills=('Insight',),
             background_skills=('Medicine',),
             saving_throw_proficiencies=(Ability.WIS, Ability.CHA),
+            class_feature_names=('Thaumaturge',),
         )
         runtime, state = self._build_state(player_record=record)
         actor = state.actors['player-1']
@@ -228,11 +243,13 @@ class StarterContentPackTests(unittest.TestCase):
         state = self._advance_to_actor(ui, state, 'player-1')
         state, _ = ui.execute(state, '/use player-1 potion-of-healing')
         self.assertGreater(state.actors['player-1'].current_hit_points, 3)
-        self.assertEqual(state.actors['player-1'].capabilities['potion-of-healing'].remaining_uses, 0)
+        self.assertNotIn('potion-of-healing', state.actors['player-1'].capabilities)
+        self.assertNotIn('potion-of-healing', state.actors['player-1'].carried_item_counts)
         state.actors['player-1'].bonus_action_available = True
         state.actors['player-1'].action_available = True
         state, _ = ui.execute(state, '/use player-1 acid monster-1')
-        self.assertEqual(state.actors['player-1'].capabilities['acid'].remaining_uses, 0)
+        self.assertNotIn('acid', state.actors['player-1'].capabilities)
+        self.assertNotIn('acid', state.actors['player-1'].carried_item_counts)
         self.assertTrue(any(isinstance(event, DamageAppliedEvent) and event.target_id == 'monster-1' for event in state.event_log))
 
     def test_ball_bearings_create_hazard_and_can_prone_on_entry(self) -> None:
@@ -306,6 +323,8 @@ class StarterContentPackTests(unittest.TestCase):
         self.assertEqual(spider_state.actors['spider-1'].capabilities['giant-spider-web'].remaining_uses, 0)
         spider_state, _ = spider_ui.execute(spider_state, '/endturn spider-1')
         spider_state = self._advance_to_actor(spider_ui, spider_state, 'spider-1')
+        self.assertIsNotNone(spider_state.pending_timing_queue)
+        spider_state = runtime_two.kernel.dispatch(spider_state, ContinueTimingIntent(actor_id='spider-1'))
         self.assertTrue(any(isinstance(event, CapabilityRechargeRolledEvent) and event.actor_id == 'spider-1' for event in spider_state.event_log))
 
 

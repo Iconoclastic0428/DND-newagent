@@ -126,7 +126,14 @@ class D20AndBattlefieldTests(unittest.TestCase):
             state.random_counter = counter
             state.actors['player-1'].temp_hit_points = 3
             state, _ = ui.execute(state, '/attack monster-skeleton-1 shortsword player-1')
-            if any(isinstance(event, D20TestRolledEvent) and event.result.critical_success for event in state.event_log):
+            if any(
+                isinstance(event, D20TestRolledEvent)
+                and event.result.test_type == D20TestType.ATTACK
+                and event.result.critical_success
+                for event in state.event_log
+            ):
+                if state.pending_reaction_window is not None:
+                    state, _ = ui.execute(state, '/react player-1 decline')
                 critical_state = state
                 break
         self.assertIsNotNone(critical_state)

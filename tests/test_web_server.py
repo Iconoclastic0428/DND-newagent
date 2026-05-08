@@ -277,6 +277,13 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertNotIn('OPENAI_BASE_URL', app_body)
         self.assertNotIn('OPENAI_RESPONSES_MODEL', app_body)
 
+        status, chat_headers, chat_body = self._request_with_headers(server, '/chat_state.js')
+        self.assertEqual(status, 200)
+        self.assertEqual(chat_headers.get('cache-control'), 'no-store, max-age=0')
+        self.assertNotIn('OPENAI_API_KEY', chat_body)
+        self.assertNotIn('OPENAI_BASE_URL', chat_body)
+        self.assertNotIn('OPENAI_RESPONSES_MODEL', chat_body)
+
     def test_websocket_join_separates_dm_and_player_views(self) -> None:
         session = build_goblin_ambush_encounter_session()
         session.system_execute('/encounter start')

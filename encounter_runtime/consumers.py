@@ -210,8 +210,14 @@ class EncounterEffectConsumers:
                 )
                 if outcome.damage_divisor > 1:
                     damage_total //= outcome.damage_divisor
-                hit_points_after, temp_hit_points_after, applied_damage_total = self.kernel._damage_preview(actor, damage_total, damage_type=outcome.damage.damage_type)
+                hit_points_after, temp_hit_points_after, applied_damage_total, effect_events = self.kernel._damage_preview(
+                    state,
+                    actor,
+                    damage_total,
+                    damage_type=outcome.damage.damage_type,
+                )
                 damage_events = [
+                    *effect_events,
                     DamageRolledEvent(
                         actor_id=request.context.source_actor_id or actor.actor_id,
                         attack_id=None,

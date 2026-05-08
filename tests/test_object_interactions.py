@@ -74,6 +74,18 @@ class ObjectInteractionSubsystemTests(unittest.TestCase):
         record.armor_training = armor_training
         record.weapon_proficiencies = weapon_proficiencies
         record.inventory = dict(inventory)
+        record.proficiency_selections = ()
+        record.spell_selections = ()
+        record.feat_grants = ()
+        record.resolved_creation_choices = ()
+        record.class_levels = ()
+        record.subclass_selections = ()
+        record.resolved_advancement_choices = ()
+        record.expertise_skill_ids = ()
+        record.expertise_tool_ids = ()
+        record.fighting_style_names = ()
+        record.weapon_mastery_item_ids = ()
+        record.class_feature_names = ()
         return record
 
     def _fighter_record(self, *, record_id: str = 'fighter-object-test', inventory: dict[str, int]):

@@ -300,7 +300,9 @@ class RestRecoveryTests(unittest.TestCase):
 
         runtime.kernel.dispatch(state, StartLongRestIntent(actor_id='player-1'))
         runtime.kernel.dispatch(state, AdvanceTimeIntent(minutes=30, activity_type=RestActivityType.SLEEP))
-        hit_points_after, temp_hit_points_after, applied_damage_total = runtime.kernel._damage_preview(actor, 3, damage_type='slashing')
+        hit_points_after, temp_hit_points_after, applied_damage_total, effect_events = runtime.kernel._damage_preview(state, actor, 3, damage_type='slashing')
+        for event in effect_events:
+            runtime.kernel._apply_event(state, event)
         runtime.kernel._apply_event(
             state,
             DamageAppliedEvent(

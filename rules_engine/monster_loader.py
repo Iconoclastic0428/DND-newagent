@@ -64,6 +64,11 @@ _SPELL_MATERIAL_PROFILE_OVERRIDES = {
         'consumed': True,
         'item_keywords': ('holy-water', 'holy water'),
     },
+    ('True Strike', 'XPHB'): {
+        # The material component is the same weapon selected by the spell's
+        # executable capability, which validates held state, cost, and proficiency.
+        'handled_by_capability': True,
+    },
 }
 
 
@@ -71,6 +76,8 @@ def _spell_material_profile(record: Mapping[str, object]) -> tuple[int | None, b
     name = _canonical_name(record)
     source = str(record.get('source', '')).upper()
     override = _SPELL_MATERIAL_PROFILE_OVERRIDES.get((name, source), {})
+    if override.get('handled_by_capability'):
+        return None, False, (), ()
     cost_cp = None
     consumed = False
     raw_components = record.get('components')

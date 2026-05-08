@@ -553,6 +553,22 @@ class StorytellingSession:
             actor_snapshots=self._progression_actor_snapshots(),
         )
 
+    def _social_visible_lines(self, *, dm_view: bool) -> tuple[str, ...]:
+        if self.social_engine is None:
+            return ()
+        social_state = self.story_state.social_state
+        if not social_state.incidents and not social_state.propagation_queue and not social_state.retry_cooldowns:
+            return ()
+        projection_lines = self.social_engine.visible_projection_lines(social_state, dm_view=dm_view)
+        dm_status_lines = self.social_engine.dm_status_lines(social_state) if dm_view else ()
+        if not projection_lines and not dm_status_lines:
+            return ()
+        lines = ['Social consequences:']
+        lines.extend(f'  - {line}' for line in projection_lines)
+        if dm_status_lines:
+            lines.extend(dm_status_lines)
+        return tuple(lines)
+
     def _resolve_levelup_actor_id(self, controller_id: str, explicit_actor_id: str | None) -> str:
         if explicit_actor_id is None:
             actor_id = self._owned_actor_for_controller(controller_id)
@@ -1292,6 +1308,9 @@ class StorytellingSession:
         exploration_lines = self._exploration_summary_lines(controller_id, dm_view=dm_view)
         if exploration_lines:
             summary_lines.extend(exploration_lines)
+        social_lines = self._social_visible_lines(dm_view=dm_view)
+        if social_lines:
+            summary_lines.extend(social_lines)
         pending = self._normalized_pending_check()
         if pending is not None:
             pending_label = 'you' if pending.controller_id == controller_id else self._pending_check_owner_label(pending)

@@ -614,6 +614,7 @@ class GroupSaveGateEffectDef(EffectDefinition):
     dc_source: SaveDcSource
     flat_dc: int | None = None
     roll_mode: D20RollMode = D20RollMode.NORMAL
+    advantage_when_target_hostile_to_source: bool = False
     on_success: tuple[EffectDefinition, ...] = ()
     on_failure: tuple[EffectDefinition, ...] = ()
     failure_active_effect: ActiveEffectDefinition | None = None

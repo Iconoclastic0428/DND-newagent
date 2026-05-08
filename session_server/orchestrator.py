@@ -141,6 +141,8 @@ class EncounterOrchestratorServer:
                     self._handle_message(controller_id, message)
                 except Exception as exc:
                     self._send_to_controller(controller_id, {'type': 'error', 'message': str(exc)})
+        except (ConnectionResetError, OSError):
+            return
         finally:
             reader.close()
             if controller_id is not None:
@@ -225,7 +227,7 @@ class EncounterOrchestratorServer:
             'type': 'prompt',
             'prompt_id': prompt.prompt_id,
             'controller_id': controller_id,
-            'trigger_type': prompt.trigger_type.value,
+            'trigger_type': getattr(prompt.trigger_type, 'value', prompt.trigger_type),
             'text': prompt.prompt,
             'options': [
                 {

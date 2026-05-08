@@ -26,7 +26,7 @@ from shared_types.encounter_events import (
     TemporaryHitPointsReceivedAtZeroEvent,
     UnconsciousAtZeroAppliedEvent,
 )
-from shared_types.encounter_intents import EndTurnIntent
+from shared_types.encounter_intents import ContinueTimingIntent, EndTurnIntent
 from shared_types.encounter_models import (
     CharacterPlacement,
     DyingStateStatus,
@@ -92,11 +92,14 @@ class DeathAndDyingTests(unittest.TestCase):
         critical_hit: bool = False,
     ) -> None:
         target = state.actors[target_id]
-        hit_points_after, temp_hit_points_after, applied_damage_total = runtime.kernel._damage_preview(
+        hit_points_after, temp_hit_points_after, applied_damage_total, effect_events = runtime.kernel._damage_preview(
+            state,
             target,
             damage_total,
             damage_type=damage_type,
         )
+        for event in effect_events:
+            runtime.kernel._apply_event(state, event)
         runtime.kernel._apply_event(
             state,
             DamageAppliedEvent(
@@ -113,6 +116,11 @@ class DeathAndDyingTests(unittest.TestCase):
 
     def _drop_to_zero(self, runtime, state, actor_id: str = 'player-1'):
         self._apply_damage(runtime, state, target_id=actor_id, damage_total=state.actors[actor_id].current_hit_points)
+
+    def _resolve_death_save_start_of_turn(self, runtime, state, actor_id: str = 'player-1') -> None:
+        runtime.kernel.dispatch(state, EndTurnIntent(actor_id=actor_id))
+        self.assertIsNotNone(state.pending_timing_queue)
+        runtime.kernel.dispatch(state, ContinueTimingIntent(actor_id=actor_id))
 
     def _find_death_save_counter(self, runtime, predicate) -> int:
         request = D20TestRequest(
@@ -182,7 +190,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state, 'player-1')
         state.random_counter = self._find_death_save_counter(runtime, lambda result: result.success and result.selected_roll not in {1, 20})
 
-        runtime.kernel.dispatch(state, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime, state)
 
         actor = state.actors['player-1']
         self.assertEqual(actor.dying_state.status, DyingStateStatus.AT_0_HP_UNCONSCIOUS)
@@ -200,7 +208,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state, 'player-1')
         state.random_counter = self._find_death_save_counter(runtime, lambda result: result.success and result.selected_roll not in {1, 20})
 
-        runtime.kernel.dispatch(state, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime, state)
 
         actor = state.actors['player-1']
         self.assertEqual(actor.current_hit_points, 0)
@@ -217,7 +225,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state, 'player-1')
         state.random_counter = self._find_death_save_counter(runtime, lambda result: (not result.success) and result.selected_roll not in {1, 20})
 
-        runtime.kernel.dispatch(state, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime, state)
 
         actor = state.actors['player-1']
         self.assertEqual(actor.dying_state.death_save_failures, 1)
@@ -230,7 +238,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state_two, 'player-1')
         state_two.random_counter = self._find_death_save_counter(runtime_two, lambda result: (not result.success) and result.selected_roll not in {1, 20})
 
-        runtime_two.kernel.dispatch(state_two, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime_two, state_two)
 
         actor_two = state_two.actors['player-1']
         self.assertEqual(actor_two.dying_state.status, DyingStateStatus.DEAD)
@@ -242,7 +250,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state, 'player-1')
         state.random_counter = self._find_death_save_counter(runtime, lambda result: result.selected_roll == 1)
 
-        runtime.kernel.dispatch(state, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime, state)
 
         actor = state.actors['player-1']
         self.assertEqual(actor.dying_state.death_save_failures, 2)
@@ -256,7 +264,7 @@ class DeathAndDyingTests(unittest.TestCase):
         self._set_turn(state, 'player-1')
         state.random_counter = self._find_death_save_counter(runtime, lambda result: result.selected_roll == 20)
 
-        runtime.kernel.dispatch(state, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime, state)
 
         actor = state.actors['player-1']
         self.assertEqual(actor.current_hit_points, 1)
@@ -375,8 +383,8 @@ class DeathAndDyingTests(unittest.TestCase):
         state_one.random_counter = counter
         state_two.random_counter = counter
 
-        runtime_one.kernel.dispatch(state_one, EndTurnIntent(actor_id='player-1'))
-        runtime_two.kernel.dispatch(state_two, EndTurnIntent(actor_id='player-1'))
+        self._resolve_death_save_start_of_turn(runtime_one, state_one)
+        self._resolve_death_save_start_of_turn(runtime_two, state_two)
 
         roll_one = next(event for event in state_one.event_log if isinstance(event, DeathSaveRolledEvent))
         roll_two = next(event for event in state_two.event_log if isinstance(event, DeathSaveRolledEvent))

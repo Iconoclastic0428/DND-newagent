@@ -1,3 +1,120 @@
+## 2026-05-08 - Merge GitHub DnD-Agent Branch
+
+### Scope
+- Pull the current GitHub branch tracked by this worktree (`elijah/dnd-newagent-migration`) into the local branch.
+- Preserve and integrate upstream minor-bug fixes when present:
+  - README/web-page operation docs.
+  - Ability assignment command hints and attribute order.
+  - Multi-select character-creation prompts.
+  - `/create confirm` item-finish command hint.
+  - Character load/save support.
+  - LLM acting as player or monster.
+  - Alternate LLM provider/model configuration.
+- Preserve local bug fixes already in this worktree, including web UI chat ordering, runtime stabilization, and server-authoritative boundaries.
+- Resolve conflicts directly without reverting unrelated user/runtime files.
+- Verify the merged branch and push it back to GitHub.
+
+### Steps
+- [x] Review lessons and inspect branch/remotes/worktree.
+- [x] Fetch the tracked GitHub branch and inspect incoming commits/files.
+- [ ] Safeguard local uncommitted changes before merging.
+- [ ] Merge/pull the remote branch and resolve conflicts.
+- [ ] Review the listed feature areas after conflict resolution.
+- [ ] Run focused compile/unit/web verification.
+- [ ] Push the resolved branch to GitHub.
+- [ ] Record review notes and append a summary to `tasks/SUMMARIES.md`.
+
+### Verification Plan
+- `git status --short --branch` before and after merge.
+- Focused compile checks for touched Python modules.
+- Character-creation, web-server, and LLM/client tests based on changed files.
+- Frontend syntax checks for touched JS files.
+- `git diff --check`.
+
+### Review
+- Fetch found the listed upstream fixes on `elijah/newdndagents` (`180f317`, `a42923d`, `73c31b5`, `cd80c42`), which is based on the local branch tip `326d5d3`.
+
+## 2026-05-07 - Web UI Thinking Row Ordering Fix
+
+### Scope
+- Fix the browser chat ordering bug where a transient `DM is thinking`/LLM feedback row can remain below the newest authoritative LLM narration.
+- Keep the server-authoritative transcript as the source of truth; local browser feedback must not reorder or obscure committed chat entries.
+- Do not add fallback behavior. The UI should discard stale transient feedback once a newer authoritative view arrives.
+
+### Steps
+- [x] Review lessons and locate the frontend chat render/message path.
+- [x] Confirm the root cause in the local-entry merge behavior.
+- [x] Patch the frontend to expire stale `thinking` entries when authoritative chat advances.
+- [x] Add or update focused regression coverage for the UI behavior.
+- [x] Run focused static/server tests and record results.
+- [x] Append a concise request summary to `tasks/SUMMARIES.md`.
+
+### Verification Plan
+- Frontend syntax/static check for `web_frontend/app.js`.
+- Focused test covering that stale thinking feedback is removed after a newer authoritative chat entry appears.
+- `python -m unittest tests.test_web_server -v`.
+
+### Review
+- Root cause: `web_frontend/app.js` treated websocket `thinking` feedback as a normal local chat entry and always merged local entries after `view.chat_entries`. When the LLM completed, the authoritative transcript contained the latest narration, but the stale local thinking row still rendered below it until refresh cleared browser-local state.
+- Fix: moved chat-feed merge logic into `web_frontend/chat_state.js`. Local entries now remember the authoritative chat generation they were created against, and stale `thinking` entries are removed as soon as a newer authoritative transcript arrives. This preserves pending feedback while the LLM is working without letting it sit below committed narration.
+- Static/server coverage:
+  - `node --check web_frontend\app.js` passed.
+  - `node --check web_frontend\chat_state.js` passed.
+  - `python -m unittest tests.test_web_frontend_chat -v` passed 2 tests.
+  - `python -m unittest tests.test_web_server.SessionWebServerTests.test_config_and_static_assets_do_not_leak_llm_secrets -v` passed.
+  - `python -m unittest tests.test_web_server -v` passed 21 tests.
+  - `git diff --check -- web_frontend\app.js web_frontend\chat_state.js tests\test_web_frontend_chat.py tests\test_web_server.py tasks\TODO.md` passed with only line-ending warnings.
+
+## 2026-05-07 - Whole-Code Structure Stabilization Loop
+
+### Scope
+- Review the repository structure end to end with emphasis on the current web UI demo path.
+- Use automated tests, compile checks, command-line smoke checks, and web UI/server verification to find concrete defects.
+- Fix root causes directly; do not add fallback logic that hides errors.
+- Repeat the find/fix/verify loop until the available checks stop surfacing new bugs.
+- Preserve the DM-agent vs rules-engine authority boundary, server-authoritative state, typed intent flow, and visibility separation.
+
+### Steps
+- [x] Review local instructions and lessons before changing code.
+- [x] Map top-level modules, test suites, web UI entrypoints, and current git state.
+- [x] Run broad compile/unit discovery to establish the first failure set.
+- [x] Run the web UI demo path or an equivalent local server/browser smoke path and inspect logs/output.
+- [x] Classify each failure as a real bug, test drift, environment issue, or acceptable explicit error.
+- [x] Fix confirmed bugs with minimal root-cause changes.
+- [x] Re-run the relevant tests and web UI checks after each fix batch.
+- [x] Repeat the loop until no new confirmed defects appear in the selected verification surface.
+- [x] Add a review section with commands, observed results, remaining gaps, and confidence boundary.
+- [x] Append a concise request summary to `tasks/SUMMARIES.md`.
+
+### Verification Plan
+- `python -m py_compile` over changed Python files and any modules implicated by failures.
+- `python -m unittest discover -s tests -v` unless the suite is too slow or blocked, then focused failing suites plus documented blocker.
+- Focused user-test/web demo checks for `user-test/web_story_demo_server.py` and `session_server/web_server.py`.
+- Frontend static asset sanity checks and browser/web smoke checks where the server can start locally.
+- `git diff --check`.
+
+### Review
+- Reviewed the top-level module layout, current web UI entrypoint (`user-test/web_story_demo_server.py`), and current git state. The campaign DM memory files under `campaigns/lmop/dm/...` were already dirty and were not reverted.
+- Fixed confirmed runtime defects:
+  - `rules_engine/monster_loader.py`: True Strike no longer gets a duplicate generic material-component requirement; the selected weapon is validated by the spell capability.
+  - `shared_types/capabilities.py` and `encounter_runtime/effect_execution.py`: group save definitions and target-radius save execution now carry the parameters expected by level-1 spell executors.
+  - `encounter_runtime/consumers.py`: hazard damage resolution now calls `_damage_preview` with encounter state and applies generated damage-reduction effect events.
+  - `session_server/storytelling_session.py`: social consequences and DM-only propagation/projection status are visible in controller/web summaries with public vs DM-only filtering preserved.
+  - `session_server/orchestrator.py`: socket prompt replay now serializes string trigger types correctly and treats client resets as disconnects.
+  - `session_server/web_server.py`: normal websocket close no longer prints the third-party close-state assertion trace.
+- Updated stale tests to match explicit current mechanics instead of adding fallbacks: custom non-wizard records no longer inherit wizard spell selections; item capabilities disappear when consumed inventory reaches zero; recharge and death-save timing queues are continued explicitly; critical-hit damage tests decline the reaction window before asserting damage.
+- Verification:
+  - `python -m compileall -q campaign_ingestion character_creation dm_agent encounter_runtime monster_runtime player_interface rules_engine session_server shared_types tests user-test` passed; it still reports stale `.tmp` listing notices for missing old temp directories.
+  - `python -m unittest discover -s tests\xphb_cantrips -v` passed 102 tests.
+  - `python -m unittest discover -s tests\xphb_level1_spells -v` passed 280 tests.
+  - `python -m unittest discover -s tests\xphb_level1_class_features -v` passed 100 tests.
+  - `python -m unittest tests.test_tier2_level2_spell_suite tests.test_tier2_level2_spell_completeness -v` passed 94 tests.
+  - Broad explicit module batch from `tests.test_adjudication_runtime` through `tests.test_xphb_rollout_manifest` passed 530 tests after the fix loop.
+  - `python -m unittest tests.test_web_server -v` passed 21 tests with the websocket close trace removed.
+  - Actual launcher smoke for `user-test/web_story_demo_server.py` passed: HTTP `/` 200, `/config.json` 200, websocket join returned `joined` then `view`, runtime mode `storytelling`, controller count 5.
+  - `git diff --check` passed with only Git line-ending warnings.
+- Confidence boundary: I am not claiming mathematically "all bugs" are gone. I am confident across the selected verification surface: compile, XPHB cantrip/level-1/level-2 suites, major top-level module tests, web server tests, and a launcher-level web UI smoke. The single monolithic `python -m unittest discover -s tests -v` run is still impractical in one pass because it previously exceeded a 600 second timeout before completing generated content coverage, so verification used split and explicit broad suites.
+
 ## 2026-05-05 - DeepSeek JSON Output Hardening
 
 ### Scope

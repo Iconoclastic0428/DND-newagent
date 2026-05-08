@@ -412,6 +412,10 @@ class SessionWebServer:
                     self._send_to_controller(controller_id, {'type': 'error', 'message': str(exc)})
         except ConnectionClosed:
             return
+        except AssertionError as exc:
+            if "connection isn't closed yet" in str(exc):
+                return
+            raise
         finally:
             if controller_id is not None:
                 self._unregister_client(controller_id, websocket=websocket)

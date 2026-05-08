@@ -561,7 +561,7 @@ class EncounterEffectExecutor:
                 self._execute_effect(state, events, source_actor_id=source_actor_id, capability=capability, effect=child, target_ids=target_ids, point=point, active_effect_id=active_effect_id, critical_hit=critical, parameters=parameters)
             return
         if isinstance(effect, TargetRadiusSaveEffectDef):
-            self._apply_target_radius_save(state, events, source_actor_id=source_actor_id, capability=capability, target_ids=target_ids, effect=effect, point=point, active_effect_id=active_effect_id)
+            self._apply_target_radius_save(state, events, source_actor_id=source_actor_id, capability=capability, target_ids=target_ids, effect=effect, point=point, active_effect_id=active_effect_id, parameters=parameters)
             return
         if isinstance(effect, SaveGateEffect):
             if len(effect.on_failure) == 1 and not effect.on_success and not effect.on_partial_success:
@@ -1181,7 +1181,7 @@ class EncounterEffectExecutor:
             lines = ['No nonmagical poisoned or rotten food or drink was found in range.']
         self._emit_information_scan(state, events, source_actor_id=source_actor_id, capability=capability, title='Purify Food and Drink', detail_lines=tuple(lines), kind=InformationPayloadKind.DIVINATION)
 
-    def _apply_target_radius_save(self, state: EncounterState, events: list[object], *, source_actor_id: str, capability: CapabilityDefinition, target_ids: tuple[str, ...], effect: TargetRadiusSaveEffectDef, point: GridPosition | None, active_effect_id: str | None) -> None:
+    def _apply_target_radius_save(self, state: EncounterState, events: list[object], *, source_actor_id: str, capability: CapabilityDefinition, target_ids: tuple[str, ...], effect: TargetRadiusSaveEffectDef, point: GridPosition | None, active_effect_id: str | None, parameters: Mapping[str, str]) -> None:
         if len(target_ids) != 1:
             raise EncounterValidationError('Target-radius effects require exactly one primary target.')
         primary = self.kernel._require_target(state, target_ids[0])
@@ -1193,7 +1193,7 @@ class EncounterEffectExecutor:
                 actor_ids.append(actor.actor_id)
         gate = SaveGateEffect(ability=effect.ability, dc_source=effect.dc_source, flat_dc=effect.flat_dc, on_success=effect.on_success, on_failure=effect.on_failure)
         for actor_id in tuple(dict.fromkeys(actor_ids)):
-            self._apply_save_gate(state, events, source_actor_id=source_actor_id, target_id=actor_id, capability=capability, gate=gate, point=primary.position, active_effect_id=active_effect_id)
+            self._apply_save_gate(state, events, source_actor_id=source_actor_id, target_id=actor_id, capability=capability, gate=gate, point=primary.position, active_effect_id=active_effect_id, parameters=parameters)
 
     def _existing_source_effect(self, state: EncounterState, *, source_actor_id: str, name: str) -> ActiveEffectState | None:
         matches = [

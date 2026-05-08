@@ -1,6 +1,9 @@
-const CHAT_VISIBLE_LIMIT = 28;
-const CHAT_RECENT_KEEP_COUNT = 18;
-const LOCAL_CHAT_LIMIT = 30;
+import {
+  appendLocalChatEntry,
+  buildChatRenderEntries,
+  createChatFeedState,
+  noteAuthoritativeChat,
+} from './chat_state.js';
 
 const state = {
   config: null,
@@ -12,7 +15,7 @@ const state = {
   pathPreview: null,
   pendingAction: null,
   previewMode: 'walk',
-  systemEntries: [],
+  chatFeed: createChatFeedState(),
   autoConnect: false,
   selectedCharacterCardActorId: null,
   mapPan: {
@@ -60,14 +63,13 @@ function create(tag, className, text) {
 }
 
 function appendLocalEntry(entry) {
-  state.systemEntries.push({
-    entry_id: entry.entry_id || `local:${Date.now()}:${state.systemEntries.length}`,
+  appendLocalChatEntry(state.chatFeed, {
+    entry_id: entry.entry_id,
     speaker: entry.speaker || 'System',
     text: entry.text,
     category: entry.category || 'system',
     visibility: entry.visibility || 'public',
   });
-  state.systemEntries = state.systemEntries.slice(-LOCAL_CHAT_LIMIT);
   renderChat();
 }
 
@@ -161,7 +163,7 @@ function disconnect() {
   state.inspection = null;
   state.pathPreview = null;
   state.pendingAction = null;
-  state.systemEntries = [];
+  state.chatFeed = createChatFeedState();
   state.selectedCharacterCardActorId = null;
   updateStatus('Disconnected');
   renderAll();
@@ -199,6 +201,7 @@ function handleMessage(message) {
       break;
     case 'view':
       state.view = message.view;
+      noteAuthoritativeChat(state.chatFeed, message.view.chat_entries || []);
       state.prompt = message.view.prompt;
       if (!message.view.map && !message.view.travel) {
         state.inspection = null;
@@ -693,59 +696,6 @@ function renderKeyValueBlock(title, lines) {
   return block;
 }
 
-function chatEntrySignature(entry) {
-  return `${entry.speaker}::${entry.text}::${entry.category}`;
-}
-
-function trimSummaryText(text) {
-  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  return normalized.length > 120 ? `${normalized.slice(0, 117)}...` : normalized;
-}
-
-function buildChatSummaryEntry(entries) {
-  const speakers = [...new Set(entries.map(entry => entry.speaker).filter(Boolean))].slice(0, 5);
-  const highlightCandidates = [];
-  if (entries.length) {
-    highlightCandidates.push(entries[0]);
-    const checkEntry = entries.find(entry => entry.category === 'check');
-    if (checkEntry) highlightCandidates.push(checkEntry);
-    const playerEntry = entries.find(entry => entry.category === 'player');
-    if (playerEntry) highlightCandidates.push(playerEntry);
-    const recentTail = entries.slice(-2);
-    highlightCandidates.push(...recentTail);
-  }
-  const highlights = [];
-  const seen = new Set();
-  for (const entry of highlightCandidates) {
-    if (!entry) continue;
-    const trimmed = trimSummaryText(entry.text);
-    if (!trimmed || seen.has(trimmed)) continue;
-    highlights.push(trimmed);
-    seen.add(trimmed);
-    if (highlights.length >= 4) break;
-  }
-  const speakerText = speakers.length ? ` Speakers: ${speakers.join(', ')}.` : '';
-  const highlightText = highlights.length ? ` Highlights: ${highlights.join(' / ')}` : '';
-  return {
-    entry_id: `summary:${entries.length}`,
-    speaker: 'Summary',
-    text: `Earlier chat summary (${entries.length} entries hidden).${speakerText}${highlightText}`.trim(),
-    category: 'summary',
-    visibility: 'public',
-  };
-}
-
-function buildVisibleChatEntries(entries) {
-  if (entries.length <= CHAT_VISIBLE_LIMIT) {
-    return entries;
-  }
-  const splitIndex = Math.max(entries.length - CHAT_RECENT_KEEP_COUNT, 1);
-  const older = entries.slice(0, splitIndex);
-  const recent = entries.slice(splitIndex);
-  return [buildChatSummaryEntry(older), ...recent];
-}
-
 function autoScrollChatLog() {
   requestAnimationFrame(() => {
     els.chatLog.scrollTop = els.chatLog.scrollHeight;
@@ -755,9 +705,7 @@ function autoScrollChatLog() {
 function renderChat() {
   els.chatLog.innerHTML = '';
   const authoritativeEntries = state.view?.chat_entries || [];
-  const authoritativeSignatures = new Set(authoritativeEntries.map(chatEntrySignature));
-  const localEntries = state.systemEntries.filter(entry => !authoritativeSignatures.has(chatEntrySignature(entry)));
-  const entries = buildVisibleChatEntries([...authoritativeEntries, ...localEntries]);
+  const entries = buildChatRenderEntries(state.chatFeed, authoritativeEntries);
   if (!entries.length && state.view?.runtime_mode === 'character-creation') {
     els.chatLog.textContent = 'Character creation is active. Use the command box for /create commands. Story narration will appear here after all four players confirm characters.';
     return;
