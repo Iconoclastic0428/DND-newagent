@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 from typing import Any, Iterable, Mapping
 
 from shared_types.effects import CheckRequest, ResolutionContext
@@ -208,6 +209,38 @@ def _canonical_ability(raw: str) -> Ability:
     if alias is not None:
         return alias
     raise DMRuntimeError(f'Invalid check_request ability {normalized!r}.')
+
+
+def _public_narration_redundant(public_narration: str, entries: tuple[StoryTranscriptEntry, ...] | list[StoryTranscriptEntry]) -> bool:
+    public_entries = tuple(entry for entry in entries if entry.visibility == StoryTranscriptVisibility.PUBLIC and entry.text.strip())
+    if not public_entries:
+        return False
+    narration_tokens = _dedupe_tokens(public_narration)
+    if not narration_tokens:
+        return False
+    for entry in public_entries:
+        entry_tokens = _dedupe_tokens(entry.text)
+        if _substantial_overlap(narration_tokens, entry_tokens):
+            return True
+    combined_tokens = _dedupe_tokens(' '.join(entry.text for entry in public_entries))
+    return _substantial_overlap(narration_tokens, combined_tokens)
+
+
+def _dedupe_tokens(text: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"[a-z0-9']+", text.lower()))
+
+
+def _substantial_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+    shared = set(left) & set(right)
+    meaningful_shared = {token for token in shared if len(token) > 2}
+    if len(meaningful_shared) < 5:
+        return False
+    smaller = min(len(set(left)), len(set(right)))
+    return len(meaningful_shared) / max(1, smaller) >= 0.55
 
 
 def _serialize_document(document: CampaignDocument) -> dict[str, Any]:
@@ -936,7 +969,7 @@ class DMStorytellingRuntime:
                 if not speaker or not text or visibility is None:
                     raise DMRuntimeError('Each transcript entry requires speaker, text, and a valid visibility.')
                 entries.append(StoryTranscriptEntry(speaker=speaker, text=text, visibility=visibility))
-        if public_narration:
+        if public_narration and not _public_narration_redundant(public_narration, entries):
             entries.insert(0, StoryTranscriptEntry(speaker='DM', text=public_narration, visibility=StoryTranscriptVisibility.PUBLIC))
         if not entries:
             raise DMRuntimeError('Story turn response must include public_narration or transcript_entries.')

@@ -306,6 +306,143 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertEqual(decision.transcript_entries[1].speaker, 'player-3')
         self.assertEqual(decision.transcript_entries[1].visibility.value, 'dm-only')
 
+    def test_story_turn_parser_drops_redundant_public_narration(self) -> None:
+        transport = FakeTransport(
+            {
+                'output': [
+                    {
+                        'type': 'message',
+                        'role': 'assistant',
+                        'content': [
+                            {
+                                'type': 'output_text',
+                                'text': (
+                                    '{'
+                                    '"public_narration":"Gundren Rockseeker crosses his arms and waits for your decision.",'
+                                    '"transcript_entries":[{"speaker":"DM","text":"Gundren Rockseeker crosses his arms and waits for your decision.","visibility":"public"}],'
+                                    '"check_request":null,'
+                                    '"scene_update":null,'
+                                    '"mode_switch_decision":null,'
+                                    '"memory_note":"test"'
+                                    '}'
+                                ),
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        runtime = DMStorytellingRuntime(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        decision, _ = runtime.plan_story_turn(
+            context,
+            (),
+            controller_id='player-1-controller',
+            actor_id='player-1',
+            declaration='What now?',
+            available_actor_ids=('player-1',),
+            available_combatant_actor_ids=('player-1', 'monster-goblin-1'),
+        )
+
+        self.assertEqual(len(decision.transcript_entries), 1)
+        self.assertEqual(decision.transcript_entries[0].speaker, 'DM')
+
+    def test_story_turn_parser_drops_paraphrased_public_narration(self) -> None:
+        transport = FakeTransport(
+            {
+                'output': [
+                    {
+                        'type': 'message',
+                        'role': 'assistant',
+                        'content': [
+                            {
+                                'type': 'output_text',
+                                'text': (
+                                    '{'
+                                    '"public_narration":"Gundren grins broadly and claps you on the shoulder. '
+                                    "Excellent! The wagon's loaded and waiting at the stable yard. "
+                                    'We will ride ahead tonight. You will catch up to us on the road.",'
+                                    '"transcript_entries":[{"speaker":"Gundren Rockseeker","text":"Excellent! '
+                                    "The wagon's ready at the stable yard. We'll ride ahead--catch you in Phandalin!"
+                                    '","visibility":"public"}],'
+                                    '"check_request":null,'
+                                    '"scene_update":null,'
+                                    '"mode_switch_decision":null,'
+                                    '"memory_note":"test"'
+                                    '}'
+                                ),
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        runtime = DMStorytellingRuntime(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        decision, _ = runtime.plan_story_turn(
+            context,
+            (),
+            controller_id='player-1-controller',
+            actor_id='player-1',
+            declaration='What now?',
+            available_actor_ids=('player-1',),
+            available_combatant_actor_ids=('player-1', 'monster-goblin-1'),
+        )
+
+        self.assertEqual(len(decision.transcript_entries), 1)
+        self.assertEqual(decision.transcript_entries[0].speaker, 'Gundren Rockseeker')
+
+    def test_story_turn_parser_keeps_distinct_public_narration_and_dialogue(self) -> None:
+        transport = FakeTransport(
+            {
+                'output': [
+                    {
+                        'type': 'message',
+                        'role': 'assistant',
+                        'content': [
+                            {
+                                'type': 'output_text',
+                                'text': (
+                                    '{'
+                                    '"public_narration":"The tavern quiets as Sildar studies the map.",'
+                                    '"transcript_entries":[{"speaker":"Gundren Rockseeker","text":"Well? What is your call?","visibility":"public"}],'
+                                    '"check_request":null,'
+                                    '"scene_update":null,'
+                                    '"mode_switch_decision":null,'
+                                    '"memory_note":"test"'
+                                    '}'
+                                ),
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        runtime = DMStorytellingRuntime(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        decision, _ = runtime.plan_story_turn(
+            context,
+            (),
+            controller_id='player-1-controller',
+            actor_id='player-1',
+            declaration='What now?',
+            available_actor_ids=('player-1',),
+            available_combatant_actor_ids=('player-1', 'monster-goblin-1'),
+        )
+
+        self.assertEqual(len(decision.transcript_entries), 2)
+        self.assertEqual(decision.transcript_entries[0].speaker, 'DM')
+        self.assertEqual(decision.transcript_entries[1].speaker, 'Gundren Rockseeker')
+
     def test_story_turn_retries_with_exact_error_and_template(self) -> None:
         transport = FakeTransport(
             [
