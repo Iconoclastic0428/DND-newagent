@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--llm-player',
         action='append',
-        default=(),
+        default=[],
         metavar='CONTROLLER_ID=ENV_PATH',
         help='Assign an LLM to a player controller using a separate env file. Repeat for multiple LLM players.',
     )
