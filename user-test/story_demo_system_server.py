@@ -14,6 +14,7 @@ from character_creation import build_default_kernel
 from player_interface import SlashCommandInterface
 from session_server import StoryOrchestratorServer
 from session_server.bootstrap import build_default_character_record, build_lmop_story_demo_session_from_records
+from shared_types.character_record_io import load_character_party, save_character_party
 from shared_types.encounter_control import ControllerBinding, ControllerRole
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
@@ -43,11 +44,14 @@ class FullStoryDemoManualSession:
         env_path: str | Path = '.env',
         client_transport=None,
         precreate_characters: bool = False,
+        character_load_path: str | Path | None = None,
+        character_save_path: str | Path | None = None,
     ) -> None:
         self.base_url = base_url
         self.campaign_root = campaign_root
         self.env_path = env_path
         self.client_transport = client_transport
+        self.character_save_path = Path(character_save_path) if character_save_path is not None else None
         self.creation_kernel = build_default_kernel(base_url=base_url)
         self.creation_ui = SlashCommandInterface(self.creation_kernel)
         self.creation_states: dict[str, CreationState] = {
@@ -65,7 +69,9 @@ class FullStoryDemoManualSession:
             'player-3-controller': ControllerBinding(controller_id='player-3-controller', role=ControllerRole.PLAYER, label='Player 3'),
             'player-4-controller': ControllerBinding(controller_id='player-4-controller', role=ControllerRole.PLAYER, label='Player 4'),
         }
-        if precreate_characters:
+        if character_load_path is not None:
+            self._load_saved_party(character_load_path)
+        elif precreate_characters:
             self._precreate_default_party()
 
     @property
@@ -145,6 +151,7 @@ class FullStoryDemoManualSession:
         self.creation_states[controller_id] = updated_state
         if updated_state.character_record is not None:
             self.confirmed_records[controller_id] = self._confirmed_record_copy(controller_id, updated_state.character_record)
+            self._save_confirmed_records()
         self._start_story_if_ready()
         return self.view_for_controller(controller_id)
 
@@ -200,6 +207,35 @@ class FullStoryDemoManualSession:
         slot = self._PLAYER_CONTROLLER_IDS.index(controller_id) + 1
         cloned.record_id = f'level-1-character-p{slot}'
         return cloned
+
+    def _load_saved_party(self, path: str | Path) -> None:
+        if self.story_session is not None:
+            raise EncounterValidationError('The story session is already active.')
+        if self.confirmed_records:
+            raise EncounterValidationError('Cannot load characters after character creation has started.')
+        try:
+            loaded_records = load_character_party(path)
+        except ValueError as exc:
+            raise EncounterValidationError(str(exc)) from exc
+        expected = set(self._PLAYER_CONTROLLER_IDS)
+        actual = set(loaded_records)
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            details = []
+            if missing:
+                details.append(f"missing {', '.join(missing)}")
+            if extra:
+                details.append(f"unexpected {', '.join(extra)}")
+            raise EncounterValidationError('Saved character party must contain exactly the four player controllers: ' + '; '.join(details))
+        for controller_id in self._PLAYER_CONTROLLER_IDS:
+            self.confirmed_records[controller_id] = self._confirmed_record_copy(controller_id, loaded_records[controller_id])
+        self._start_story_if_ready()
+
+    def _save_confirmed_records(self) -> None:
+        if self.character_save_path is None or not self.confirmed_records:
+            return
+        save_character_party(self.character_save_path, self.confirmed_records)
 
     def _precreate_default_party(self) -> None:
         if self.story_session is not None:
@@ -281,6 +317,8 @@ def build_full_story_demo_manual_session(
     env_path: str | Path = '.env',
     client_transport=None,
     precreate_characters: bool = False,
+    character_load_path: str | Path | None = None,
+    character_save_path: str | Path | None = None,
 ) -> FullStoryDemoManualSession:
     return FullStoryDemoManualSession(
         base_url=base_url,
@@ -288,6 +326,8 @@ def build_full_story_demo_manual_session(
         env_path=env_path,
         client_transport=client_transport,
         precreate_characters=precreate_characters,
+        character_load_path=character_load_path,
+        character_save_path=character_save_path,
     )
 
 
@@ -297,13 +337,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--port', type=int, default=8766, help='TCP port to bind. Use 0 for an ephemeral port.')
     parser.add_argument('--campaign-root', type=Path, help='Override the campaign markdown root.')
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Path to the local .env file.')
+    parser.add_argument('--save-characters', type=Path, help='Write confirmed character records to this JSON party file.')
+    parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file and start the story immediately.')
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     try:
-        session = build_full_story_demo_manual_session(campaign_root=args.campaign_root, env_path=args.env_path)
+        session = build_full_story_demo_manual_session(
+            campaign_root=args.campaign_root,
+            env_path=args.env_path,
+            character_load_path=args.load_characters,
+            character_save_path=args.save_characters,
+        )
         server = StoryOrchestratorServer(session=session, host=args.host, port=args.port)
         server.serve_forever()
         return 0

@@ -20,6 +20,7 @@ from session_server.bootstrap import (
     build_lmop_story_demo_session_from_records,
 )
 from session_server.storytelling_session import StorytellingSession
+from session_server.web_projection import _project_creation_choice_groups
 from session_server.web_server import SessionWebServer
 from shared_types.capabilities import ActiveEffectDefinition, CapabilityDefinition, CapabilityKind, CompositeEffect, DurationSpec, EffectDurationType, TargetAffinity, TargetSelectionKind, TargetingSpec
 from shared_types.conditions import ConditionInstance, ConditionType
@@ -27,7 +28,7 @@ from shared_types.encounter_control import ControllerPrompt, ControllerRole, Pro
 from shared_types.encounter_events import StoryActionDeclaredEvent, StoryCheckResolvedEvent
 from shared_types.encounter_models import ActiveEffectState, DyingState, DyingStateStatus, RuntimeCapabilityState
 from shared_types.effects import CheckRequest, ResolutionContext
-from shared_types.models import Ability
+from shared_types.models import Ability, ChoiceView
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
 from shared_types.storytelling import RuntimeMode, StoryCheckRequestState, StoryRuntimeState
@@ -552,6 +553,24 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertEqual({card['actor_id'] for card in dm_view['character_cards']}, {'player-1', 'player-2', 'player-3', 'player-4'})
         self.assertFalse(any(group['group_id'] == 'create-flow' for group in player_view['action_groups']))
 
+
+    def test_creation_action_group_projection_includes_assignment_and_confirm_commands(self) -> None:
+        groups = _project_creation_choice_groups(
+            {
+                'ability-assignment': (
+                    ChoiceView(option_id='15 14 13 12 10 8', label='Assign generated scores', detail='Enter scores in STR DEX CON INT WIS CHA order.'),
+                ),
+                'confirm': (
+                    ChoiceView(option_id='confirm', label='Confirm character', detail='Finish item choices.'),
+                ),
+            }
+        )
+        assignment_group = next(group for group in groups if group.group_id == 'ability-assignment')
+        assignment_choice = assignment_group.choices[0]
+        self.assertEqual(assignment_choice.command_insert_text, '/create ability assign 15 14 13 12 10 8')
+        self.assertEqual(assignment_choice.command_prefix, '/create ability assign')
+        confirm_group = next(group for group in groups if group.group_id == 'confirm')
+        self.assertEqual(confirm_group.choices[0].command_insert_text, '/create confirm')
 
     def test_character_creation_action_groups_include_full_create_command_helpers(self) -> None:
         session = self._build_full_story_demo_session()

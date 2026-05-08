@@ -175,8 +175,22 @@ class CharacterCreationKernel:
         ]
         if pending_choice is not None:
             lines.append(f"Pending creation choice: {pending_choice.group.prompt}")
+            lines.append(self._choice_count_instruction(pending_choice.group.constraint.required_count))
+            lines.append(f"Command: /create choose choice {pending_choice.group.choice_id} <option-id ...>")
+        phase = self.phase(state)
+        if phase == CreationPhase.CHOOSE_CLASS_SKILLS and state.class_id is not None:
+            class_record = self.catalog.classes[state.class_id]
+            lines.append(f"Class skill choices: {self._choice_count_instruction(class_record.skill_choice_count)}")
+            lines.append("Command: /create choose class-skills <skill-id ...>")
+        if phase == CreationPhase.ASSIGN_ABILITIES:
+            assignment_hint = self._ability_assignment_command_hint(state)
+            if assignment_hint is not None:
+                lines.append(f"Ability order: {self._ability_order_display()}")
+                lines.append(f"Command: {assignment_hint}")
+        if phase == CreationPhase.REVIEW:
+            lines.append("Command: /create confirm")
         return CreationSnapshot(
-            phase=self.phase(state),
+            phase=phase,
             summary_lines=tuple(lines),
             available_choices=self.available_choices(state),
         )
@@ -188,6 +202,18 @@ class CharacterCreationKernel:
         if not scores:
             return "pending"
         return ", ".join(str(score) for score in scores)
+
+    def _ability_order_display(self) -> str:
+        return " ".join(ability.value for ability in ABILITY_ORDER)
+
+    def _ability_assignment_command_hint(self, state: CreationState) -> str | None:
+        chosen_scores = state.ability_draft.chosen_scores()
+        if not chosen_scores:
+            return None
+        return "/create ability assign " + " ".join(str(score) for score in chosen_scores)
+
+    def _choice_count_instruction(self, required_count: int) -> str:
+        return f"Choose exactly {required_count} option(s)."
 
     def _roll_breakdown_display(self, breakdown: tuple[tuple[int, int, int, int], ...] | None) -> str:
         if not breakdown:
@@ -830,14 +856,19 @@ class CharacterCreationKernel:
             choices['class'] = tuple(ChoiceView(option_id=record.record_id, label=record.name, detail=f"{record.source}; d{record.hit_die} hit die") for record in self.catalog.classes.values())
         elif phase == CreationPhase.CHOOSE_CLASS_SKILLS:
             class_record = self.catalog.classes[state.class_id]
-            choices['class-skills'] = tuple(ChoiceView(option_id=skill_id, label=self.catalog.skills[skill_id].name, detail='class skill option') for skill_id in class_record.class_skill_option_ids)
+            detail = f"{self._choice_count_instruction(class_record.skill_choice_count)} Command: /create choose class-skills <skill-id ...>"
+            choices['class-skills'] = tuple(ChoiceView(option_id=skill_id, label=self.catalog.skills[skill_id].name, detail=detail) for skill_id in class_record.class_skill_option_ids)
         elif phase == CreationPhase.CHOOSE_BACKGROUND:
             choices['background'] = tuple(ChoiceView(option_id=record.record_id, label=record.name, detail=f"{record.source}; feat {self._background_origin_feat_detail(record.record_id)}") for record in self.catalog.backgrounds.values())
         elif phase == CreationPhase.CHOOSE_CREATION_CHOICES:
             pending_choice = self._next_pending_creation_choice(state)
             if pending_choice is not None:
                 choices[f"choice:{pending_choice.group.choice_id}"] = tuple(
-                    ChoiceView(option_id=option.option_id, label=option.label, detail=option.detail)
+                    ChoiceView(
+                        option_id=option.option_id,
+                        label=option.label,
+                        detail=f"{self._choice_count_instruction(pending_choice.group.constraint.required_count)} {option.detail}".strip(),
+                    )
                     for option in pending_choice.group.options
                 )
         elif phase == CreationPhase.GENERATE_ABILITIES:
@@ -851,6 +882,17 @@ class CharacterCreationKernel:
             rolled = state.ability_draft.rolled_scores or ()
             point_buy = state.ability_draft.point_buy_scores or ()
             choices['ability-array'] = tuple(ChoiceView(option_id=method.value, label=method.value, detail=f"{sum(rolled if method == AbilityMethod.ROLLED else point_buy)} total") for method in higher_total_methods(rolled, point_buy))
+        elif phase == CreationPhase.ASSIGN_ABILITIES:
+            assignment_hint = self._ability_assignment_command_hint(state)
+            if assignment_hint is not None:
+                scores = assignment_hint.removeprefix('/create ability assign ')
+                choices['ability-assignment'] = (
+                    ChoiceView(
+                        option_id=scores,
+                        label='Assign generated scores',
+                        detail=f"Enter scores in {self._ability_order_display()} order; edit the command if you want a different assignment.",
+                    ),
+                )
         elif phase == CreationPhase.CHOOSE_BACKGROUND_ASI:
             background = self.catalog.backgrounds[state.background_id]
             choices['background-asi'] = tuple(ChoiceView(option_id=option.option_id, label=option.label, detail='background ASI option') for option in background.ability_increase_options())
@@ -866,7 +908,12 @@ class CharacterCreationKernel:
             choices['class-equipment'] = tuple(base)
             if self.policy.allow_class_wealth and class_record.wealth_option is not None:
                 choices['class-equipment'] = choices['class-equipment'] + (ChoiceView(option_id=EquipmentSelectionMode.WEALTH.value, label=class_record.wealth_option.label, detail='roll deterministic class wealth'),)
-        elif phase in {CreationPhase.REVIEW, CreationPhase.COMPLETE}:
+        elif phase == CreationPhase.REVIEW:
+            choices['items'] = tuple(ChoiceView(option_id=item.record_id, label=item.name, detail=f"{cp_to_display(item.cost_cp)}") for item in self.catalog.items.values() if item.cost_cp > 0)
+            choices['confirm'] = (
+                ChoiceView(option_id='confirm', label='Confirm character', detail='Finish item choices and create the character record.'),
+            )
+        elif phase == CreationPhase.COMPLETE:
             choices['items'] = tuple(ChoiceView(option_id=item.record_id, label=item.name, detail=f"{cp_to_display(item.cost_cp)}") for item in self.catalog.items.values() if item.cost_cp > 0)
         return choices
 

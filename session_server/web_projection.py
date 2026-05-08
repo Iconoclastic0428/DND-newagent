@@ -704,6 +704,8 @@ def _creation_choice_command_insert_text(group_id: str, option_id: str) -> str |
             return '/create ability generate point-buy 15 14 13 12 10 8'
     if group_id == 'ability-array':
         return f'/create ability choose {option_id}'
+    if group_id == 'ability-assignment':
+        return f'/create ability assign {option_id}'
     if group_id == 'background-asi':
         return f'/create background-asi choose {option_id}'
     if group_id == 'background-equipment':
@@ -714,6 +716,8 @@ def _creation_choice_command_insert_text(group_id: str, option_id: str) -> str |
         if option_id == 'wealth':
             return '/create equipment class wealth'
         return f'/create equipment class package {option_id}'
+    if group_id == 'confirm' and option_id == 'confirm':
+        return '/create confirm'
     if group_id == 'items':
         return f'/create equipment buy {option_id} 1'
     return None
@@ -722,6 +726,8 @@ def _creation_choice_command_insert_text(group_id: str, option_id: str) -> str |
 def _creation_choice_command_prefix(group_id: str) -> str | None:
     if group_id == 'class-skills':
         return '/create choose class-skills'
+    if group_id == 'ability-assignment':
+        return '/create ability assign'
     if group_id.startswith('choice:'):
         return f"/create choose choice {group_id.split(':', 1)[1]}"
     return None

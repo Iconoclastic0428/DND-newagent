@@ -183,7 +183,9 @@ def _normalise_base_url(base_url: str) -> str:
         return Path(stripped).resolve().as_uri().rstrip("/") + "/"
     if stripped.startswith("file://"):
         return stripped.rstrip("/") + "/"
-    return stripped.rstrip("/") + "/"
+    if urlparse(stripped).scheme:
+        return stripped.rstrip("/") + "/"
+    return Path(stripped).resolve().as_uri().rstrip("/") + "/"
 
 
 def _canonical_name(record: Mapping[str, object]) -> str:
