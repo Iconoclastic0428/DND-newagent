@@ -14,6 +14,7 @@ from session_server import build_lmop_story_demo_session
 from session_server.story_orchestrator import present_story_snapshot
 from shared_types.storytelling import RuntimeMode, StoryTranscriptEntry, StoryTranscriptVisibility
 from shared_types.travel import TravelStatus
+from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
 class QueueTransport:
@@ -52,7 +53,7 @@ class StorytellingSessionTests(unittest.TestCase):
 
     def _build_session(self, payloads: list[dict]):
         return build_lmop_story_demo_session(
-            base_url=Path('D:/5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/',
+            base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport(payloads),
         )
@@ -101,6 +102,33 @@ class StorytellingSessionTests(unittest.TestCase):
         self.assertIsNotNone(prompt)
         self.assertEqual(prompt.prompt_kind, 'story-check')
         self.assertIn('Wisdom (Insight)', prompt.prompt)
+
+    def test_story_turn_drops_npc_echo_of_player_declaration(self) -> None:
+        session = self._build_session(
+            [
+                {
+                    'output_text': (
+                        '{'
+                        '"public_narration":"Gundren Rockseeker leans forward, waiting for the group to answer.",'
+                        '"transcript_entries":[{"speaker":"Gundren Rockseeker","text":"What does everyone think?","visibility":"public"}],'
+                        '"check_request":null,'
+                        '"scene_update":null,'
+                        '"mode_switch_decision":null,'
+                        '"memory_note":"Gundren waits for the party decision."'
+                        '}'
+                    )
+                }
+            ]
+        )
+        session.system_open_scene()
+        session.submit_story_action('player-2-controller', 'What does everyone think?')
+
+        echoed_entries = [
+            entry for entry in session.story_state.transcript_entries
+            if entry.speaker == 'Gundren Rockseeker' and entry.text == 'What does everyone think?'
+        ]
+        self.assertEqual(echoed_entries, [])
+        self.assertTrue(any(entry.speaker == 'DM' and 'waiting for the group' in entry.text for entry in session.story_state.transcript_entries))
 
     def test_story_check_prompt_always_names_the_required_check_and_dc(self) -> None:
         session = self._build_session([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}])

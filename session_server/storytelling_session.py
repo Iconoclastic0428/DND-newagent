@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
+import re
 
 from campaign_ingestion import CampaignRetrievalIndex, CampaignRetrievalQuery
 from dm_agent.memory import (
@@ -191,6 +192,33 @@ from rules_engine.social import SocialConsequenceEngine
 from rules_engine.progression import CampaignProgressionEngine
 from rules_engine.advancement import CharacterAdvancementEngine
 from shared_types.travel import AdvanceTravelIntent, HexCoord, PlanTravelRouteIntent, ResumeTravelIntent, SetTravelPaceIntent, TravelHookDefinition, TravelPace, TravelState, TravelStatus, unique_strings
+
+
+def _without_echoed_player_declaration(entries: tuple[StoryTranscriptEntry, ...], declaration: str | None) -> tuple[StoryTranscriptEntry, ...]:
+    if not declaration:
+        return entries
+    declaration_tokens = _story_echo_tokens(declaration)
+    if not declaration_tokens:
+        return entries
+    return tuple(entry for entry in entries if not _is_echoed_player_declaration(entry, declaration_tokens))
+
+
+def _is_echoed_player_declaration(entry: StoryTranscriptEntry, declaration_tokens: tuple[str, ...]) -> bool:
+    if entry.visibility != StoryTranscriptVisibility.PUBLIC:
+        return False
+    entry_tokens = _story_echo_tokens(entry.text)
+    if not entry_tokens:
+        return False
+    if entry_tokens == declaration_tokens:
+        return True
+    if len(declaration_tokens) <= 12 and abs(len(entry_tokens) - len(declaration_tokens)) <= 2:
+        shared = set(entry_tokens) & set(declaration_tokens)
+        return len(shared) / max(1, min(len(set(entry_tokens)), len(set(declaration_tokens)))) >= 0.85
+    return False
+
+
+def _story_echo_tokens(text: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"[a-z0-9']+", text.lower()))
 
 
 @dataclass(frozen=True)
@@ -2233,7 +2261,7 @@ class StorytellingSession:
             if callable(flush):
                 flush()
         self.state.event_log.extend(events)
-        self._apply_story_turn_decision(decision)
+        self._apply_story_turn_decision(decision, triggering_declaration=declaration)
         return self.view_for_controller(controller_id)
 
 
@@ -3177,11 +3205,12 @@ class StorytellingSession:
         self._apply_story_turn_decision(decision)
         return self.view_for_controller(controller_id)
 
-    def _apply_story_turn_decision(self, decision: StoryTurnDecision) -> None:
+    def _apply_story_turn_decision(self, decision: StoryTurnDecision, *, triggering_declaration: str | None = None) -> None:
         if decision.check_request is not None and decision.mode_switch_decision is not None and decision.mode_switch_decision.decision_type == ModeSwitchAction.ENTER_COMBAT:
             raise EncounterValidationError('A storytelling turn cannot both request a check and enter combat immediately.')
-        if decision.transcript_entries:
-            self._append_transcript(decision.transcript_entries)
+        transcript_entries = _without_echoed_player_declaration(decision.transcript_entries, triggering_declaration)
+        if transcript_entries:
+            self._append_transcript(transcript_entries)
         if decision.scene_update is not None:
             self._apply_scene_update(decision.scene_update)
         self.story_state.pending_adjudication = None
