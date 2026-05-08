@@ -452,7 +452,7 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertTrue(any(entry['category'] == 'check' for entry in player_view['chat_entries']))
 
     def test_story_chat_projection_includes_player_declarations_and_checks(self) -> None:
-        session = self._build_story_session()
+        session = self._build_story_demo_story_session()
         session.state.event_log.append(
             StoryActionDeclaredEvent(
                 controller_id='player-1-controller',
@@ -477,13 +477,17 @@ class SessionWebServerTests(unittest.TestCase):
         server = self._start_server(session)
 
         player_ws, _joined, player_view_message, _prompt = self._connect_and_join(server, 'player-1-controller')
+        player_two_ws, _player_two_joined, player_two_view_message, _player_two_prompt = self._connect_and_join(server, 'player-2-controller')
         dm_ws, _dm_joined, dm_view_message, _dm_prompt = self._connect_and_join(server, 'dm')
         self.addCleanup(player_ws.close)
+        self.addCleanup(player_two_ws.close)
         self.addCleanup(dm_ws.close)
 
         player_entries = player_view_message['view']['chat_entries']
+        player_two_entries = player_two_view_message['view']['chat_entries']
         dm_entries = dm_view_message['view']['chat_entries']
         self.assertTrue(any(entry['category'] == 'player' and 'I ask Gundren what he is hiding from us.' in entry['text'] for entry in player_entries))
+        self.assertTrue(any(entry['category'] == 'player' and 'I ask Gundren what he is hiding from us.' in entry['text'] for entry in player_two_entries))
         self.assertTrue(any(entry['category'] == 'check' and 'Wisdom (Insight): die 14, total 17 vs DC 12 (success).' in entry['text'] for entry in player_entries))
         self.assertTrue(any(entry['category'] == 'player' for entry in dm_entries))
         self.assertTrue(any(entry['category'] == 'check' for entry in dm_entries))

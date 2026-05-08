@@ -1588,8 +1588,6 @@ def _project_story_chat_entries(session, controller_id: str) -> tuple[WebChatEnt
     entries: list[WebChatEntryView] = []
     for index, event in enumerate(session.state.event_log[-160:]):
         if isinstance(event, StoryActionDeclaredEvent):
-            if role != ControllerRole.DM and event.controller_id != controller_id:
-                continue
             entries.append(
                 WebChatEntryView(
                     entry_id=f'story-action:{index}:{event.controller_id}',
