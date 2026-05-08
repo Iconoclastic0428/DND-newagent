@@ -17,10 +17,10 @@
 ### Steps
 - [x] Review lessons and inspect branch/remotes/worktree.
 - [x] Fetch the tracked GitHub branch and inspect incoming commits/files.
-- [ ] Safeguard local uncommitted changes before merging.
-- [ ] Merge/pull the remote branch and resolve conflicts.
-- [ ] Review the listed feature areas after conflict resolution.
-- [ ] Run focused compile/unit/web verification.
+- [x] Safeguard local uncommitted changes before merging.
+- [x] Merge/pull the remote branch and resolve conflicts.
+- [x] Review the listed feature areas after conflict resolution.
+- [x] Run focused compile/unit/web verification.
 - [ ] Push the resolved branch to GitHub.
 - [ ] Record review notes and append a summary to `tasks/SUMMARIES.md`.
 
@@ -33,6 +33,16 @@
 
 ### Review
 - Fetch found the listed upstream fixes on `elijah/newdndagents` (`180f317`, `a42923d`, `73c31b5`, `cd80c42`), which is based on the local branch tip `326d5d3`.
+- Local code/test/frontend fixes were committed first as `c7d3755` so the remote feature branch can be merged with a normal three-way merge. Dirty campaign memory files were left unstaged.
+- Merged `elijah/newdndagents` cleanly; no textual conflict markers were produced.
+- Reviewed the merged feature areas: README/web usage docs, ability assignment and multi-select command hints, `/create confirm` prompt, party save/load, relative mirror-path support, local deterministic LLM transport for browser verification, and alternate LLM API format docs/tests are present.
+- Fixed one real post-merge regression in new tests: three merged test modules pointed at a repo-local `5etools-mirror-2.github.io` directory that does not exist in this workspace. They now use the shared verified `tests.test_encounter_kernel.LOCAL_MIRROR_BASE_URL` test mirror path, while runtime/docs still support explicit relative mirror paths.
+- Verification passed:
+  - `python -m py_compile character_creation\kernel_v2.py character_creation\service.py monster_runtime\service.py rules_engine\fiveetools_loader.py session_server\web_projection.py shared_types\character_record_io.py user-test\story_demo_system_server.py user-test\web_story_demo_server.py tests\test_character_creation_kernel.py tests\test_character_record_io.py tests\test_fiveetools_loader.py tests\test_full_story_demo_session.py tests\test_web_server.py tests\test_web_frontend_chat.py`
+  - `node --check web_frontend\app.js`
+  - `node --check web_frontend\chat_state.js`
+  - `python -m unittest tests.test_character_creation_kernel tests.test_character_record_io tests.test_fiveetools_loader tests.test_full_story_demo_session tests.test_web_frontend_chat tests.test_web_server tests.test_dm_runtime -v` passed 75 tests.
+  - `git diff --check` passed with only line-ending warnings.
 
 ## 2026-05-07 - Web UI Thinking Row Ordering Fix
 

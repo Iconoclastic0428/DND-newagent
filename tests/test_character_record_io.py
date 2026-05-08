@@ -8,9 +8,7 @@ from uuid import uuid4
 from character_creation import build_default_kernel
 from player_interface import SlashCommandInterface
 from shared_types.character_record_io import character_record_from_dict, character_record_to_dict, load_character_party, save_character_party
-
-
-LOCAL_MIRROR_BASE_URL = (Path(__file__).resolve().parents[1] / '5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/'
+from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
 class CharacterRecordIOTests(unittest.TestCase):

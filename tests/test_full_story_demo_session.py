@@ -15,6 +15,7 @@ from story_demo_system_server import build_full_story_demo_manual_session
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import EncounterPermissionError
 from shared_types.storytelling import RuntimeMode
+from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
 class QueueTransport:
@@ -47,7 +48,7 @@ class FullStoryDemoSessionTests(unittest.TestCase):
             'OPENAI_RESPONSES_MODEL=test-model\n',
             encoding='utf-8',
         )
-        self.base_url = (REPO_ROOT / '5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/'
+        self.base_url = LOCAL_MIRROR_BASE_URL
 
     def tearDown(self) -> None:
         shutil.rmtree(self._tempdir, ignore_errors=True)

@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 import unittest
 
 from character_creation import build_default_kernel
 from player_interface import SlashCommandInterface
 from shared_types.errors import ValidationError
 from shared_types.models import Ability, ChoiceSourceKind, ContentKind, CreationChoiceCategory, CreationPhase, SpellSelectionKind
-
-
-LOCAL_MIRROR_BASE_URL = (Path(__file__).resolve().parents[1] / "5etools-mirror-2.github.io").resolve().as_uri().rstrip("/") + "/"
+from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
 class CharacterCreationKernelTests(unittest.TestCase):
