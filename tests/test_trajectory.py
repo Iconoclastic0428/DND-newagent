@@ -10,6 +10,9 @@ from uuid import uuid4
 from dm_agent.client import LLMClient
 from dm_agent.config import LLMConfig
 from session_server.llm_player import LLMPlayerAgent
+from shared_types.encounter_models import ActorSide, EncounterPhase
+from shared_types.errors import EncounterPermissionError
+from shared_types.storytelling import RuntimeMode
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
 from training.trajectory import TrajectoryRecorder
@@ -20,6 +23,7 @@ if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
 from story_demo_system_server import build_full_story_demo_manual_session
+from web_story_demo_server import LocalDemoLLMTransport
 
 
 class TrajectoryRecorderTests(unittest.TestCase):
@@ -81,7 +85,64 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(turn['state_before']['scene_id'], 'scene-waterdeep-gundren-briefing')
         self.assertGreater(turn['state_after']['transcript_count'], turn['state_before']['transcript_count'])
         self.assertTrue(turn['observation']['summary_lines'])
-        self.assertEqual(turn['reward_components'], {})
+        self.assertGreater(turn['reward_components']['valid_action'], 0.0)
+        self.assertGreater(turn['reward_components']['story_progress'], 0.0)
+        self.assertGreater(turn['metadata']['reward_total'], 0.0)
+
+    def test_full_story_demo_records_invalid_action_reward(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_invalid_action',
+            episode_id='episode-invalid-action',
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+            trajectory_recorder=recorder,
+        )
+
+        with self.assertRaises(EncounterPermissionError):
+            session.handle_input('dm', 'I am a player now.')
+
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        turn = records[-1]
+        self.assertEqual(turn['record_type'], 'turn')
+        self.assertEqual(turn['agent_id'], 'dm')
+        self.assertIsNotNone(turn['error'])
+        self.assertEqual(turn['reward_components'], {'invalid_action': -1.0})
+        self.assertEqual(turn['metadata']['reward_total'], -1.0)
+
+    def test_full_story_demo_records_terminal_episode_reward(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_terminal_reward',
+            episode_id='episode-terminal-reward',
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+            trajectory_recorder=recorder,
+        )
+        assert session.story_session is not None
+        session.story_session.story_state.runtime_mode = RuntimeMode.COMBAT
+        session.story_session.state.phase = EncounterPhase.COMPLETE
+        session.story_session.state.winning_side = ActorSide.PLAYER
+
+        session.view_for_controller('player-1-controller')
+        session.view_for_controller('player-2-controller')
+
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        completion_records = [record for record in records if record['record_type'] == 'episode_completed']
+        self.assertEqual(len(completion_records), 1)
+        completion = completion_records[0]
+        self.assertEqual(completion['runtime_mode'], 'demo-complete')
+        self.assertEqual(completion['reward_components'], {'episode_success': 1.0})
+        self.assertEqual(completion['metadata']['reward_total'], 1.0)
+        self.assertTrue(completion['metadata']['success'])
 
     def test_full_llm_party_autopump_records_each_player_once(self) -> None:
         recorder = TrajectoryRecorder(
@@ -149,6 +210,70 @@ class TrajectoryRecorderTests(unittest.TestCase):
         llm_turns = [record for record in records if record['record_type'] == 'turn' and record['source'] == 'llm_player']
         self.assertEqual([record['agent_id'] for record in llm_turns], [f'player-{index}-controller' for index in range(1, 5)])
         self.assertTrue(all(record['parsed_action']['kind'] == 'command' for record in llm_turns))
+
+    def test_first_combat_smoke_records_clean_terminal_success(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_first_combat_smoke',
+            episode_id='episode-first-combat-smoke',
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=LocalDemoLLMTransport(),
+            trajectory_recorder=recorder,
+        )
+        script = json.loads((REPO_ROOT / 'user-test' / 'full-story-demo' / 'scripts' / 'lmop-friendly-live-web-run.json').read_text(encoding='utf-8'))
+        for step in script['steps']:
+            if step.get('type') == 'repeat':
+                break
+            if step.get('type') not in {'command', 'command_if_prompt'}:
+                continue
+            controller_id = step['controller_id']
+            if step['type'] == 'command_if_prompt':
+                prompt = session.prompt_for_controller(controller_id)
+                if prompt is None or prompt.prompt_kind != step.get('prompt_kind'):
+                    continue
+            session.handle_input(controller_id, step['input'])
+            if step.get('input') == '/travel engage':
+                break
+
+        assert session.story_session is not None
+        self.assertEqual(session.story_session.story_state.runtime_mode, RuntimeMode.COMBAT)
+        for _turn in range(80):
+            session._refresh_demo_completion()
+            state = session.story_session.state
+            if state.phase == EncounterPhase.COMPLETE:
+                break
+            active_actor_id = state.active_actor_id
+            self.assertIsNotNone(active_actor_id)
+            actor = state.actors[active_actor_id]
+            if actor.side == ActorSide.MONSTER:
+                session.handle_input('dm', f'/endturn {active_actor_id}')
+                continue
+            controller_id = f'{active_actor_id}-controller'
+            target = next(
+                candidate
+                for candidate in state.actors.values()
+                if candidate.side != actor.side and candidate.current_hit_points > 0
+            )
+            if 'magic-missile' in actor.spells:
+                session.handle_input(controller_id, f'/cast {active_actor_id} magic-missile {target.actor_id}')
+            elif 'fire-bolt' in actor.spells:
+                session.handle_input(controller_id, f'/cast {active_actor_id} fire-bolt {target.actor_id}')
+            session._refresh_demo_completion()
+            if session.story_session.state.phase == EncounterPhase.COMPLETE:
+                break
+            session.handle_input(controller_id, f'/endturn {active_actor_id}')
+
+        session._refresh_demo_completion()
+        self.assertIsNotNone(session._completion_state)
+        self.assertEqual(session.story_session.state.winning_side, ActorSide.PLAYER)
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        self.assertFalse([record for record in records if record.get('error')])
+        completion = next(record for record in records if record['record_type'] == 'episode_completed')
+        self.assertEqual(completion['reward_components'], {'episode_success': 1.0})
+        self.assertEqual(completion['metadata']['reward_total'], 1.0)
 
 
 if __name__ == '__main__':

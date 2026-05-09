@@ -21,6 +21,7 @@ from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
 from shared_types.models import CharacterRecord, ChoiceView, CreationState
 from shared_types.storytelling import RuntimeMode
+from training.rewards import action_reward_components, reward_total, terminal_reward_components
 from training.trajectory import TrajectoryRecorder, classify_raw_action
 
 
@@ -73,6 +74,7 @@ class FullStoryDemoManualSession:
         self._llm_player_pump_active = False
         self._llm_player_next_index = 0
         self._completion_state: _CompletionState | None = None
+        self._completion_recorded = False
         self.trajectory_recorder = trajectory_recorder
         self._controllers = {
             'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
@@ -357,13 +359,21 @@ class FullStoryDemoManualSession:
         )
         self._refresh_demo_completion()
 
-    def _record_trajectory_event(self, record_type: str, *, source: str, metadata: dict | None = None) -> None:
+    def _record_trajectory_event(
+        self,
+        record_type: str,
+        *,
+        source: str,
+        reward_components: dict[str, float] | None = None,
+        metadata: dict | None = None,
+    ) -> None:
         if self.trajectory_recorder is None:
             return
         self.trajectory_recorder.record_event(
             record_type=record_type,
             source=source,
             runtime_mode=self._trajectory_runtime_mode(),
+            reward_components=reward_components,
             metadata=metadata,
         )
 
@@ -381,6 +391,11 @@ class FullStoryDemoManualSession:
     ) -> None:
         if self.trajectory_recorder is None:
             return
+        reward_components = action_reward_components(
+            error=error,
+            state_before=before.get('state'),
+            state_after=after.get('state'),
+        )
         self.trajectory_recorder.record_turn(
             agent_id=controller_id,
             role=role,
@@ -392,8 +407,9 @@ class FullStoryDemoManualSession:
             post_observation=after.get('observation'),
             state_before=before.get('state'),
             state_after=after.get('state'),
-            reward_components={},
+            reward_components=reward_components,
             error=error,
+            metadata={'reward_total': reward_total(reward_components)},
         )
 
     def _trajectory_snapshot(self, controller_id: str) -> dict:
@@ -457,14 +473,35 @@ class FullStoryDemoManualSession:
                 result_summary='The party survived the goblin ambush.',
                 detail_summary='Demo result: success. The party defeated or drove off the ambushers and secured the road.',
             )
+            self._record_demo_completion(success=True)
             return
         if state.winning_side == ActorSide.MONSTER:
             self._completion_state = _CompletionState(
                 result_summary='The goblin ambush defeated the party.',
                 detail_summary='Demo result: defeat. All player characters were brought down before they could secure the trail.',
             )
+            self._record_demo_completion(success=False)
             return
         raise EncounterValidationError('The ambush combat completed without a winning side.')
+
+    def _record_demo_completion(self, *, success: bool) -> None:
+        if self._completion_recorded:
+            return
+        self._completion_recorded = True
+        reward_components = terminal_reward_components(success=success)
+        state = self.story_session.state if self.story_session is not None else None
+        self._record_trajectory_event(
+            'episode_completed',
+            source='system',
+            reward_components=reward_components,
+            metadata={
+                'success': success,
+                'result_summary': self._completion_state.result_summary if self._completion_state is not None else None,
+                'reward_total': reward_total(reward_components),
+                'winning_side': state.winning_side.value if state is not None and state.winning_side is not None else None,
+                'round_number': state.round_number if state is not None else None,
+            },
+        )
 
     def _build_completion_view(self, controller_id: str):
         assert self.story_session is not None

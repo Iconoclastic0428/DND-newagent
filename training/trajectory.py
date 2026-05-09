@@ -92,6 +92,7 @@ class TrajectoryRecorder:
         agent_id: str | None = None,
         role: str | None = None,
         runtime_mode: str | None = None,
+        reward_components: dict[str, float] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> TrajectoryRecord:
         return self._write_record(
@@ -101,6 +102,7 @@ class TrajectoryRecorder:
             runtime_mode=runtime_mode,
             source=source,
             raw_text=None,
+            reward_components=reward_components,
             metadata=metadata,
         )
 
@@ -178,4 +180,3 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [_jsonable(item) for item in value]
     return value
-
