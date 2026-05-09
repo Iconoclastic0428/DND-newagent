@@ -41,6 +41,7 @@ if str(USER_TEST_ROOT) not in sys.path:
 
 from story_demo_system_server import build_full_story_demo_manual_session
 from web_story_demo_live_runner import run_live_web_story_script
+from web_story_demo_server import LocalDemoLLMTransport
 
 
 class SessionWebServerTests(unittest.TestCase):
@@ -921,6 +922,24 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertEqual(echo_message['entry']['category'], 'check')
         updated_view = self._recv_until(player_ws, 'view')['view']
         self.assertTrue(any('Recent check results:' in line for line in updated_view['summary_lines']))
+
+    def test_local_demo_llm_stream_matches_chat_completions_payloads(self) -> None:
+        transport = LocalDemoLLMTransport()
+
+        events = transport.stream(
+            url='https://example.invalid/chat/completions',
+            headers={},
+            payload={
+                'messages': [{'role': 'user', 'content': 'Keep moving.'}],
+                'metadata': {'request_type': 'story_turn'},
+            },
+        )
+
+        self.assertEqual(len(events), 1)
+        content = events[0]['choices'][0]['delta']['content']
+        decoded = json.loads(content)
+        self.assertIn('public_narration', decoded)
+        self.assertEqual(events[0]['choices'][0]['finish_reason'], 'stop')
 
 
 if __name__ == '__main__':

@@ -87,7 +87,11 @@ class LocalDemoLLMTransport:
         return {'output_text': json.dumps(self._response_payload(payload), ensure_ascii=False)}
 
     def stream(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> list[dict[str, Any]]:
-        return [{'type': 'response.completed', 'response': self.post(url=url, headers=headers, payload=payload)}]
+        response = self.post(url=url, headers=headers, payload=payload)
+        if 'messages' in payload:
+            content = str(response.get('output_text', ''))
+            return [{'choices': [{'delta': {'content': content}, 'finish_reason': 'stop'}]}]
+        return [{'type': 'response.completed', 'response': response}]
 
     def _response_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         metadata = payload.get('metadata')
