@@ -34,6 +34,7 @@ tmp*/
 .tmp*/
 story-demo-inspect-*/
 .*-tests/
+runs/
 
 # Editor and OS files
 .idea/

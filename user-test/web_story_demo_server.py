@@ -21,6 +21,7 @@ from session_server.web_server import SessionWebServer
 from shared_types.errors import ContentLoadError, EncounterError
 from shared_types.web_ui import WebControllerGrant
 from story_demo_system_server import build_full_story_demo_manual_session
+from training.trajectory import TrajectoryRecorder
 
 
 _CONTROLLER_IDS = (
@@ -65,6 +66,17 @@ def parse_args() -> argparse.Namespace:
         '--disable-llm-player-autopump',
         action='store_true',
         help='Configure LLM players but do not automatically submit their actions after web inputs.',
+    )
+    parser.add_argument(
+        '--trajectory-dir',
+        type=Path,
+        default=Path('runs/episodes'),
+        help='Directory where per-episode trajectory JSONL logs are written.',
+    )
+    parser.add_argument(
+        '--disable-trajectory-logging',
+        action='store_true',
+        help='Disable JSONL trajectory logging for this run.',
     )
     return parser.parse_args()
 
@@ -159,6 +171,13 @@ def main() -> int:
     try:
         session_id = 'lmop-web-demo'
         llm_player_agents = _build_llm_player_agents(tuple(args.llm_player))
+        trajectory_recorder = None
+        if not args.disable_trajectory_logging:
+            trajectory_recorder = TrajectoryRecorder(
+                output_dir=args.trajectory_dir,
+                scenario_id='lmop_full_story_demo',
+            )
+            print(f'[web] Trajectory log: {trajectory_recorder.path}', flush=True)
         session = build_full_story_demo_manual_session(
             base_url=args.base_url,
             campaign_root=args.campaign_root,
@@ -170,6 +189,7 @@ def main() -> int:
             llm_player_agents=llm_player_agents,
             llm_player_autopump=bool(llm_player_agents) and not args.disable_llm_player_autopump,
             llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
+            trajectory_recorder=trajectory_recorder,
         )
         server = SessionWebServer(
             session=session,

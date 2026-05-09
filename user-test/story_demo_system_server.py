@@ -21,6 +21,7 @@ from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
 from shared_types.models import CharacterRecord, ChoiceView, CreationState
 from shared_types.storytelling import RuntimeMode
+from training.trajectory import TrajectoryRecorder, classify_raw_action
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class FullStoryDemoManualSession:
         llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
         llm_player_autopump: bool = False,
         llm_player_max_actions_per_pump: int = 1,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self.base_url = base_url
         self.campaign_root = campaign_root
@@ -70,6 +72,7 @@ class FullStoryDemoManualSession:
         self._llm_player_max_actions_per_pump = max(1, int(llm_player_max_actions_per_pump))
         self._llm_player_pump_active = False
         self._completion_state: _CompletionState | None = None
+        self.trajectory_recorder = trajectory_recorder
         self._controllers = {
             'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
             'player-1-controller': ControllerBinding(controller_id='player-1-controller', role=ControllerRole.PLAYER, label='Player 1'),
@@ -80,6 +83,7 @@ class FullStoryDemoManualSession:
         for agent in self._llm_player_agents:
             if agent.controller_id not in self._PLAYER_CONTROLLER_IDS:
                 raise EncounterValidationError(f'LLM player controller must be one of {", ".join(self._PLAYER_CONTROLLER_IDS)}: {agent.controller_id!r}')
+        self._record_trajectory_event('episode_started', source='system')
         if character_load_path is not None:
             self._load_saved_party(character_load_path)
         elif precreate_characters:
@@ -136,18 +140,48 @@ class FullStoryDemoManualSession:
         raw_input = raw_input.strip()
         if not raw_input:
             return self.view_for_controller(controller_id)
+        return self._handle_input_with_trajectory(controller_id, raw_input, source='human')
+
+    def _handle_input_with_trajectory(self, controller_id: str, raw_input: str, *, source: str):
+        before = self._trajectory_snapshot(controller_id)
+        role = self.validate_controller(controller_id).role.value
+        runtime_mode = self._trajectory_runtime_mode()
         self._refresh_demo_completion()
-        if self._completion_state is not None:
-            if raw_input.lower() in {'/view', '/status'}:
-                return self.view_for_controller(controller_id)
-            raise EncounterPermissionError('The demo is complete. Restart the full story demo to play again.')
-        if self.story_session is not None:
-            result = self.story_session.handle_input(controller_id, raw_input)
-            self._refresh_demo_completion()
+        try:
             if self._completion_state is not None:
-                return self.view_for_controller(controller_id)
-            return result
-        return self._handle_creation_input(controller_id, raw_input)
+                if raw_input.lower() in {'/view', '/status'}:
+                    result = self.view_for_controller(controller_id)
+                else:
+                    raise EncounterPermissionError('The demo is complete. Restart the full story demo to play again.')
+            elif self.story_session is not None:
+                result = self.story_session.handle_input(controller_id, raw_input)
+                self._refresh_demo_completion()
+                if self._completion_state is not None:
+                    result = self.view_for_controller(controller_id)
+            else:
+                result = self._handle_creation_input(controller_id, raw_input)
+        except Exception as exc:
+            self._record_trajectory_turn(
+                controller_id=controller_id,
+                role=role,
+                runtime_mode=runtime_mode,
+                source=source,
+                raw_input=raw_input,
+                before=before,
+                after=self._trajectory_snapshot(controller_id),
+                error=str(exc),
+            )
+            raise
+        self._record_trajectory_turn(
+            controller_id=controller_id,
+            role=role,
+            runtime_mode=runtime_mode,
+            source=source,
+            raw_input=raw_input,
+            before=before,
+            after=self._trajectory_snapshot(controller_id),
+        )
+        return result
 
     def pump_llm_players(self, *, max_actions: int | None = None) -> tuple[tuple[str, str], ...]:
         if (
@@ -171,7 +205,7 @@ class FullStoryDemoManualSession:
                         decision.controller_id,
                         f'{agent.label} submits `{decision.command}`. {decision.reason}',
                     )
-                    self.story_session.handle_input(decision.controller_id, decision.command)
+                    self._handle_input_with_trajectory(decision.controller_id, decision.command, source='llm_player')
                     self._refresh_demo_completion()
                     actions.append((decision.controller_id, decision.command))
                     acted = True
@@ -311,7 +345,99 @@ class FullStoryDemoManualSession:
         )
         self.story_session.llm_feedback_sink = self.llm_feedback_sink
         self.story_session.system_open_scene()
+        self._record_trajectory_event(
+            'story_started',
+            source='system',
+            metadata={'player_records': [record.record_id for record in ordered_records]},
+        )
         self._refresh_demo_completion()
+
+    def _record_trajectory_event(self, record_type: str, *, source: str, metadata: dict | None = None) -> None:
+        if self.trajectory_recorder is None:
+            return
+        self.trajectory_recorder.record_event(
+            record_type=record_type,
+            source=source,
+            runtime_mode=self._trajectory_runtime_mode(),
+            metadata=metadata,
+        )
+
+    def _record_trajectory_turn(
+        self,
+        *,
+        controller_id: str,
+        role: str,
+        runtime_mode: str,
+        source: str,
+        raw_input: str,
+        before: dict,
+        after: dict,
+        error: str | None = None,
+    ) -> None:
+        if self.trajectory_recorder is None:
+            return
+        self.trajectory_recorder.record_turn(
+            agent_id=controller_id,
+            role=role,
+            runtime_mode=runtime_mode,
+            source=source,
+            raw_text=raw_input,
+            parsed_action=classify_raw_action(raw_input),
+            observation=before.get('observation'),
+            post_observation=after.get('observation'),
+            state_before=before.get('state'),
+            state_after=after.get('state'),
+            reward_components={},
+            error=error,
+        )
+
+    def _trajectory_snapshot(self, controller_id: str) -> dict:
+        try:
+            view = self.view_for_controller(controller_id)
+            prompt = self.prompt_for_controller(controller_id)
+            observation = {
+                'summary_lines': tuple(view.summary_lines),
+                'available_action_groups': tuple(view.available_choices),
+                'prompt': (
+                    {
+                        'prompt_id': prompt.prompt_id,
+                        'prompt_kind': prompt.prompt_kind,
+                        'text': prompt.prompt,
+                    }
+                    if prompt is not None
+                    else None
+                ),
+            }
+        except Exception as exc:
+            observation = {'error': str(exc)}
+        return {'observation': observation, 'state': self._trajectory_state_snapshot()}
+
+    def _trajectory_runtime_mode(self) -> str:
+        if self._completion_state is not None:
+            return 'demo-complete'
+        if self.story_session is None:
+            return 'character-creation'
+        return self.story_session.story_state.runtime_mode.value
+
+    def _trajectory_state_snapshot(self) -> dict:
+        if self.story_session is None:
+            return {
+                'runtime_mode': self._trajectory_runtime_mode(),
+                'confirmed_controller_ids': tuple(sorted(self.confirmed_records)),
+            }
+        story_state = self.story_session.story_state
+        encounter_state = self.story_session.state
+        return {
+            'runtime_mode': self._trajectory_runtime_mode(),
+            'scene_id': story_state.current_scene_id,
+            'location_id': story_state.canonical_location_id,
+            'transcript_count': len(story_state.transcript_entries),
+            'event_count': len(encounter_state.event_log),
+            'encounter_phase': encounter_state.phase.value,
+            'round_number': encounter_state.round_number,
+            'active_actor_id': encounter_state.active_actor_id,
+            'completion': self._completion_state.result_summary if self._completion_state is not None else None,
+        }
 
     def _refresh_demo_completion(self) -> None:
         if self.story_session is None or self._completion_state is not None:
@@ -371,6 +497,7 @@ def build_full_story_demo_manual_session(
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
     llm_player_autopump: bool = False,
     llm_player_max_actions_per_pump: int = 1,
+    trajectory_recorder: TrajectoryRecorder | None = None,
 ) -> FullStoryDemoManualSession:
     return FullStoryDemoManualSession(
         base_url=base_url,
@@ -383,6 +510,7 @@ def build_full_story_demo_manual_session(
         llm_player_agents=llm_player_agents,
         llm_player_autopump=llm_player_autopump,
         llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
+        trajectory_recorder=trajectory_recorder,
     )
 
 
