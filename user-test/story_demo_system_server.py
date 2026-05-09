@@ -71,6 +71,7 @@ class FullStoryDemoManualSession:
         self._llm_player_autopump = llm_player_autopump
         self._llm_player_max_actions_per_pump = max(1, int(llm_player_max_actions_per_pump))
         self._llm_player_pump_active = False
+        self._llm_player_next_index = 0
         self._completion_state: _CompletionState | None = None
         self.trajectory_recorder = trajectory_recorder
         self._controllers = {
@@ -197,10 +198,14 @@ class FullStoryDemoManualSession:
         try:
             for _step in range(limit):
                 acted = False
-                for agent in self._llm_player_agents:
+                agent_count = len(self._llm_player_agents)
+                for offset in range(agent_count):
+                    agent_index = (self._llm_player_next_index + offset) % agent_count
+                    agent = self._llm_player_agents[agent_index]
                     decision = agent.decide(self.story_session)
                     if decision is None:
                         continue
+                    self._llm_player_next_index = (agent_index + 1) % agent_count
                     self._emit_llm_player_feedback(
                         decision.controller_id,
                         f'{agent.label} submits `{decision.command}`. {decision.reason}',

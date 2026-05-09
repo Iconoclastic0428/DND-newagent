@@ -7,6 +7,9 @@ import sys
 import unittest
 from uuid import uuid4
 
+from dm_agent.client import LLMClient
+from dm_agent.config import LLMConfig
+from session_server.llm_player import LLMPlayerAgent
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
 from training.trajectory import TrajectoryRecorder
@@ -80,7 +83,73 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertTrue(turn['observation']['summary_lines'])
         self.assertEqual(turn['reward_components'], {})
 
+    def test_full_llm_party_autopump_records_each_player_once(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_full_llm_party',
+            episode_id='episode-full-llm-party',
+        )
+        agents = tuple(
+            LLMPlayerAgent(
+                controller_id=f'player-{index}-controller',
+                client=LLMClient(
+                    LLMConfig(api_key='test-key', base_url='https://example.invalid/v1', responses_model=f'player-{index}-model'),
+                    transport=QueueTransport([
+                        {
+                            'output_text': json.dumps(
+                                {
+                                    'command': f'/say Player {index} is ready to continue.',
+                                    'reason': 'Keep the party moving.',
+                                }
+                            )
+                        }
+                    ]),
+                ),
+                label=f'test-player-{index}',
+            )
+            for index in range(1, 5)
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=QueueTransport([
+                {
+                    'output_text': (
+                        '{'
+                        f'"public_narration":"The DM acknowledges player {index}.",'
+                        '"transcript_entries":[],'
+                        '"check_request":null,'
+                        '"scene_update":null,'
+                        '"mode_switch_decision":null,'
+                        f'"memory_note":"Player {index} acted."'
+                        '}'
+                    )
+                }
+                for index in range(1, 5)
+            ]),
+            precreate_characters=True,
+            llm_player_agents=agents,
+            llm_player_autopump=True,
+            llm_player_max_actions_per_pump=4,
+            trajectory_recorder=recorder,
+        )
+
+        actions = session.pump_llm_players(max_actions=4)
+
+        self.assertEqual(
+            actions,
+            (
+                ('player-1-controller', '/say Player 1 is ready to continue.'),
+                ('player-2-controller', '/say Player 2 is ready to continue.'),
+                ('player-3-controller', '/say Player 3 is ready to continue.'),
+                ('player-4-controller', '/say Player 4 is ready to continue.'),
+            ),
+        )
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        llm_turns = [record for record in records if record['record_type'] == 'turn' and record['source'] == 'llm_player']
+        self.assertEqual([record['agent_id'] for record in llm_turns], [f'player-{index}-controller' for index in range(1, 5)])
+        self.assertTrue(all(record['parsed_action']['kind'] == 'command' for record in llm_turns))
+
 
 if __name__ == '__main__':
     unittest.main()
-
