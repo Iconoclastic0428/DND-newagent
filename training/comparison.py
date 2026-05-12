@@ -44,6 +44,72 @@ def write_policy_comparison_report(report: dict[str, Any], output_path: str | Pa
     return path
 
 
+def render_policy_comparison_markdown(report: dict[str, Any]) -> str:
+    diagnostics = report.get('diagnostics') if isinstance(report.get('diagnostics'), dict) else {}
+    leaderboard = report.get('leaderboard') if isinstance(report.get('leaderboard'), list) else []
+    lines = [
+        '# Policy Benchmark Summary',
+        '',
+        f'Winner: {_markdown_text(diagnostics.get("winner_label") or "n/a")}',
+        '',
+        _markdown_text(diagnostics.get('winner_summary') or 'No benchmark diagnostics are available.'),
+        '',
+        '## Leaderboard',
+        '',
+        '| Rank | Policy | Success | Avg Reward | Invalid Actions | Avg Turns | Party HP | Score |',
+        '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ]
+    for row in leaderboard:
+        lines.append(
+            '| '
+            + ' | '.join([
+                _format_number(row.get('rank'), digits=0),
+                _markdown_text(row.get('label')),
+                _format_percent(row.get('success_rate')),
+                _format_number(row.get('avg_reward')),
+                _format_number(row.get('avg_invalid_actions')),
+                _format_number(row.get('avg_turns')),
+                _format_percent(row.get('avg_party_hp_remaining')),
+                _format_number(row.get('comparison_score')),
+            ])
+            + ' |'
+        )
+    lines.extend([
+        '',
+        '## Why',
+        '',
+    ])
+    policy_notes = diagnostics.get('policy_notes') if isinstance(diagnostics.get('policy_notes'), list) else []
+    if not policy_notes:
+        lines.append('- No policy diagnostics were generated.')
+    for note in policy_notes:
+        lines.extend(_render_policy_note(note))
+    lines.extend([
+        '',
+        '## Reward Channels',
+        '',
+        '| Policy | ' + ' | '.join(_markdown_text(channel) for channel in _reward_channels_for_markdown(report)) + ' |',
+        '| --- | ' + ' | '.join('---:' for _channel in _reward_channels_for_markdown(report)) + ' |',
+    ])
+    channels = _reward_channels_for_markdown(report)
+    for row in leaderboard:
+        reward_by_channel = row.get('reward_by_channel') if isinstance(row.get('reward_by_channel'), dict) else {}
+        lines.append(
+            f'| {_markdown_text(row.get("label"))} | '
+            + ' | '.join(_format_number(reward_by_channel.get(channel, 0.0)) for channel in channels)
+            + ' |'
+        )
+    lines.append('')
+    return '\n'.join(lines)
+
+
+def write_policy_comparison_markdown(report: dict[str, Any], output_path: str | Path) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_policy_comparison_markdown(report), encoding='utf-8')
+    return path
+
+
 def _comparison_row(*, label: str, report: dict[str, Any]) -> dict[str, Any]:
     evaluation = _policy_evaluation(report)
     row = {
@@ -276,6 +342,56 @@ def _reward_channel_deltas(row: dict[str, Any], reference: dict[str, Any]) -> di
 
 def _signed(value: float) -> str:
     return f'{value:+.3f}'
+
+
+def _render_policy_note(note: dict[str, Any]) -> list[str]:
+    lines = [
+        f'### Rank {_format_number(note.get("rank"), digits=0)}: {_markdown_text(note.get("label"))}',
+        '',
+        _markdown_text(note.get('headline') or ''),
+    ]
+    advantages = note.get('advantages') if isinstance(note.get('advantages'), list) else []
+    tradeoffs = note.get('tradeoffs') if isinstance(note.get('tradeoffs'), list) else []
+    if advantages:
+        lines.extend(['', 'Advantages:'])
+        lines.extend(f'- {_markdown_text(item)}' for item in advantages[:5])
+    if tradeoffs:
+        lines.extend(['', 'Tradeoffs:'])
+        lines.extend(f'- {_markdown_text(item)}' for item in tradeoffs[:5])
+    lines.append('')
+    return lines
+
+
+def _reward_channels_for_markdown(report: dict[str, Any]) -> list[str]:
+    channels = report.get('reward_channels')
+    if isinstance(channels, list) and channels:
+        return [str(channel) for channel in channels]
+    leaderboard = report.get('leaderboard') if isinstance(report.get('leaderboard'), list) else []
+    return sorted({
+        str(channel)
+        for row in leaderboard
+        if isinstance(row, dict) and isinstance(row.get('reward_by_channel'), dict)
+        for channel in row['reward_by_channel']
+    })
+
+
+def _format_number(value: Any, *, digits: int = 3) -> str:
+    if not isinstance(value, (int, float)):
+        return '0'
+    if digits <= 0:
+        return str(int(value))
+    return f'{float(value):.{digits}f}'
+
+
+def _format_percent(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return '0.0%'
+    return f'{float(value) * 100.0:.1f}%'
+
+
+def _markdown_text(value: Any) -> str:
+    text = str(value) if value is not None else ''
+    return text.replace('|', '\\|').replace('\n', ' ')
 
 
 def _number(value: Any) -> float:

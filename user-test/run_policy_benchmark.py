@@ -17,7 +17,7 @@ if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
 from run_training_batch import LLMPlayerAgentFactory, parse_llm_player_specs, run_batch
-from training.comparison import compare_policy_batches, write_policy_comparison_report
+from training.comparison import compare_policy_batches, write_policy_comparison_markdown, write_policy_comparison_report
 
 
 DEFAULT_POLICIES = ('scripted', 'random-legal')
@@ -71,6 +71,8 @@ def run_policy_benchmark(
     comparison = compare_policy_batches(entries)
     comparison_path = benchmark_dir / 'policy_comparison.json'
     write_policy_comparison_report(comparison, comparison_path)
+    markdown_summary_path = benchmark_dir / 'benchmark_summary.md'
+    write_policy_comparison_markdown(comparison, markdown_summary_path)
     benchmark_report = {
         'benchmark_id': benchmark_dir.name,
         'scenario_id': scenario_id,
@@ -79,6 +81,7 @@ def run_policy_benchmark(
         'max_combat_turns': max_combat_turns,
         'output_dir': str(benchmark_dir),
         'comparison_path': str(comparison_path),
+        'markdown_summary_path': str(markdown_summary_path),
         'batch_reports': batch_reports,
         'comparison': comparison,
     }

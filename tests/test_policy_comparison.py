@@ -6,7 +6,13 @@ import shutil
 import unittest
 from uuid import uuid4
 
-from training.comparison import compare_policy_batches, load_batch_report, write_policy_comparison_report
+from training.comparison import (
+    compare_policy_batches,
+    load_batch_report,
+    render_policy_comparison_markdown,
+    write_policy_comparison_markdown,
+    write_policy_comparison_report,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -132,6 +138,41 @@ class PolicyComparisonTests(unittest.TestCase):
         self.assertEqual(saved['comparison_count'], 1)
         self.assertEqual(saved['rows'][0]['label'], 'loaded')
         self.assertEqual(saved['rows'][0]['report_path'], str(batch_path))
+
+    def test_render_policy_comparison_markdown_summarizes_leaderboard_and_reasons(self) -> None:
+        scripted = _batch_report(
+            batch_id='scripted-batch',
+            policy='scripted',
+            success_rate=1.0,
+            avg_reward=4.0,
+            avg_invalid_actions=0.0,
+            offense=2.5,
+        )
+        candidate = _batch_report(
+            batch_id='candidate-batch',
+            policy='llm-party',
+            success_rate=0.75,
+            avg_reward=5.0,
+            avg_invalid_actions=0.25,
+            offense=1.5,
+            support=2.0,
+        )
+        report = compare_policy_batches([
+            ('scripted', scripted),
+            ('candidate-model', candidate),
+        ])
+
+        markdown = render_policy_comparison_markdown(report)
+        output_path = self._tempdir / 'policy_comparison.md'
+        write_policy_comparison_markdown(report, output_path)
+
+        self.assertTrue(output_path.exists())
+        self.assertIn('# Policy Benchmark Summary', markdown)
+        self.assertIn('Winner: scripted', markdown)
+        self.assertIn('| Rank | Policy | Success | Avg Reward | Invalid Actions | Avg Turns | Party HP | Score |', markdown)
+        self.assertIn('### Rank 2: candidate-model', markdown)
+        self.assertIn('higher support reward (+2.000)', markdown)
+        self.assertIn('lower success rate (-0.250)', markdown)
 
 
 if __name__ == '__main__':
