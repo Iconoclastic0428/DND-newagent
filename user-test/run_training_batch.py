@@ -24,6 +24,7 @@ from shared_types.storytelling import RuntimeMode
 from story_demo_system_server import build_full_story_demo_manual_session
 from training.trajectory import TrajectoryRecorder
 from training.trajectory_summary import summarize_batch, summarize_trajectory
+from training.transitions import build_training_transitions, write_training_transitions_jsonl
 from web_story_demo_server import LocalDemoLLMTransport
 
 
@@ -64,6 +65,7 @@ def run_batch(
     batch_dir = Path(output_dir) / f'{scenario_id}-batch-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
     episode_output_dir = batch_dir / 'episodes'
     episode_summaries: list[dict[str, Any]] = []
+    transition_rows: list[dict[str, Any]] = []
     for episode_index in range(1, episodes + 1):
         try:
             trajectory_path = run_first_combat_episode(
@@ -79,8 +81,9 @@ def run_batch(
                     llm_player_agent_factory=llm_player_agent_factory,
                 ),
                 llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
-            )
+                )
             summary = summarize_trajectory(trajectory_path)
+            transition_rows.extend(build_training_transitions(trajectory_path))
         except Exception as exc:
             summary = {
                 'episode_id': f'{scenario_id}-{episode_index:04d}',
@@ -110,6 +113,10 @@ def run_batch(
         **summarize_batch(episode_summaries),
     }
     batch_dir.mkdir(parents=True, exist_ok=True)
+    transitions_path = batch_dir / 'training_transitions.jsonl'
+    write_training_transitions_jsonl(transition_rows, transitions_path)
+    report['transition_path'] = str(transitions_path)
+    report['transition_count'] = len(transition_rows)
     report_path = batch_dir / 'batch_report.json'
     report['report_path'] = str(report_path)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')

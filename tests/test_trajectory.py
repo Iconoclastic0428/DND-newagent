@@ -86,6 +86,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(turn['state_before']['scene_id'], 'scene-waterdeep-gundren-briefing')
         self.assertGreater(turn['state_after']['transcript_count'], turn['state_before']['transcript_count'])
         self.assertTrue(turn['observation']['summary_lines'])
+        self.assertIn('available_choices', turn['observation'])
         self.assertGreater(turn['reward_components']['valid_action'], 0.0)
         self.assertGreater(turn['reward_components']['story_progress'], 0.0)
         self.assertGreater(turn['metadata']['reward_total'], 0.0)

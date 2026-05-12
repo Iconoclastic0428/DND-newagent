@@ -420,6 +420,17 @@ class FullStoryDemoManualSession:
             observation = {
                 'summary_lines': tuple(view.summary_lines),
                 'available_action_groups': tuple(view.available_choices),
+                'available_choices': {
+                    group_id: tuple(
+                        {
+                            'option_id': getattr(choice, 'option_id', ''),
+                            'label': getattr(choice, 'label', ''),
+                            'detail': getattr(choice, 'detail', ''),
+                        }
+                        for choice in choices
+                    )
+                    for group_id, choices in view.available_choices.items()
+                },
                 'prompt': (
                     {
                         'prompt_id': prompt.prompt_id,
