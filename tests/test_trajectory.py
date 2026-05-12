@@ -140,8 +140,11 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(len(completion_records), 1)
         completion = completion_records[0]
         self.assertEqual(completion['runtime_mode'], 'demo-complete')
-        self.assertEqual(completion['reward_components'], {'episode_success': 1.0})
-        self.assertEqual(completion['metadata']['reward_total'], 1.0)
+        self.assertEqual(completion['reward_components']['episode_success'], 1.0)
+        self.assertGreaterEqual(completion['reward_components']['party_survival'], 0.0)
+        self.assertGreater(completion['reward_components']['encounter_efficiency'], 0.0)
+        self.assertGreater(completion['metadata']['reward_total'], 1.0)
+        self.assertEqual(completion['metadata']['living_monster_count'], 4)
         self.assertTrue(completion['metadata']['success'])
 
     def test_full_llm_party_autopump_records_each_player_once(self) -> None:
@@ -271,9 +274,16 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(session.story_session.state.winning_side, ActorSide.PLAYER)
         records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
         self.assertFalse([record for record in records if record.get('error')])
+        combat_turns = [record for record in records if record['record_type'] == 'turn' and record['state_after'].get('runtime_mode') == 'combat']
+        self.assertTrue(any('enemy_damage' in record['reward_components'] for record in combat_turns))
+        self.assertTrue(any('enemy_defeated' in record['reward_components'] for record in combat_turns))
+        self.assertTrue(all('party_hp_current' in record['state_after'] for record in combat_turns))
         completion = next(record for record in records if record['record_type'] == 'episode_completed')
-        self.assertEqual(completion['reward_components'], {'episode_success': 1.0})
-        self.assertEqual(completion['metadata']['reward_total'], 1.0)
+        self.assertEqual(completion['reward_components']['episode_success'], 1.0)
+        self.assertEqual(completion['reward_components']['party_survival'], 1.0)
+        self.assertGreater(completion['metadata']['reward_total'], 1.0)
+        self.assertEqual(completion['metadata']['living_monster_count'], 0)
+        self.assertEqual(completion['metadata']['party_hp_current'], completion['metadata']['party_hp_max'])
 
 
 if __name__ == '__main__':

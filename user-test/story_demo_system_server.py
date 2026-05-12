@@ -448,6 +448,7 @@ class FullStoryDemoManualSession:
             }
         story_state = self.story_session.story_state
         encounter_state = self.story_session.state
+        combat_metrics = self._trajectory_combat_metrics()
         return {
             'runtime_mode': self._trajectory_runtime_mode(),
             'scene_id': story_state.current_scene_id,
@@ -458,6 +459,24 @@ class FullStoryDemoManualSession:
             'round_number': encounter_state.round_number,
             'active_actor_id': encounter_state.active_actor_id,
             'completion': self._completion_state.result_summary if self._completion_state is not None else None,
+            **combat_metrics,
+        }
+
+    def _trajectory_combat_metrics(self) -> dict:
+        if self.story_session is None:
+            return {}
+        encounter_state = self.story_session.state
+        party_actors = [actor for actor in encounter_state.actors.values() if actor.side == ActorSide.PLAYER]
+        monster_actors = [actor for actor in encounter_state.actors.values() if actor.side == ActorSide.MONSTER]
+        active_actor = encounter_state.actors.get(encounter_state.active_actor_id or '')
+        return {
+            'active_actor_side': active_actor.side.value if active_actor is not None else None,
+            'party_hp_current': sum(max(0, actor.current_hit_points) for actor in party_actors),
+            'party_hp_max': sum(max(0, actor.max_hit_points) for actor in party_actors),
+            'monster_hp_current': sum(max(0, actor.current_hit_points) for actor in monster_actors),
+            'monster_hp_max': sum(max(0, actor.max_hit_points) for actor in monster_actors),
+            'living_party_count': sum(1 for actor in party_actors if actor.current_hit_points > 0),
+            'living_monster_count': sum(1 for actor in monster_actors if actor.current_hit_points > 0),
         }
 
     def _refresh_demo_completion(self) -> None:
@@ -488,8 +507,14 @@ class FullStoryDemoManualSession:
         if self._completion_recorded:
             return
         self._completion_recorded = True
-        reward_components = terminal_reward_components(success=success)
         state = self.story_session.state if self.story_session is not None else None
+        metrics = self._trajectory_combat_metrics()
+        reward_components = terminal_reward_components(
+            success=success,
+            party_hp_current=metrics.get('party_hp_current'),
+            party_hp_max=metrics.get('party_hp_max'),
+            round_number=state.round_number if state is not None else None,
+        )
         self._record_trajectory_event(
             'episode_completed',
             source='system',
@@ -500,6 +525,7 @@ class FullStoryDemoManualSession:
                 'reward_total': reward_total(reward_components),
                 'winning_side': state.winning_side.value if state is not None and state.winning_side is not None else None,
                 'round_number': state.round_number if state is not None else None,
+                **metrics,
             },
         )
 
