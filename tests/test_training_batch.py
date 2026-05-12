@@ -173,6 +173,9 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertEqual(saved['episode_summaries'][0]['final_runtime_mode'], 'demo-complete')
         self.assertGreater(saved['transition_count'], 0)
         self.assertTrue(Path(saved['transition_path']).exists())
+        self.assertTrue(Path(saved['evaluation_path']).exists())
+        self.assertEqual(saved['policy_evaluation']['transition_count'], saved['transition_count'])
+        self.assertGreater(saved['policy_evaluation']['reward_by_channel']['offense'], 0.0)
 
     def test_llm_party_first_combat_batch_uses_llm_player_actions(self) -> None:
         def build_fake_agents():
@@ -199,7 +202,9 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertEqual(saved['avg_invalid_actions'], 0.0)
         self.assertGreater(saved['transition_count'], 0)
         self.assertTrue(Path(saved['transition_path']).exists())
+        self.assertTrue(Path(saved['evaluation_path']).exists())
         summary = saved['episode_summaries'][0]
+        self.assertEqual(saved['policy_evaluation']['action_count_by_source']['llm_player'], summary['action_count_by_source']['llm_player'])
         self.assertEqual(summary['final_runtime_mode'], 'demo-complete')
         self.assertGreater(summary['action_count_by_source']['llm_player'], 0)
         self.assertGreater(summary['total_reward'], 1.0)
