@@ -10,6 +10,7 @@ from uuid import uuid4
 from dm_agent.client import LLMClient
 from dm_agent.config import LLMConfig
 from session_server.llm_player import LLMPlayerAgent
+from shared_types.conditions import ConditionInstance, ConditionType
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import EncounterPermissionError
 from shared_types.storytelling import RuntimeMode
@@ -146,6 +147,31 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertGreater(completion['metadata']['reward_total'], 1.0)
         self.assertEqual(completion['metadata']['living_monster_count'], 4)
         self.assertTrue(completion['metadata']['success'])
+
+    def test_trajectory_snapshot_exposes_support_and_debuff_metrics(self) -> None:
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+        )
+        assert session.story_session is not None
+        player = session.story_session.state.actors['player-1']
+        player.temp_hit_points = 5
+        goblin = session.story_session.state.actors['monster-goblin-1']
+        goblin.condition_instances = (
+            ConditionInstance(instance_id='test-prone', condition_type=ConditionType.PRONE),
+            ConditionInstance(instance_id='test-poisoned', condition_type=ConditionType.POISONED),
+            ConditionInstance(instance_id='test-stunned', condition_type=ConditionType.STUNNED),
+        )
+
+        snapshot = session._trajectory_state_snapshot()
+
+        self.assertEqual(snapshot['party_temp_hp'], 5)
+        self.assertEqual(snapshot['monster_control_debuff_count'], 1)
+        self.assertEqual(snapshot['monster_accuracy_debuff_count'], 1)
+        self.assertEqual(snapshot['monster_action_debuff_count'], 1)
+        self.assertEqual(snapshot['party_control_debuff_count'], 0)
 
     def test_full_llm_party_autopump_records_each_player_once(self) -> None:
         recorder = TrajectoryRecorder(

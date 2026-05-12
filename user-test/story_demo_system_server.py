@@ -16,8 +16,9 @@ from session_server import StoryOrchestratorServer
 from session_server.bootstrap import build_default_character_record, build_lmop_story_demo_session_from_records
 from session_server.llm_player import LLMPlayerAgent
 from shared_types.character_record_io import load_character_party, save_character_party
+from shared_types.conditions import ConditionType
 from shared_types.encounter_control import ControllerBinding, ControllerRole
-from shared_types.encounter_models import ActorSide, EncounterPhase
+from shared_types.encounter_models import ActorSide, EncounterPhase, RuntimeActorState
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
 from shared_types.models import CharacterRecord, ChoiceView, CreationState
 from shared_types.storytelling import RuntimeMode
@@ -469,15 +470,161 @@ class FullStoryDemoManualSession:
         party_actors = [actor for actor in encounter_state.actors.values() if actor.side == ActorSide.PLAYER]
         monster_actors = [actor for actor in encounter_state.actors.values() if actor.side == ActorSide.MONSTER]
         active_actor = encounter_state.actors.get(encounter_state.active_actor_id or '')
+        support_metrics = self._trajectory_condition_metrics(party_actors=party_actors, monster_actors=monster_actors)
+        for key, value in self._trajectory_active_effect_metrics(party_actors=party_actors, monster_actors=monster_actors).items():
+            support_metrics[key] = support_metrics.get(key, 0) + value
         return {
             'active_actor_side': active_actor.side.value if active_actor is not None else None,
             'party_hp_current': sum(max(0, actor.current_hit_points) for actor in party_actors),
             'party_hp_max': sum(max(0, actor.max_hit_points) for actor in party_actors),
+            'party_temp_hp': sum(max(0, actor.temp_hit_points) for actor in party_actors),
             'monster_hp_current': sum(max(0, actor.current_hit_points) for actor in monster_actors),
             'monster_hp_max': sum(max(0, actor.max_hit_points) for actor in monster_actors),
+            'monster_temp_hp': sum(max(0, actor.temp_hit_points) for actor in monster_actors),
             'living_party_count': sum(1 for actor in party_actors if actor.current_hit_points > 0),
             'living_monster_count': sum(1 for actor in monster_actors if actor.current_hit_points > 0),
+            **support_metrics,
         }
+
+    def _trajectory_condition_metrics(
+        self,
+        *,
+        party_actors: list[RuntimeActorState],
+        monster_actors: list[RuntimeActorState],
+    ) -> dict:
+        metrics = self._empty_debuff_metrics()
+        for actor in party_actors:
+            for condition_type in self._active_condition_types(actor):
+                bucket = self._condition_debuff_bucket(condition_type)
+                if bucket is not None:
+                    metrics[f'party_{bucket}_debuff_count'] += 1
+        for actor in monster_actors:
+            for condition_type in self._active_condition_types(actor):
+                bucket = self._condition_debuff_bucket(condition_type)
+                if bucket is not None:
+                    metrics[f'monster_{bucket}_debuff_count'] += 1
+        return metrics
+
+    def _trajectory_active_effect_metrics(
+        self,
+        *,
+        party_actors: list[RuntimeActorState],
+        monster_actors: list[RuntimeActorState],
+    ) -> dict:
+        metrics = self._empty_effect_metrics()
+        actor_sides = {actor.actor_id: actor.side for actor in party_actors + monster_actors}
+        for effect in self.story_session.state.active_effects.values():
+            bucket = self._active_effect_bucket(effect.definition)
+            if bucket is None:
+                continue
+            for target_actor_id in effect.target_actor_ids:
+                side = actor_sides.get(target_actor_id)
+                if side == ActorSide.PLAYER:
+                    metrics[f'party_{bucket}_effect_count' if bucket == 'buff' else f'party_{bucket}_debuff_count'] += 1
+                elif side == ActorSide.MONSTER:
+                    metrics[f'monster_{bucket}_effect_count' if bucket == 'buff' else f'monster_{bucket}_debuff_count'] += 1
+        return metrics
+
+    def _empty_debuff_metrics(self) -> dict[str, int]:
+        return {
+            f'{side}_{bucket}_debuff_count': 0
+            for side in ('party', 'monster')
+            for bucket in ('action', 'control', 'accuracy', 'defense', 'mobility', 'general')
+        }
+
+    def _empty_effect_metrics(self) -> dict[str, int]:
+        metrics = self._empty_debuff_metrics()
+        metrics['party_buff_effect_count'] = 0
+        metrics['monster_buff_effect_count'] = 0
+        return metrics
+
+    def _active_condition_types(self, actor: RuntimeActorState) -> set[ConditionType]:
+        return {
+            instance.condition_type
+            for instance in actor.condition_instances
+            if not instance.suppressed
+        }
+
+    def _condition_debuff_bucket(self, condition_type: ConditionType) -> str | None:
+        if condition_type in {
+            ConditionType.INCAPACITATED,
+            ConditionType.PARALYZED,
+            ConditionType.PETRIFIED,
+            ConditionType.STUNNED,
+            ConditionType.UNCONSCIOUS,
+        }:
+            return 'action'
+        if condition_type in {
+            ConditionType.GRAPPLED,
+            ConditionType.PRONE,
+            ConditionType.RESTRAINED,
+        }:
+            return 'control'
+        if condition_type in {
+            ConditionType.BLINDED,
+            ConditionType.FRIGHTENED,
+            ConditionType.POISONED,
+        }:
+            return 'accuracy'
+        if condition_type in {
+            ConditionType.CHARMED,
+            ConditionType.DEAFENED,
+            ConditionType.EXHAUSTION,
+        }:
+            return 'general'
+        return None
+
+    def _active_effect_bucket(self, definition) -> str | None:
+        if (
+            definition.cannot_cast_spells
+            or definition.cannot_take_reactions
+            or definition.healing_blocked
+        ):
+            return 'action'
+        if (
+            definition.speed_override_ft == 0
+            or definition.speed_penalty_ft > 0
+            or definition.cannot_willingly_move_beyond_source_ft is not None
+        ):
+            return 'mobility'
+        if (
+            definition.attack_roll_penalty is not None
+            or definition.next_attack_roll_disadvantage
+        ):
+            return 'accuracy'
+        if (
+            definition.saving_throw_penalty is not None
+            or definition.next_saving_throw_penalty is not None
+            or definition.attackers_have_advantage
+        ):
+            return 'defense'
+        if self._active_effect_is_buff(definition):
+            return 'buff'
+        return None
+
+    def _active_effect_is_buff(self, definition) -> bool:
+        return (
+            definition.armor_class_bonus > 0
+            or definition.armor_class_minimum > 0
+            or definition.max_hit_points_bonus > 0
+            or definition.armor_class_base_override is not None
+            or bool(definition.damage_resistances)
+            or bool(definition.ability_check_advantage_abilities)
+            or bool(definition.saving_throw_advantage_abilities)
+            or definition.melee_attack_damage_bonus > 0
+            or definition.attack_roll_bonus is not None
+            or definition.saving_throw_bonus is not None
+            or definition.spell_save_dc_bonus > 0
+            or definition.spell_attack_roll_advantage
+            or definition.speed_bonus_ft > 0
+            or definition.can_dash_as_bonus_action
+            or definition.attackers_rely_on_sight_have_disadvantage
+            or definition.prevent_falling_damage
+            or bool(definition.protected_condition_types)
+            or definition.start_of_turn_temp_hit_points > 0
+            or definition.bright_light_radius_ft > 0
+            or definition.dim_light_radius_ft > 0
+        )
 
     def _refresh_demo_completion(self) -> None:
         if self.story_session is None or self._completion_state is not None:
