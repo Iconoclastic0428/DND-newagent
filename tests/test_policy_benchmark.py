@@ -39,6 +39,7 @@ class PolicyBenchmarkTests(unittest.TestCase):
             env_path=self.env_path,
             base_url=LOCAL_MIRROR_BASE_URL,
             baseline_seed=5,
+            seeds=(5, 6),
             max_combat_turns=120,
         )
 
@@ -49,20 +50,29 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertTrue(comparison_path.exists())
         self.assertTrue(markdown_summary_path.exists())
         saved = json.loads(benchmark_path.read_text(encoding='utf-8'))
-        self.assertEqual(saved['episodes_per_policy'], 1)
+        self.assertEqual(saved['episodes_per_seed'], 1)
+        self.assertEqual(saved['episodes_per_policy'], 2)
         self.assertEqual(saved['baseline_seed'], 5)
+        self.assertEqual(saved['seed_count'], 2)
+        self.assertEqual(saved['seeds'], [5, 6])
         self.assertEqual(saved['markdown_summary_path'], str(markdown_summary_path))
         self.assertEqual(len(saved['batch_reports']), 2)
+        self.assertEqual(len(saved['seed_batch_reports']), 4)
         self.assertEqual(saved['comparison']['comparison_count'], 2)
+        self.assertEqual(saved['comparison']['benchmark_metadata']['seed_count'], 2)
         self.assertEqual([row['label'] for row in saved['comparison']['rows']], ['scripted', 'random'])
         self.assertIn(saved['comparison']['diagnostics']['winner_label'], {'scripted', 'random'})
         self.assertEqual(len(saved['comparison']['diagnostics']['policy_notes']), 2)
         markdown = markdown_summary_path.read_text(encoding='utf-8')
         self.assertIn('# Policy Benchmark Summary', markdown)
+        self.assertIn('Seeds: 5, 6', markdown)
         self.assertIn('## Leaderboard', markdown)
         for batch in saved['batch_reports']:
-            self.assertTrue(Path(batch['report_path']).exists())
+            self.assertEqual(batch['seed_count'], 2)
+            self.assertIn('avg_reward_stddev', batch)
             self.assertEqual(batch['success_rate'], 1.0)
+            for report_path in batch['report_paths']:
+                self.assertTrue(Path(report_path).exists())
 
 
 if __name__ == '__main__':

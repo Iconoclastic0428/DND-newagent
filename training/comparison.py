@@ -46,6 +46,7 @@ def write_policy_comparison_report(report: dict[str, Any], output_path: str | Pa
 
 def render_policy_comparison_markdown(report: dict[str, Any]) -> str:
     diagnostics = report.get('diagnostics') if isinstance(report.get('diagnostics'), dict) else {}
+    metadata = report.get('benchmark_metadata') if isinstance(report.get('benchmark_metadata'), dict) else {}
     leaderboard = report.get('leaderboard') if isinstance(report.get('leaderboard'), list) else []
     lines = [
         '# Policy Benchmark Summary',
@@ -54,11 +55,19 @@ def render_policy_comparison_markdown(report: dict[str, Any]) -> str:
         '',
         _markdown_text(diagnostics.get('winner_summary') or 'No benchmark diagnostics are available.'),
         '',
+    ]
+    if metadata:
+        lines.extend([
+            f'Seeds: {_markdown_text(", ".join(str(seed) for seed in metadata.get("seeds", [])) or "n/a")}',
+            f'Episodes per seed: {_format_number(metadata.get("episodes_per_seed"), digits=0)}',
+            '',
+        ])
+    lines.extend([
         '## Leaderboard',
         '',
-        '| Rank | Policy | Success | Avg Reward | Invalid Actions | Avg Turns | Party HP | Score |',
-        '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
-    ]
+        '| Rank | Policy | Success | Avg Reward | Reward Std | Invalid Actions | Avg Turns | Party HP | Score |',
+        '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ])
     for row in leaderboard:
         lines.append(
             '| '
@@ -67,6 +76,7 @@ def render_policy_comparison_markdown(report: dict[str, Any]) -> str:
                 _markdown_text(row.get('label')),
                 _format_percent(row.get('success_rate')),
                 _format_number(row.get('avg_reward')),
+                _format_number(row.get('avg_reward_stddev')),
                 _format_number(row.get('avg_invalid_actions')),
                 _format_number(row.get('avg_turns')),
                 _format_percent(row.get('avg_party_hp_remaining')),
@@ -123,6 +133,7 @@ def _comparison_row(*, label: str, report: dict[str, Any]) -> dict[str, Any]:
         'successes': _number(report.get('successes')),
         'success_rate': _number(report.get('success_rate')),
         'avg_reward': _number(report.get('avg_reward')),
+        'avg_reward_stddev': _number(report.get('avg_reward_stddev')),
         'avg_invalid_actions': _number(report.get('avg_invalid_actions')),
         'avg_turns': _number(report.get('avg_turns')),
         'avg_party_hp_remaining': _number(report.get('avg_party_hp_remaining')),

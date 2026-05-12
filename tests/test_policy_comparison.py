@@ -169,7 +169,7 @@ class PolicyComparisonTests(unittest.TestCase):
         self.assertTrue(output_path.exists())
         self.assertIn('# Policy Benchmark Summary', markdown)
         self.assertIn('Winner: scripted', markdown)
-        self.assertIn('| Rank | Policy | Success | Avg Reward | Invalid Actions | Avg Turns | Party HP | Score |', markdown)
+        self.assertIn('| Rank | Policy | Success | Avg Reward | Reward Std | Invalid Actions | Avg Turns | Party HP | Score |', markdown)
         self.assertIn('### Rank 2: candidate-model', markdown)
         self.assertIn('higher support reward (+2.000)', markdown)
         self.assertIn('lower success rate (-0.250)', markdown)
