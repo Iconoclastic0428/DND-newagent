@@ -6,6 +6,26 @@ from training.rewards import action_reward_components
 
 
 class RewardSignalTests(unittest.TestCase):
+    def test_combat_actions_pay_a_small_step_cost(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            state_before={'runtime_mode': 'combat', 'event_count': 10},
+            state_after={'runtime_mode': 'combat', 'event_count': 11},
+        )
+
+        self.assertEqual(rewards['valid_action'], 0.01)
+        self.assertEqual(rewards['state_progress'], 0.02)
+        self.assertEqual(rewards['combat_step_cost'], -0.04)
+
+    def test_noncombat_actions_do_not_pay_combat_step_cost(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            state_before={'runtime_mode': 'storytelling', 'event_count': 10},
+            state_after={'runtime_mode': 'storytelling', 'event_count': 11},
+        )
+
+        self.assertNotIn('combat_step_cost', rewards)
+
     def test_support_rewards_are_computed_from_state_deltas(self) -> None:
         rewards = action_reward_components(
             error=None,

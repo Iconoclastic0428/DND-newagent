@@ -24,6 +24,8 @@ def action_reward_components(
         components['state_progress'] = 0.02
     if before.get('runtime_mode') != after.get('runtime_mode'):
         components['mode_progress'] = 0.1
+    if before.get('runtime_mode') == 'combat' or after.get('runtime_mode') == 'combat':
+        components['combat_step_cost'] = -0.04
     monster_hp_before = _numeric(before.get('monster_hp_current'))
     monster_hp_after = _numeric(after.get('monster_hp_current'))
     monster_damage = max(0.0, monster_hp_before - monster_hp_after)

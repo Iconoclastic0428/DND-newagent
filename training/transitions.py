@@ -14,6 +14,7 @@ REWARD_CHANNELS = {
     'story_progress': 'progress',
     'state_progress': 'progress',
     'mode_progress': 'progress',
+    'combat_step_cost': 'efficiency',
     'enemy_damage': 'offense',
     'enemy_defeated': 'offense',
     'ally_healing': 'support',
