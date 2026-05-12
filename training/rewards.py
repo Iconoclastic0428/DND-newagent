@@ -72,9 +72,25 @@ def action_reward_components(
         components,
         before,
         after,
+        field_name='party_help_effect_count',
+        component_name='ally_help_provided',
+        scale=0.08,
+    )
+    _add_delta_reward(
+        components,
+        before,
+        after,
         field_name='monster_buff_effect_count',
         component_name='enemy_buff_applied',
         scale=-0.1,
+    )
+    _add_delta_reward(
+        components,
+        before,
+        after,
+        field_name='monster_help_effect_count',
+        component_name='enemy_help_provided',
+        scale=-0.08,
     )
     for field_name, component_name, scale in (
         ('monster_action_debuff_count', 'enemy_action_debuff_applied', 0.25),

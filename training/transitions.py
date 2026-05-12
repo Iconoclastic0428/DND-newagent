@@ -8,6 +8,38 @@ from training.trajectory_summary import load_trajectory_records
 
 
 PLAYER_ROLES = ('player',)
+REWARD_CHANNELS = {
+    'valid_action': 'validity',
+    'invalid_action': 'validity',
+    'story_progress': 'progress',
+    'state_progress': 'progress',
+    'mode_progress': 'progress',
+    'enemy_damage': 'offense',
+    'enemy_defeated': 'offense',
+    'ally_healing': 'support',
+    'ally_temp_hp_gained': 'support',
+    'ally_buff_applied': 'support',
+    'ally_help_provided': 'support',
+    'enemy_action_debuff_applied': 'control',
+    'enemy_control_applied': 'control',
+    'enemy_accuracy_debuff_applied': 'control',
+    'enemy_defense_debuff_applied': 'control',
+    'enemy_mobility_debuff_applied': 'control',
+    'enemy_general_debuff_applied': 'control',
+    'party_damage_taken': 'penalty',
+    'enemy_healing': 'penalty',
+    'enemy_temp_hp_gained': 'penalty',
+    'enemy_buff_applied': 'penalty',
+    'enemy_help_provided': 'penalty',
+    'ally_defeated': 'penalty',
+    'ally_action_debuffed': 'penalty',
+    'ally_control_debuffed': 'penalty',
+    'ally_accuracy_debuffed': 'penalty',
+    'ally_defense_debuffed': 'penalty',
+    'ally_mobility_debuffed': 'penalty',
+    'ally_general_debuffed': 'penalty',
+}
+TERMINAL_REWARD_CHANNEL = 'terminal'
 
 
 def build_training_transitions(
@@ -41,6 +73,13 @@ def build_training_transitions(
         terminal_reward = _reward_total(terminal) if done and terminal is not None else 0.0
         observation = _dict_or_empty(turn.get('observation'))
         next_observation = _dict_or_empty(turn.get('post_observation'))
+        reward_components = _dict_or_empty(turn.get('reward_components'))
+        terminal_reward_components = _dict_or_empty(terminal.get('reward_components')) if done and terminal is not None else {}
+        action_reward_channels = reward_channels(reward_components)
+        terminal_reward_channels = _terminal_reward_channels(terminal_reward_components)
+        combined_reward_channels = _merge_reward_channels(action_reward_channels, terminal_reward_channels)
+        acting_actor_id = _acting_actor_id(turn)
+        target_actor_ids = _target_actor_ids(turn)
         transitions.append(
             {
                 'sample_id': f'{episode_id}:{turn.get("turn_index")}',
@@ -52,6 +91,8 @@ def build_training_transitions(
                 'role': turn.get('role'),
                 'source': turn.get('source'),
                 'runtime_mode': turn.get('runtime_mode'),
+                'acting_actor_id': acting_actor_id,
+                'target_actor_ids': target_actor_ids,
                 'observation': observation,
                 'available_actions': _available_actions(observation),
                 'action': turn.get('raw_text') or '',
@@ -62,8 +103,19 @@ def build_training_transitions(
                 'reward': action_reward + terminal_reward,
                 'action_reward': action_reward,
                 'terminal_reward': terminal_reward,
-                'reward_components': _dict_or_empty(turn.get('reward_components')),
-                'terminal_reward_components': _dict_or_empty(terminal.get('reward_components')) if done and terminal is not None else {},
+                'reward_components': reward_components,
+                'terminal_reward_components': terminal_reward_components,
+                'reward_channels': combined_reward_channels,
+                'action_reward_channels': action_reward_channels,
+                'terminal_reward_channels': terminal_reward_channels,
+                'reward_attribution': {
+                    'actor_id': acting_actor_id,
+                    'target_actor_ids': target_actor_ids,
+                    'credit_scope': _credit_scope(action_reward=action_reward, terminal_reward=terminal_reward),
+                    'action_reward': action_reward,
+                    'team_terminal_reward': terminal_reward,
+                    'channels': combined_reward_channels,
+                },
                 'done': done,
                 'success': _terminal_success(terminal) if done else None,
                 'error': turn.get('error'),
@@ -79,6 +131,16 @@ def write_training_transitions_jsonl(transitions: Iterable[dict[str, Any]], outp
         for transition in transitions:
             handle.write(json.dumps(transition, ensure_ascii=False, sort_keys=True) + '\n')
     return path
+
+
+def reward_channels(components: dict[str, Any]) -> dict[str, float]:
+    channels: dict[str, float] = {}
+    for component_name, value in components.items():
+        if not isinstance(value, (int, float)):
+            continue
+        channel = REWARD_CHANNELS.get(component_name, 'other')
+        channels[channel] = channels.get(channel, 0.0) + float(value)
+    return channels
 
 
 def _include_turn(
@@ -143,6 +205,58 @@ def _available_actions(observation: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(groups, (list, tuple)):
         return [{'group_id': str(group_id), 'option_id': '', 'label': '', 'detail': ''} for group_id in groups]
     return []
+
+
+def _terminal_reward_channels(components: dict[str, Any]) -> dict[str, float]:
+    total = 0.0
+    for value in components.values():
+        if isinstance(value, (int, float)):
+            total += float(value)
+    return {TERMINAL_REWARD_CHANNEL: total} if total else {}
+
+
+def _merge_reward_channels(*channel_dicts: dict[str, float]) -> dict[str, float]:
+    merged: dict[str, float] = {}
+    for channels in channel_dicts:
+        for channel, value in channels.items():
+            merged[channel] = merged.get(channel, 0.0) + float(value)
+    return merged
+
+
+def _acting_actor_id(turn: dict[str, Any]) -> str | None:
+    raw_text = str(turn.get('raw_text') or '').strip()
+    tokens = raw_text.split()
+    if len(tokens) >= 2 and _looks_like_actor_id(tokens[1]):
+        return tokens[1]
+    state_before = turn.get('state_before')
+    if isinstance(state_before, dict):
+        active_actor_id = state_before.get('active_actor_id')
+        if isinstance(active_actor_id, str) and _looks_like_actor_id(active_actor_id):
+            return active_actor_id
+    return None
+
+
+def _target_actor_ids(turn: dict[str, Any]) -> list[str]:
+    raw_text = str(turn.get('raw_text') or '').strip()
+    tokens = raw_text.split()
+    targets: list[str] = []
+    for token in tokens[2:]:
+        cleaned = token.strip(',.')
+        if _looks_like_actor_id(cleaned):
+            targets.append(cleaned)
+    return targets
+
+
+def _looks_like_actor_id(value: str) -> bool:
+    return value.startswith(('player-', 'monster-'))
+
+
+def _credit_scope(*, action_reward: float, terminal_reward: float) -> str:
+    if terminal_reward and action_reward:
+        return 'action_and_team_terminal'
+    if terminal_reward:
+        return 'team_terminal'
+    return 'action'
 
 
 def _reward_total(record: dict[str, Any] | None) -> float:

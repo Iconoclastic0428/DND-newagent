@@ -159,6 +159,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
         assert session.story_session is not None
         player = session.story_session.state.actors['player-1']
         player.temp_hit_points = 5
+        player.help_target_id = 'player-2'
         goblin = session.story_session.state.actors['monster-goblin-1']
         goblin.condition_instances = (
             ConditionInstance(instance_id='test-prone', condition_type=ConditionType.PRONE),
@@ -169,6 +170,8 @@ class TrajectoryRecorderTests(unittest.TestCase):
         snapshot = session._trajectory_state_snapshot()
 
         self.assertEqual(snapshot['party_temp_hp'], 5)
+        self.assertEqual(snapshot['party_help_effect_count'], 1)
+        self.assertEqual(snapshot['monster_help_effect_count'], 0)
         self.assertEqual(snapshot['monster_control_debuff_count'], 1)
         self.assertEqual(snapshot['monster_accuracy_debuff_count'], 1)
         self.assertEqual(snapshot['monster_action_debuff_count'], 1)

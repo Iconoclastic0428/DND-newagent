@@ -49,7 +49,7 @@ class TrainingTransitionTests(unittest.TestCase):
                     },
                 },
                 'post_observation': {'summary_lines': ['Goblin is hurt.']},
-                'state_before': {'runtime_mode': 'combat', 'party_hp_current': 20, 'party_hp_max': 20},
+                'state_before': {'runtime_mode': 'combat', 'active_actor_id': 'player-1', 'party_hp_current': 20, 'party_hp_max': 20},
                 'state_after': {'runtime_mode': 'combat', 'party_hp_current': 20, 'party_hp_max': 20},
                 'reward_components': {'valid_action': 0.01, 'enemy_damage': 0.2},
                 'metadata': {'reward_total': 0.21},
@@ -101,9 +101,14 @@ class TrainingTransitionTests(unittest.TestCase):
         first, second = transitions
         self.assertEqual(first['sample_id'], 'episode-1:1')
         self.assertEqual(first['agent_id'], 'player-1-controller')
+        self.assertEqual(first['acting_actor_id'], 'player-1')
+        self.assertEqual(first['target_actor_ids'], ['monster-goblin-1'])
         self.assertEqual(first['action_reward'], 0.21)
         self.assertEqual(first['terminal_reward'], 0.0)
         self.assertEqual(first['reward'], 0.21)
+        self.assertEqual(first['reward_channels'], {'validity': 0.01, 'offense': 0.2})
+        self.assertEqual(first['reward_attribution']['credit_scope'], 'action')
+        self.assertEqual(first['reward_attribution']['channels'], {'validity': 0.01, 'offense': 0.2})
         self.assertFalse(first['done'])
         self.assertEqual(
             first['available_actions'],
@@ -113,6 +118,8 @@ class TrainingTransitionTests(unittest.TestCase):
         self.assertEqual(second['action_reward'], 0.51)
         self.assertEqual(second['terminal_reward'], 1.5)
         self.assertEqual(second['reward'], 2.01)
+        self.assertEqual(second['reward_channels'], {'validity': 0.01, 'offense': 0.5, 'terminal': 1.5})
+        self.assertEqual(second['reward_attribution']['credit_scope'], 'action_and_team_terminal')
         self.assertTrue(second['done'])
         self.assertTrue(second['success'])
         self.assertEqual(second['available_actions'], [{'group_id': 'attacks', 'option_id': '', 'label': '', 'detail': ''}])

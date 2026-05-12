@@ -494,6 +494,8 @@ class FullStoryDemoManualSession:
             'monster_temp_hp': sum(max(0, actor.temp_hit_points) for actor in monster_actors),
             'living_party_count': sum(1 for actor in party_actors if actor.current_hit_points > 0),
             'living_monster_count': sum(1 for actor in monster_actors if actor.current_hit_points > 0),
+            'party_help_effect_count': sum(1 for actor in party_actors if actor.help_target_id is not None),
+            'monster_help_effect_count': sum(1 for actor in monster_actors if actor.help_target_id is not None),
             **support_metrics,
         }
 

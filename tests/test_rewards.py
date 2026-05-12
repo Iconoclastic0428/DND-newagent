@@ -15,6 +15,7 @@ class RewardSignalTests(unittest.TestCase):
                 'party_temp_hp': 0,
                 'monster_temp_hp': 0,
                 'party_buff_effect_count': 0,
+                'party_help_effect_count': 0,
             },
             state_after={
                 'party_hp_current': 15,
@@ -22,12 +23,14 @@ class RewardSignalTests(unittest.TestCase):
                 'party_temp_hp': 4,
                 'monster_temp_hp': 0,
                 'party_buff_effect_count': 1,
+                'party_help_effect_count': 1,
             },
         )
 
         self.assertEqual(rewards['ally_healing'], 0.15)
         self.assertEqual(rewards['ally_temp_hp_gained'], 0.08)
         self.assertEqual(rewards['ally_buff_applied'], 0.1)
+        self.assertEqual(rewards['ally_help_provided'], 0.08)
         self.assertNotIn('enemy_damage', rewards)
 
     def test_enemy_debuff_rewards_use_specific_non_overlapping_buckets(self) -> None:
@@ -66,12 +69,14 @@ class RewardSignalTests(unittest.TestCase):
                 'monster_hp_current': 10,
                 'monster_temp_hp': 0,
                 'monster_buff_effect_count': 0,
+                'monster_help_effect_count': 0,
                 'party_control_debuff_count': 0,
             },
             state_after={
                 'monster_hp_current': 14,
                 'monster_temp_hp': 3,
                 'monster_buff_effect_count': 1,
+                'monster_help_effect_count': 1,
                 'party_control_debuff_count': 1,
             },
         )
@@ -79,6 +84,7 @@ class RewardSignalTests(unittest.TestCase):
         self.assertEqual(rewards['enemy_healing'], -0.12)
         self.assertEqual(rewards['enemy_temp_hp_gained'], -0.06)
         self.assertEqual(rewards['enemy_buff_applied'], -0.1)
+        self.assertEqual(rewards['enemy_help_provided'], -0.08)
         self.assertEqual(rewards['ally_control_debuffed'], -0.2)
 
 
