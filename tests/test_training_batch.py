@@ -15,7 +15,51 @@ if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
 from run_training_batch import run_batch
+from session_server.llm_player import LLMPlayerDecision
+from shared_types.encounter_models import ActorSide
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
+
+
+class FakeCombatLLMPlayerAgent:
+    def __init__(self, controller_id: str) -> None:
+        self.controller_id = controller_id
+        self.label = f'fake-{controller_id}'
+
+    def decide(self, story_session) -> LLMPlayerDecision | None:
+        state = story_session.state
+        active_actor_id = state.active_actor_id
+        if active_actor_id is None:
+            return None
+        owner = story_session.encounter_session.control_runtime.controller_for_actor(active_actor_id)
+        if owner != self.controller_id:
+            return None
+        actor = state.actors[active_actor_id]
+        if actor.action_available:
+            target = next(
+                (
+                    candidate
+                    for candidate in state.actors.values()
+                    if candidate.side == ActorSide.MONSTER and candidate.current_hit_points > 0
+                ),
+                None,
+            )
+            if target is not None and 'magic-missile' in actor.spells:
+                return LLMPlayerDecision(
+                    self.controller_id,
+                    f'/cast {active_actor_id} magic-missile {target.actor_id}',
+                    'Use guaranteed damage against the nearest living enemy.',
+                )
+            if target is not None and 'fire-bolt' in actor.spells:
+                return LLMPlayerDecision(
+                    self.controller_id,
+                    f'/cast {active_actor_id} fire-bolt {target.actor_id}',
+                    'Use a basic ranged attack against the nearest living enemy.',
+                )
+        return LLMPlayerDecision(
+            self.controller_id,
+            f'/endturn {active_actor_id}',
+            'End the turn after available combat actions are spent.',
+        )
 
 
 class TrainingBatchTests(unittest.TestCase):
@@ -120,12 +164,41 @@ class TrainingBatchTests(unittest.TestCase):
         report_path = Path(report['report_path'])
         self.assertTrue(report_path.exists())
         saved = json.loads(report_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['policy'], 'scripted')
         self.assertEqual(saved['episodes'], 1)
         self.assertEqual(saved['successes'], 1)
         self.assertEqual(saved['success_rate'], 1.0)
         self.assertGreater(saved['avg_reward'], 1.0)
         self.assertEqual(saved['avg_invalid_actions'], 0.0)
         self.assertEqual(saved['episode_summaries'][0]['final_runtime_mode'], 'demo-complete')
+
+    def test_llm_party_first_combat_batch_uses_llm_player_actions(self) -> None:
+        def build_fake_agents():
+            return tuple(FakeCombatLLMPlayerAgent(f'player-{index}-controller') for index in range(1, 5))
+
+        report = run_batch(
+            episodes=1,
+            output_dir=self._tempdir / 'llm-batches',
+            env_path=self.env_path,
+            base_url=LOCAL_MIRROR_BASE_URL,
+            policy='llm-party',
+            llm_player_agent_factory=build_fake_agents,
+            llm_player_max_actions_per_pump=1,
+        )
+
+        report_path = Path(report['report_path'])
+        self.assertTrue(report_path.exists())
+        saved = json.loads(report_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['policy'], 'llm-party')
+        self.assertEqual(saved['llm_player_controllers'], [f'player-{index}-controller' for index in range(1, 5)])
+        self.assertEqual(saved['episodes'], 1)
+        self.assertEqual(saved['successes'], 1)
+        self.assertEqual(saved['success_rate'], 1.0)
+        self.assertEqual(saved['avg_invalid_actions'], 0.0)
+        summary = saved['episode_summaries'][0]
+        self.assertEqual(summary['final_runtime_mode'], 'demo-complete')
+        self.assertGreater(summary['action_count_by_source']['llm_player'], 0)
+        self.assertGreater(summary['total_reward'], 1.0)
 
 
 if __name__ == '__main__':

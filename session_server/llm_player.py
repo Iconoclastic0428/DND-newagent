@@ -129,8 +129,8 @@ class LLMPlayerAgent:
             actor = session.state.actors.get(actor_id)
             if actor is None:
                 continue
-            hp = getattr(actor, 'hp', None)
-            max_hp = getattr(actor, 'max_hp', None)
+            hp = getattr(actor, 'current_hit_points', None)
+            max_hp = getattr(actor, 'max_hit_points', None)
             hp_text = f'{hp}/{max_hp} hp' if hp is not None and max_hp is not None else 'hp unknown'
             lines.append(f'- {actor_id}: {getattr(actor, "name", actor_id)} ({hp_text})')
         if not owned_ids:
