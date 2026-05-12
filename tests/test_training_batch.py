@@ -213,6 +213,33 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertGreater(summary['action_count_by_source']['llm_player'], 0)
         self.assertGreater(summary['total_reward'], 1.0)
 
+    def test_random_legal_first_combat_batch_uses_baseline_actions(self) -> None:
+        report = run_batch(
+            episodes=1,
+            output_dir=self._tempdir / 'random-legal-batches',
+            env_path=self.env_path,
+            base_url=LOCAL_MIRROR_BASE_URL,
+            policy='random-legal',
+            baseline_seed=123,
+            max_combat_turns=120,
+        )
+
+        report_path = Path(report['report_path'])
+        self.assertTrue(report_path.exists())
+        saved = json.loads(report_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['policy'], 'random-legal')
+        self.assertEqual(saved['baseline_seed'], 123)
+        self.assertEqual(saved['episodes'], 1)
+        self.assertEqual(saved['successes'], 1)
+        self.assertEqual(saved['success_rate'], 1.0)
+        self.assertGreater(saved['transition_count'], 0)
+        self.assertTrue(Path(saved['transition_path']).exists())
+        self.assertTrue(Path(saved['evaluation_path']).exists())
+        summary = saved['episode_summaries'][0]
+        self.assertEqual(summary['final_runtime_mode'], 'demo-complete')
+        self.assertGreater(summary['action_count_by_source']['baseline'], 0)
+        self.assertEqual(saved['policy_evaluation']['action_count_by_source']['baseline'], summary['action_count_by_source']['baseline'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import random
 import sys
 from typing import Any, Callable
 from uuid import uuid4
@@ -37,8 +38,20 @@ PLAYER_CONTROLLER_IDS = (
     'player-3-controller',
     'player-4-controller',
 )
-POLICIES = {'scripted', 'llm-party'}
+POLICIES = {'scripted', 'llm-party', 'random-legal'}
 LLMPlayerAgentFactory = Callable[[], tuple[LLMPlayerAgent, ...]]
+TARGETED_OFFENSE_SPELLS = frozenset({
+    'fire-bolt',
+    'guiding-bolt',
+    'magic-missile',
+    'ray-of-frost',
+    'sacred-flame',
+    'vicious-mockery',
+})
+TARGETED_HEALING_SPELLS = frozenset({
+    'cure-wounds',
+    'healing-word',
+})
 
 
 class TrainingBatchError(RuntimeError):
@@ -57,6 +70,7 @@ def run_batch(
     llm_player_specs: tuple[tuple[str, str | Path], ...] | None = None,
     llm_player_agent_factory: LLMPlayerAgentFactory | None = None,
     llm_player_max_actions_per_pump: int = 1,
+    baseline_seed: int = 0,
 ) -> dict[str, Any]:
     if episodes <= 0:
         raise TrainingBatchError('episodes must be greater than 0.')
@@ -78,6 +92,7 @@ def run_batch(
                 base_url=base_url,
                 max_combat_turns=max_combat_turns,
                 policy=policy,
+                baseline_seed=baseline_seed + episode_index - 1,
                 llm_player_agents=_build_episode_llm_agents(
                     resolved_llm_specs,
                     llm_player_agent_factory=llm_player_agent_factory,
@@ -110,6 +125,7 @@ def run_batch(
         'policy': policy,
         'llm_player_controllers': [controller_id for controller_id, _env_path in resolved_llm_specs],
         'llm_player_max_actions_per_pump': llm_player_max_actions_per_pump,
+        'baseline_seed': baseline_seed,
         'max_combat_turns': max_combat_turns,
         'output_dir': str(batch_dir),
         **summarize_batch(episode_summaries),
@@ -147,6 +163,7 @@ def run_first_combat_episode(
     base_url: str | None,
     max_combat_turns: int,
     policy: str = 'scripted',
+    baseline_seed: int = 0,
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
     llm_player_max_actions_per_pump: int = 1,
 ) -> Path:
@@ -164,12 +181,20 @@ def run_first_combat_episode(
     _run_script_until_combat(session)
     if policy == 'scripted':
         _finish_first_combat(session, max_combat_turns=max_combat_turns)
-    else:
+    elif policy == 'llm-party':
         _finish_first_combat_with_llm_players(
             session,
             max_combat_turns=max_combat_turns,
             llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
         )
+    elif policy == 'random-legal':
+        _finish_first_combat_with_random_legal_actions(
+            session,
+            max_combat_turns=max_combat_turns,
+            rng=random.Random(baseline_seed),
+        )
+    else:
+        raise TrainingBatchError(f'Unsupported policy: {policy!r}.')
     return recorder.path
 
 
@@ -324,6 +349,105 @@ def _finish_first_combat_with_llm_players(
         raise TrainingBatchError(f'LLM-player first combat did not complete within {max_combat_turns} turns.')
 
 
+def _finish_first_combat_with_random_legal_actions(session, *, max_combat_turns: int, rng: random.Random) -> None:
+    assert session.story_session is not None
+    for _turn in range(max_combat_turns):
+        session._refresh_demo_completion()
+        state = session.story_session.state
+        if state.phase == EncounterPhase.COMPLETE:
+            break
+        active_actor_id = state.active_actor_id
+        if active_actor_id is None:
+            raise TrainingBatchError('Combat has no active actor.')
+        actor = state.actors[active_actor_id]
+        if actor.side == ActorSide.MONSTER:
+            session.handle_input('dm', f'/endturn {active_actor_id}')
+            continue
+        controller_id = session.story_session.encounter_session.control_runtime.controller_for_actor(active_actor_id)
+        commands = _random_legal_combat_commands(state, actor, rng)
+        if not _try_baseline_commands(session, controller_id, commands):
+            _handle_baseline_input(session, controller_id, f'/endturn {active_actor_id}')
+            continue
+        session._refresh_demo_completion()
+        if session.story_session.state.phase == EncounterPhase.COMPLETE:
+            break
+        if session.story_session.state.active_actor_id == active_actor_id:
+            _handle_baseline_input(session, controller_id, f'/endturn {active_actor_id}')
+    session._refresh_demo_completion()
+    if session._completion_state is None:
+        raise TrainingBatchError(f'Random-legal first combat did not complete within {max_combat_turns} turns.')
+
+
+def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str, ...]:
+    if not actor.action_available:
+        return (f'/endturn {actor.actor_id}',)
+    enemies = [
+        candidate for candidate in state.actors.values()
+        if candidate.side != actor.side and candidate.current_hit_points > 0
+    ]
+    allies_to_heal = [
+        candidate for candidate in state.actors.values()
+        if candidate.side == actor.side
+        and candidate.current_hit_points > 0
+        and candidate.current_hit_points < candidate.max_hit_points
+    ]
+    commands: list[str] = []
+    for spell_id in sorted(TARGETED_OFFENSE_SPELLS.intersection(actor.spells)):
+        spell = actor.spells[spell_id]
+        if spell.remaining_uses == 0:
+            continue
+        for target in enemies:
+            if _target_within_range(actor, target, spell.range_ft):
+                commands.append(f'/cast {actor.actor_id} {spell_id} {target.actor_id}')
+    for spell_id in sorted(TARGETED_HEALING_SPELLS.intersection(actor.spells)):
+        spell = actor.spells[spell_id]
+        if spell.remaining_uses == 0:
+            continue
+        for target in allies_to_heal:
+            if _target_within_range(actor, target, spell.range_ft):
+                commands.append(f'/cast {actor.actor_id} {spell_id} {target.actor_id}')
+    for attack in sorted(actor.attacks.values(), key=lambda candidate: candidate.attack_id):
+        for target in enemies:
+            if _target_within_attack_range(actor, target, attack):
+                commands.append(f'/attack {actor.actor_id} {attack.attack_id} {target.actor_id}')
+    if commands:
+        rng.shuffle(commands)
+        return tuple(commands)
+    return (f'/dodge {actor.actor_id}', f'/endturn {actor.actor_id}')
+
+
+def _target_within_attack_range(actor, target, attack) -> bool:
+    if attack.range_ft is not None:
+        return _grid_distance_ft(actor.position, target.position) <= attack.range_ft
+    if attack.reach_ft is not None:
+        return _grid_distance_ft(actor.position, target.position) <= attack.reach_ft
+    return True
+
+
+def _target_within_range(actor, target, range_ft: int | None) -> bool:
+    if range_ft is None:
+        return True
+    return _grid_distance_ft(actor.position, target.position) <= range_ft
+
+
+def _grid_distance_ft(first, second) -> int:
+    return max(abs(first.x - second.x), abs(first.y - second.y), abs(first.z - second.z)) * 5
+
+
+def _try_baseline_commands(session, controller_id: str, commands: tuple[str, ...]) -> bool:
+    for command in commands:
+        try:
+            _handle_baseline_input(session, controller_id, command)
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _handle_baseline_input(session, controller_id: str, command: str):
+    return session._handle_input_with_trajectory(controller_id, command, source='baseline')
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run repeated training/evaluation episodes and summarize trajectories.')
     parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
@@ -333,6 +457,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--base-url', default=None, help='Optional explicit 5etools mirror base URL.')
     parser.add_argument('--max-combat-turns', type=int, default=80, help='Maximum combat turns before an episode is marked failed.')
     parser.add_argument('--policy', choices=sorted(POLICIES), default='scripted', help='Player policy to evaluate after the deterministic setup.')
+    parser.add_argument('--baseline-seed', type=int, default=0, help='Seed for deterministic baseline policies such as random-legal.')
     parser.add_argument(
         '--llm-player',
         action='append',
@@ -356,6 +481,7 @@ def main() -> int:
         policy=args.policy,
         llm_player_specs=parse_llm_player_specs(args.llm_player) if args.llm_player else None,
         llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
+        baseline_seed=args.baseline_seed,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
