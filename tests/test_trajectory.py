@@ -173,6 +173,71 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(snapshot['monster_action_debuff_count'], 1)
         self.assertEqual(snapshot['party_control_debuff_count'], 0)
 
+    def test_real_cure_wounds_action_records_ally_healing_reward(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_real_healing_reward',
+            episode_id='episode-real-healing',
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=LocalDemoLLMTransport(),
+            precreate_characters=True,
+            trajectory_recorder=recorder,
+        )
+        assert session.story_session is not None
+        actor = session.story_session.state.actors['player-1']
+        actor.current_hit_points = max(1, actor.current_hit_points - 4)
+
+        session.handle_input('player-1-controller', '/cast player-1 cure-wounds player-1')
+
+        self.assertEqual(actor.current_hit_points, actor.max_hit_points)
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        turn = records[-1]
+        self.assertEqual(turn['raw_text'], '/cast player-1 cure-wounds player-1')
+        self.assertIsNone(turn['error'])
+        self.assertEqual(turn['state_before']['party_hp_current'], turn['state_after']['party_hp_current'] - 4)
+        self.assertEqual(turn['reward_components']['ally_healing'], 0.12)
+
+    def test_real_monster_hit_records_party_damage_and_down_penalties(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_real_monster_attack_reward',
+            episode_id='episode-real-monster-attack',
+        )
+        session = build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=LocalDemoLLMTransport(),
+            precreate_characters=True,
+            trajectory_recorder=recorder,
+        )
+        assert session.story_session is not None
+        session.story_session.story_state.runtime_mode = RuntimeMode.COMBAT
+        state = session.story_session.state
+        state.phase = EncounterPhase.IN_PROGRESS
+        state.active_actor_id = 'monster-goblin-1'
+        state.initiative_order = ('monster-goblin-1', 'player-1')
+        player = state.actors['player-1']
+        player.armor_class = 1
+        player.base_armor_class = 1
+
+        session.handle_input('dm', '/attack monster-goblin-1 shortbow player-1')
+        self.assertIsNotNone(state.pending_reaction_window)
+        session.handle_input('player-1-controller', '/react player-1 decline')
+
+        self.assertEqual(player.current_hit_points, 0)
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        turn = records[-1]
+        self.assertEqual(turn['raw_text'], '/react player-1 decline')
+        self.assertIsNone(turn['error'])
+        self.assertLess(turn['state_after']['party_hp_current'], turn['state_before']['party_hp_current'])
+        self.assertLess(turn['state_after']['living_party_count'], turn['state_before']['living_party_count'])
+        self.assertLess(turn['reward_components']['party_damage_taken'], 0.0)
+        self.assertEqual(turn['reward_components']['ally_defeated'], -0.5)
+        self.assertEqual(turn['reward_components']['ally_action_debuffed'], -0.25)
+
     def test_full_llm_party_autopump_records_each_player_once(self) -> None:
         recorder = TrajectoryRecorder(
             output_dir=self._tempdir / 'episodes',
