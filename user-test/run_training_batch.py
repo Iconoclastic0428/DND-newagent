@@ -23,6 +23,7 @@ from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.storytelling import RuntimeMode
 from story_demo_system_server import build_full_story_demo_manual_session
 from training.evaluation import summarize_policy_evaluation, write_policy_evaluation_report
+from training.preferences import build_preference_pairs, write_preference_pairs_jsonl
 from training.trajectory import TrajectoryRecorder
 from training.trajectory_summary import summarize_batch, summarize_trajectory
 from training.transitions import build_training_transitions, write_training_transitions_jsonl
@@ -118,6 +119,13 @@ def run_batch(
     write_training_transitions_jsonl(transition_rows, transitions_path)
     report['transition_path'] = str(transitions_path)
     report['transition_count'] = len(transition_rows)
+    preference_pairs = build_preference_pairs(transition_rows)
+    for pair in preference_pairs:
+        pair['transition_path'] = str(transitions_path)
+    preference_path = batch_dir / 'preference_pairs.jsonl'
+    write_preference_pairs_jsonl(preference_pairs, preference_path)
+    report['preference_path'] = str(preference_path)
+    report['preference_pair_count'] = len(preference_pairs)
     evaluation_report = summarize_policy_evaluation(transition_rows, episode_summaries=episode_summaries)
     evaluation_report['transition_path'] = str(transitions_path)
     evaluation_path = batch_dir / 'policy_evaluation.json'
