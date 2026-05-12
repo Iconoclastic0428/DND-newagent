@@ -52,6 +52,8 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertEqual(len(saved['batch_reports']), 2)
         self.assertEqual(saved['comparison']['comparison_count'], 2)
         self.assertEqual([row['label'] for row in saved['comparison']['rows']], ['scripted', 'random'])
+        self.assertIn(saved['comparison']['diagnostics']['winner_label'], {'scripted', 'random'})
+        self.assertEqual(len(saved['comparison']['diagnostics']['policy_notes']), 2)
         for batch in saved['batch_reports']:
             self.assertTrue(Path(batch['report_path']).exists())
             self.assertEqual(batch['success_rate'], 1.0)

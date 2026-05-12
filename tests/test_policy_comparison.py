@@ -97,10 +97,19 @@ class PolicyComparisonTests(unittest.TestCase):
         self.assertEqual(report['leaderboard'][0]['label'], 'scripted')
         self.assertEqual(report['best_by_metric']['success_rate'], 'scripted')
         self.assertEqual(report['best_by_metric']['avg_reward'], 'candidate-model')
+        self.assertEqual(report['diagnostics']['winner_label'], 'scripted')
+        self.assertEqual(report['diagnostics']['runner_up_label'], 'candidate-model')
+        self.assertIn('scripted leads candidate-model', report['diagnostics']['winner_summary'])
         candidate_row = next(row for row in report['rows'] if row['label'] == 'candidate-model')
         self.assertEqual(candidate_row['policy'], 'llm-party')
         self.assertEqual(candidate_row['reward_by_channel']['support'], 2.0)
         self.assertEqual(candidate_row['action_count_by_source']['llm_player'], 20.0)
+        candidate_note = next(note for note in report['diagnostics']['policy_notes'] if note['label'] == 'candidate-model')
+        self.assertEqual(candidate_note['compared_to'], 'scripted')
+        self.assertEqual(candidate_note['metric_deltas']['avg_reward'], 1.0)
+        self.assertEqual(candidate_note['reward_channel_deltas']['support'], 2.0)
+        self.assertIn('higher average reward (+1.000)', candidate_note['advantages'])
+        self.assertIn('lower success rate (-0.250)', candidate_note['tradeoffs'])
 
     def test_load_and_write_policy_comparison_report(self) -> None:
         batch_path = self._tempdir / 'batch_report.json'

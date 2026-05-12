@@ -25,6 +25,7 @@ def compare_policy_batches(entries: Iterable[BatchEntry]) -> dict[str, Any]:
     rows = [_comparison_row(label=label, report=report) for label, report in entries]
     leaderboard = _ranked_rows(rows)
     reward_channels = sorted({channel for row in rows for channel in row.get('reward_by_channel', {})})
+    diagnostics = _comparison_diagnostics(leaderboard)
     return {
         'comparison_count': len(rows),
         'scenario_ids': sorted({str(row.get('scenario_id')) for row in rows if row.get('scenario_id')}),
@@ -32,6 +33,7 @@ def compare_policy_batches(entries: Iterable[BatchEntry]) -> dict[str, Any]:
         'rows': rows,
         'leaderboard': leaderboard,
         'best_by_metric': _best_by_metric(rows),
+        'diagnostics': diagnostics,
     }
 
 
@@ -138,6 +140,142 @@ def _comparison_score(row: dict[str, Any]) -> float:
         - row['avg_invalid_actions'] * 5.0
         - row['invalid_transition_rate'] * 10.0
     )
+
+
+def _comparison_diagnostics(leaderboard: list[dict[str, Any]]) -> dict[str, Any]:
+    if not leaderboard:
+        return {
+            'winner_label': None,
+            'runner_up_label': None,
+            'winner_summary': 'No policies were compared.',
+            'policy_notes': [],
+        }
+    winner = leaderboard[0]
+    runner_up = leaderboard[1] if len(leaderboard) > 1 else None
+    policy_notes = [
+        _policy_diagnostic_note(row, reference=(runner_up if row is winner and runner_up is not None else winner))
+        for row in leaderboard
+    ]
+    return {
+        'winner_label': winner['label'],
+        'runner_up_label': runner_up['label'] if runner_up is not None else None,
+        'winner_summary': _winner_summary(winner, runner_up),
+        'policy_notes': policy_notes,
+    }
+
+
+def _policy_diagnostic_note(row: dict[str, Any], *, reference: dict[str, Any]) -> dict[str, Any]:
+    metric_deltas = {
+        'comparison_score': row['comparison_score'] - reference['comparison_score'],
+        'success_rate': row['success_rate'] - reference['success_rate'],
+        'avg_reward': row['avg_reward'] - reference['avg_reward'],
+        'avg_invalid_actions': row['avg_invalid_actions'] - reference['avg_invalid_actions'],
+        'invalid_transition_rate': row['invalid_transition_rate'] - reference['invalid_transition_rate'],
+        'avg_turns': row['avg_turns'] - reference['avg_turns'],
+        'avg_party_hp_remaining': row['avg_party_hp_remaining'] - reference['avg_party_hp_remaining'],
+    }
+    channel_deltas = _reward_channel_deltas(row, reference)
+    advantages = _diagnostic_advantages(metric_deltas, channel_deltas)
+    tradeoffs = _diagnostic_tradeoffs(metric_deltas, channel_deltas)
+    return {
+        'label': row['label'],
+        'rank': row['rank'],
+        'compared_to': reference['label'],
+        'headline': _diagnostic_headline(row, reference, advantages, tradeoffs),
+        'metric_deltas': metric_deltas,
+        'reward_channel_deltas': channel_deltas,
+        'advantages': advantages,
+        'tradeoffs': tradeoffs,
+    }
+
+
+def _winner_summary(winner: dict[str, Any], runner_up: dict[str, Any] | None) -> str:
+    if runner_up is None:
+        return f'{winner["label"]} is the only policy in this comparison.'
+    note = _policy_diagnostic_note(winner, reference=runner_up)
+    reasons = note['advantages'][:2]
+    if not reasons:
+        return f'{winner["label"]} edges out {runner_up["label"]} on the aggregate comparison score.'
+    return f'{winner["label"]} leads {runner_up["label"]}: ' + '; '.join(reasons) + '.'
+
+
+def _diagnostic_headline(
+    row: dict[str, Any],
+    reference: dict[str, Any],
+    advantages: list[str],
+    tradeoffs: list[str],
+) -> str:
+    if row is reference:
+        return f'{row["label"]} is the top-ranked policy.'
+    if row['comparison_score'] >= reference['comparison_score']:
+        if advantages:
+            return f'{row["label"]} leads {reference["label"]}: {advantages[0]}.'
+        return f'{row["label"]} leads {reference["label"]} by aggregate score.'
+    if tradeoffs:
+        return f'{row["label"]} trails {reference["label"]}: {tradeoffs[0]}.'
+    return f'{row["label"]} trails {reference["label"]} by aggregate score.'
+
+
+def _diagnostic_advantages(metric_deltas: dict[str, float], channel_deltas: dict[str, float]) -> list[str]:
+    notes: list[str] = []
+    if metric_deltas['success_rate'] > 0.001:
+        notes.append(f'higher success rate ({_signed(metric_deltas["success_rate"])})')
+    if metric_deltas['avg_reward'] > 0.001:
+        notes.append(f'higher average reward ({_signed(metric_deltas["avg_reward"])})')
+    if metric_deltas['avg_invalid_actions'] < -0.001:
+        notes.append(f'fewer invalid actions ({_signed(metric_deltas["avg_invalid_actions"])})')
+    if metric_deltas['invalid_transition_rate'] < -0.001:
+        notes.append(f'lower invalid transition rate ({_signed(metric_deltas["invalid_transition_rate"])})')
+    if metric_deltas['avg_turns'] < -0.001:
+        notes.append(f'faster episodes ({_signed(metric_deltas["avg_turns"])} turns)')
+    if metric_deltas['avg_party_hp_remaining'] > 0.001:
+        notes.append(f'better party survival ({_signed(metric_deltas["avg_party_hp_remaining"])})')
+    notes.extend(_top_channel_notes(channel_deltas, positive=True))
+    return notes
+
+
+def _diagnostic_tradeoffs(metric_deltas: dict[str, float], channel_deltas: dict[str, float]) -> list[str]:
+    notes: list[str] = []
+    if metric_deltas['success_rate'] < -0.001:
+        notes.append(f'lower success rate ({_signed(metric_deltas["success_rate"])})')
+    if metric_deltas['avg_reward'] < -0.001:
+        notes.append(f'lower average reward ({_signed(metric_deltas["avg_reward"])})')
+    if metric_deltas['avg_invalid_actions'] > 0.001:
+        notes.append(f'more invalid actions ({_signed(metric_deltas["avg_invalid_actions"])})')
+    if metric_deltas['invalid_transition_rate'] > 0.001:
+        notes.append(f'higher invalid transition rate ({_signed(metric_deltas["invalid_transition_rate"])})')
+    if metric_deltas['avg_turns'] > 0.001:
+        notes.append(f'slower episodes ({_signed(metric_deltas["avg_turns"])} turns)')
+    if metric_deltas['avg_party_hp_remaining'] < -0.001:
+        notes.append(f'worse party survival ({_signed(metric_deltas["avg_party_hp_remaining"])})')
+    notes.extend(_top_channel_notes(channel_deltas, positive=False))
+    return notes
+
+
+def _top_channel_notes(channel_deltas: dict[str, float], *, positive: bool) -> list[str]:
+    filtered = [
+        (channel, delta)
+        for channel, delta in channel_deltas.items()
+        if (delta > 0.05 if positive else delta < -0.05)
+    ]
+    filtered.sort(key=lambda item: abs(item[1]), reverse=True)
+    direction = 'higher' if positive else 'lower'
+    return [
+        f'{direction} {channel} reward ({_signed(delta)})'
+        for channel, delta in filtered[:3]
+    ]
+
+
+def _reward_channel_deltas(row: dict[str, Any], reference: dict[str, Any]) -> dict[str, float]:
+    channels = sorted(set(row.get('reward_by_channel', {})) | set(reference.get('reward_by_channel', {})))
+    return {
+        channel: row.get('reward_by_channel', {}).get(channel, 0.0) - reference.get('reward_by_channel', {}).get(channel, 0.0)
+        for channel in channels
+    }
+
+
+def _signed(value: float) -> str:
+    return f'{value:+.3f}'
 
 
 def _number(value: Any) -> float:
