@@ -394,6 +394,8 @@ def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str
     commands: list[str] = []
     for spell_id in sorted(TARGETED_OFFENSE_SPELLS.intersection(actor.spells)):
         spell = actor.spells[spell_id]
+        if spell.level > 0:
+            continue
         if spell.remaining_uses == 0:
             continue
         for target in enemies:
@@ -401,6 +403,8 @@ def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str
                 commands.append(f'/cast {actor.actor_id} {spell_id} {target.actor_id}')
     for spell_id in sorted(TARGETED_HEALING_SPELLS.intersection(actor.spells)):
         spell = actor.spells[spell_id]
+        if spell.level > 0:
+            continue
         if spell.remaining_uses == 0:
             continue
         for target in allies_to_heal:
