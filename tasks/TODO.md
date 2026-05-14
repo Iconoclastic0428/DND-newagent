@@ -1,3 +1,36 @@
+## 2026-05-13 - Readiness Coverage Recommendations
+
+### Scope
+- Make the readiness report explain the remaining `needs_attention` state clearly.
+- Surface dataset coverage/count breakdowns from quality reports.
+- Generate recommendations from readiness and quality issue details.
+- Preserve unrelated dirty campaign/runtime files and generated run artifacts.
+- Commit and push only code/tests/task notes for this move.
+
+### Steps
+- [x] Inspect the current readiness report and quality report shapes.
+- [x] Add quality count/issue summaries to readiness datasets.
+- [x] Add top-level recommendations and Markdown coverage sections.
+- [x] Add focused tests for runtime-mode imbalance recommendations.
+- [x] Run focused verification and regenerate the readiness report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification Plan
+- `python -m py_compile training\readiness_report.py tests\test_training_readiness.py`
+- `python -m unittest tests.test_training_readiness tests.test_dataset_quality -v`
+- `python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md`
+- `git diff --check -- training\readiness_report.py tests\test_training_readiness.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Remaining live readiness status after ID namespacing is `needs_attention` because preference pairs are heavily combat-skewed.
+- Readiness dataset summaries now include `quality_counts` and `quality_issues` from the sidecar quality reports.
+- The JSON report now includes top-level `recommendations`; Markdown now renders `## Coverage` and `## Recommendations`.
+- The regenerated real readiness report recommends: add more non-combat preference examples for `combined_preference_pairs.jsonl`; combat currently covers 98.3% of records.
+- Verification passed:
+  - `python -m py_compile training\readiness_report.py tests\test_training_readiness.py`
+  - `python -m unittest tests.test_training_readiness tests.test_dataset_quality -v` passed 9 tests.
+  - `python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md`
+
 ## 2026-05-13 - Combined Dataset ID Namespacing
 
 ### Scope

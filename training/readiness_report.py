@@ -27,6 +27,7 @@ def build_training_readiness_report(
         quality_reports=quality_reports,
     )
     issues = _readiness_issues(datasets=datasets, history_entries=history_entries)
+    recommendations = _readiness_recommendations(datasets=datasets, issues=issues)
     blocker_count = sum(1 for issue in issues if issue['severity'] == 'blocker')
     warning_count = sum(1 for issue in issues if issue['severity'] == 'warn')
     status = 'blocked' if blocker_count else 'needs_attention' if warning_count else 'ready'
@@ -44,6 +45,7 @@ def build_training_readiness_report(
         'datasets': datasets,
         'benchmark_history': _benchmark_history_summary(history_paths, history_entries),
         'issues': issues,
+        'recommendations': recommendations,
     }
 
 
@@ -88,6 +90,27 @@ def render_training_readiness_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append('| n/a | n/a | 0 | missing | missing | n/a |')
 
+    lines.extend([
+        '',
+        '## Coverage',
+        '',
+        '| Dataset | Counts | Quality Issues |',
+        '| --- | --- | --- |',
+    ])
+    if datasets:
+        for dataset in datasets:
+            lines.append(
+                '| '
+                + ' | '.join([
+                    _markdown_text(dataset.get('dataset_name') or 'n/a'),
+                    _markdown_text(_coverage_summary(dataset.get('quality_counts'))),
+                    _markdown_text(_quality_issue_summary(dataset.get('quality_issues'))),
+                ])
+                + ' |'
+            )
+    else:
+        lines.append('| n/a | n/a | n/a |')
+
     history = report.get('benchmark_history') if isinstance(report.get('benchmark_history'), dict) else {}
     latest = history.get('latest') if isinstance(history.get('latest'), dict) else {}
     lines.extend([
@@ -97,6 +120,17 @@ def render_training_readiness_markdown(report: dict[str, Any]) -> str:
         f'History entries: {_format_int(history.get("entry_count"))}',
         f'Latest benchmark: {_markdown_text(latest.get("benchmark_id") or "n/a")}',
         f'Latest scenario: {_markdown_text(latest.get("scenario_id") or "n/a")}',
+        '',
+        '## Recommendations',
+        '',
+    ])
+    recommendations = report.get('recommendations') if isinstance(report.get('recommendations'), list) else []
+    if recommendations:
+        for recommendation in recommendations:
+            lines.append(f'- {_markdown_text(recommendation)}')
+    else:
+        lines.append('- No follow-up recommendations were generated.')
+    lines.extend([
         '',
         '## Issues',
         '',
@@ -188,6 +222,8 @@ def _dataset_summaries(
         dataset_path = Path(str(entry['dataset_path']))
         dataset_name = dataset_path.name
         dataset_type = _dataset_type(dataset_name=dataset_name, manifest=manifest)
+        quality_counts = quality.get('counts') if quality and isinstance(quality.get('counts'), dict) else {}
+        quality_issues = quality.get('issues') if quality and isinstance(quality.get('issues'), list) else []
         record_count = _record_count(dataset_path=dataset_path, manifest=manifest, quality=quality)
         entry.update({
             'dataset_name': dataset_name,
@@ -200,6 +236,8 @@ def _dataset_summaries(
             'quality_path': quality.get('_quality_path') if quality else entry.get('collection_quality_path'),
             'quality_fail_count': _int(quality.get('fail_count')) if quality else None,
             'quality_warn_count': _int(quality.get('warn_count')) if quality else None,
+            'quality_counts': quality_counts,
+            'quality_issues': _quality_issue_summaries(quality_issues),
         })
 
     return sorted(entries.values(), key=lambda item: (str(item.get('dataset_type')), str(item.get('dataset_path'))))
@@ -227,6 +265,69 @@ def _readiness_issues(*, datasets: list[dict[str, Any]], history_entries: list[d
     if not history_entries:
         issues.append(_issue('warn', 'missing_benchmark_history', 'No benchmark history entries were found.'))
     return issues
+
+
+def _readiness_recommendations(*, datasets: list[dict[str, Any]], issues: list[dict[str, Any]]) -> list[str]:
+    recommendations: list[str] = []
+    issue_codes = {str(issue.get('code')) for issue in issues}
+    if 'no_datasets' in issue_codes:
+        recommendations.append('Run policy benchmarks and collect them with user-test\\collect_training_datasets.py before training.')
+    if 'missing_benchmark_history' in issue_codes:
+        recommendations.append('Run user-test\\run_policy_benchmark.py so readiness can tie datasets back to benchmark history.')
+    for dataset in datasets:
+        dataset_name = str(dataset.get('dataset_name') or dataset.get('dataset_path') or 'dataset')
+        if dataset.get('quality_status') == 'missing':
+            recommendations.append(f'Generate a quality report for {dataset_name} before using it for training.')
+        if dataset.get('quality_status') == 'fail':
+            recommendations.append(f'Fix failing quality checks for {dataset_name} before training.')
+        for issue in dataset.get('quality_issues') or []:
+            if not isinstance(issue, dict):
+                continue
+            recommendation = _quality_issue_recommendation(dataset_name=dataset_name, issue=issue)
+            if recommendation:
+                recommendations.append(recommendation)
+    return _unique_strings(recommendations)
+
+
+def _quality_issue_recommendation(*, dataset_name: str, issue: dict[str, Any]) -> str | None:
+    code = issue.get('code')
+    details = issue.get('details') if isinstance(issue.get('details'), dict) else {}
+    if code == 'runtime_mode_imbalance':
+        top_key = str(details.get('top_key') or 'one runtime mode')
+        share = details.get('share')
+        share_text = _format_percent(share) if isinstance(share, (int, float)) else 'most'
+        return f'Add more non-{top_key} preference examples for {dataset_name}; {top_key} currently covers {share_text} of records.'
+    if code == 'actor_imbalance':
+        top_key = str(details.get('top_key') or 'one actor')
+        share = details.get('share')
+        share_text = _format_percent(share) if isinstance(share, (int, float)) else 'most'
+        return f'Collect more actions from actors other than {top_key} for {dataset_name}; {top_key} currently covers {share_text} of records.'
+    if code == 'source_imbalance':
+        top_key = str(details.get('top_key') or 'one source')
+        share = details.get('share')
+        share_text = _format_percent(share) if isinstance(share, (int, float)) else 'most'
+        return f'Collect more data from sources other than {top_key} for {dataset_name}; {top_key} currently covers {share_text} of records.'
+    if code == 'duplicate_id':
+        return f'Regenerate {dataset_name} with unique row IDs before training.'
+    if code == 'empty_dataset':
+        return f'Collect at least one record for {dataset_name} before training.'
+    return None
+
+
+def _quality_issue_summaries(issues: list[Any]) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for issue in issues:
+        if not isinstance(issue, dict):
+            continue
+        summary = {
+            'severity': issue.get('severity'),
+            'code': issue.get('code'),
+            'message': issue.get('message'),
+        }
+        if isinstance(issue.get('details'), dict):
+            summary['details'] = issue['details']
+        summaries.append(summary)
+    return summaries
 
 
 def _discover_benchmark_history_paths(input_paths: tuple[Path, ...], *, explicit_path: str | Path | None) -> list[Path]:
@@ -369,6 +470,50 @@ def _format_int(value: Any) -> str:
     return str(value) if isinstance(value, int) else '0'
 
 
+def _format_percent(value: float) -> str:
+    return f'{value:.1%}'
+
+
 def _markdown_text(value: Any) -> str:
     text = '' if value is None else str(value)
     return text.replace('|', '\\|').replace('\n', ' ')
+
+
+def _coverage_summary(counts: Any) -> str:
+    if not isinstance(counts, dict) or not counts:
+        return 'n/a'
+    parts: list[str] = []
+    for label in ('runtime_mode_counts', 'source_counts', 'actor_counts', 'agent_counts', 'scenario_counts'):
+        value = counts.get(label)
+        if isinstance(value, dict) and value:
+            parts.append(f'{label}: {_compact_counts(value)}')
+    return '; '.join(parts) if parts else 'n/a'
+
+
+def _quality_issue_summary(issues: Any) -> str:
+    if not isinstance(issues, list) or not issues:
+        return 'none'
+    codes = [
+        str(issue.get('code'))
+        for issue in issues
+        if isinstance(issue, dict) and issue.get('code')
+    ]
+    return ', '.join(codes) if codes else 'none'
+
+
+def _compact_counts(counts: dict[str, Any]) -> str:
+    return ', '.join(
+        f'{key}={value}'
+        for key, value in sorted(counts.items(), key=lambda item: str(item[0]))
+    )
+
+
+def _unique_strings(values: Iterable[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique

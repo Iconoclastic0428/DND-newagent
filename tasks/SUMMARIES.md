@@ -1,3 +1,11 @@
+## 2026-05-13 - Readiness Coverage Recommendations
+- Request: continue after the readiness report reached `needs_attention`, following the required workflow of done/why/tests/next/commit-push for each move.
+- Solution: enhanced `training/readiness_report.py` so dataset summaries carry quality count breakdowns and quality issue details, and the top-level report now includes explicit recommendations derived from readiness and quality issues.
+- Markdown output: added `## Coverage` and `## Recommendations` sections so the remaining warning points directly to the data slice that needs more coverage, instead of only saying `quality_warning`.
+- Why it matters: after duplicate IDs were fixed, the remaining issue is dataset coverage. The report now tells the next operator whether to collect more story/exploration preference data, rerun quality checks, or generate missing benchmark/dataset artifacts.
+- Tests: added focused readiness coverage for runtime-mode imbalance recommendations.
+- Verification: `python -m py_compile training\readiness_report.py tests\test_training_readiness.py` passed, `python -m unittest tests.test_training_readiness tests.test_dataset_quality -v` passed 9 tests, and the regenerated real readiness report now recommends adding more non-combat preference examples because combat covers 98.3% of preference records.
+
 ## 2026-05-13 - Combined Dataset ID Namespacing
 - Request: continue after running the new readiness report on real baseline benchmark artifacts.
 - Finding: the generated readiness report correctly blocked training because combined datasets had duplicate `sample_id` and `pair_id` values. The duplicates came from concatenating multiple per-seed batch datasets whose episode-local IDs repeat. Passing `runs\benchmarks` as a readiness input also made the report enumerate raw per-batch manifests alongside the intended combined dataset outputs.

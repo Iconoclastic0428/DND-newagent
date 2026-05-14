@@ -7,7 +7,11 @@ import unittest
 from uuid import uuid4
 
 from training.dataset_manifest import write_dataset_manifest
-from training.dataset_quality import validate_transition_dataset, write_dataset_quality_report
+from training.dataset_quality import (
+    validate_preference_dataset,
+    validate_transition_dataset,
+    write_dataset_quality_report,
+)
 from training.readiness_report import (
     build_training_readiness_report,
     render_training_readiness_markdown,
@@ -112,6 +116,46 @@ class TrainingReadinessReportTests(unittest.TestCase):
             {'missing_quality_report', 'missing_benchmark_history'},
         )
 
+    def test_training_readiness_report_recommends_non_dominant_runtime_mode_coverage(self) -> None:
+        dataset_dir = self._tempdir / 'dataset'
+        dataset_dir.mkdir(parents=True)
+        preferences = dataset_dir / 'combined_preference_pairs.jsonl'
+        rows = [
+            self._preference_row(f'pair-{index}', runtime_mode='combat')
+            for index in range(20)
+        ]
+        rows.append(self._preference_row('pair-story', runtime_mode='storytelling'))
+        self._write_jsonl(preferences, rows)
+        manifest_path = write_dataset_manifest(
+            dataset_type='combined_preference_pairs',
+            dataset_path=preferences,
+            record_count=len(rows),
+            source_paths=[],
+        )
+        quality = validate_preference_dataset(preferences)
+        quality_path = write_dataset_quality_report(quality, dataset_dir / 'combined_preference_pairs.quality.json')
+        (dataset_dir / 'dataset_collection_report.json').write_text(
+            json.dumps({
+                'preference_path': str(preferences),
+                'preference_manifest_path': str(manifest_path),
+                'preference_quality_path': str(quality_path),
+            }),
+            encoding='utf-8',
+        )
+        (dataset_dir / 'benchmark_history.jsonl').write_text(
+            json.dumps({'benchmark_id': 'benchmark-test', 'scenario_id': 'lmop_first_combat'})
+            + '\n',
+            encoding='utf-8',
+        )
+
+        report = build_training_readiness_report([dataset_dir])
+
+        self.assertEqual(report['status'], 'needs_attention')
+        self.assertEqual(report['datasets'][0]['quality_status'], 'warn')
+        self.assertIn('runtime_mode_imbalance', report['datasets'][0]['quality_issues'][0]['code'])
+        self.assertTrue(any('non-combat preference examples' in item for item in report['recommendations']))
+        self.assertIn('## Recommendations', render_training_readiness_markdown(report))
+
     def test_training_readiness_report_blocks_failed_quality_and_empty_dataset(self) -> None:
         dataset_dir = self._tempdir / 'dataset'
         dataset_dir.mkdir(parents=True)
@@ -169,6 +213,22 @@ class TrainingReadinessReportTests(unittest.TestCase):
             'observation': {'summary_lines': ['test']},
             'available_actions': [],
             'reward_channels': {'validity': 0.1},
+        }
+
+    def _preference_row(self, pair_id: str, *, runtime_mode: str) -> dict:
+        return {
+            'pair_id': pair_id,
+            'prompt': 'Choose a useful action.',
+            'chosen': '/attack',
+            'rejected': '/wait',
+            'chosen_reward': 0.2,
+            'rejected_reward': 0.0,
+            'reward_gap': 0.2,
+            'chosen_metadata': {},
+            'rejected_metadata': {},
+            'runtime_mode': runtime_mode,
+            'acting_actor_id': 'player-1',
+            'scenario_id': 'lmop_first_combat',
         }
 
 
