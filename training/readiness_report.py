@@ -160,9 +160,10 @@ def _dataset_summaries(
 ) -> list[dict[str, Any]]:
     entries: dict[str, dict[str, Any]] = {}
 
-    for manifest in manifests.values():
-        dataset_path = Path(str(manifest['dataset_path']))
-        entries.setdefault(_path_key(dataset_path), {'dataset_path': str(dataset_path)})
+    if not collection_reports:
+        for manifest in manifests.values():
+            dataset_path = Path(str(manifest['dataset_path']))
+            entries.setdefault(_path_key(dataset_path), {'dataset_path': str(dataset_path)})
 
     for collection in collection_reports:
         for dataset_key, manifest_key, quality_key in (

@@ -1,3 +1,37 @@
+## 2026-05-13 - Combined Dataset ID Namespacing
+
+### Scope
+- Fix the real readiness blocker found after running the baseline benchmark and collector.
+- Namespace combined dataset row IDs so repeated per-batch episode IDs do not collide across seeds or policies.
+- Keep readiness focused on combined collection outputs when a collection report is present, while still reading benchmark history from benchmark roots.
+- Preserve generated run artifacts and unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this follow-up.
+
+### Steps
+- [x] Run baseline benchmark, collect datasets, and inspect readiness/quality failures.
+- [x] Add source-batch namespacing to combined transition and preference rows.
+- [x] Filter readiness dataset summaries to collection outputs when collection reports are present.
+- [x] Add focused regression tests for duplicate IDs and benchmark-root manifest noise.
+- [x] Run focused verification and regenerate local readiness artifacts.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification Plan
+- `python -m py_compile training\dataset_collection.py training\readiness_report.py tests\test_dataset_collection.py tests\test_training_readiness.py`
+- `python -m unittest tests.test_dataset_collection tests.test_training_readiness tests.test_dataset_quality -v`
+- `python user-test\collect_training_datasets.py --input runs\benchmarks --output-dir runs\datasets\latest`
+- `python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md`
+- `git diff --check -- training\dataset_collection.py training\readiness_report.py tests\test_dataset_collection.py tests\test_training_readiness.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Root cause: per-batch episode-local IDs repeat across seeds, so concatenation created duplicate `sample_id` and `pair_id` values.
+- Combined dataset rows now get source namespaces from benchmark id and batch id. Transition rows update `sample_id`; preference rows update `pair_id`, `chosen_sample_id`, and `rejected_sample_id`; both dataset types record `source_batch_id`.
+- Readiness reports now summarize collection outputs when collection reports are present, so benchmark roots can be included for history without pulling every raw per-batch manifest into the dataset table.
+- Verification passed:
+  - `python -m py_compile training\dataset_collection.py training\readiness_report.py tests\test_dataset_collection.py tests\test_training_readiness.py`
+  - `python -m unittest tests.test_dataset_collection tests.test_training_readiness tests.test_dataset_quality -v` passed 11 tests.
+  - `python user-test\collect_training_datasets.py --input runs\benchmarks --output-dir runs\datasets\latest` regenerated combined datasets with transition quality `pass` and preference quality `warn`.
+  - `python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md` returned status `needs_attention` with 0 blockers and 1 warning.
+
 ## 2026-05-13 - Training Readiness Report
 
 ### Scope

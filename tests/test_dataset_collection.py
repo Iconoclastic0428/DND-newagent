@@ -70,8 +70,8 @@ class DatasetCollectionTests(unittest.TestCase):
             json.loads(line)
             for line in Path(report['preference_path']).read_text(encoding='utf-8').splitlines()
         ]
-        self.assertEqual([row['sample_id'] for row in transition_rows], ['episode-1:1', 'episode-1:2', 'episode-2:1'])
-        self.assertEqual([row['pair_id'] for row in preference_rows], ['pair-1'])
+        self.assertEqual([row['sample_id'] for row in transition_rows], ['lmop_first_combat-benchmark-test__batch-one::episode-1:1', 'lmop_first_combat-benchmark-test__batch-one::episode-1:2', 'lmop_first_combat-benchmark-test__batch-two::episode-2:1'])
+        self.assertEqual([row['pair_id'] for row in preference_rows], ['lmop_first_combat-benchmark-test__batch-one::pair-1'])
         transition_manifest = json.loads(Path(report['transition_manifest_path']).read_text(encoding='utf-8'))
         self.assertEqual(transition_manifest['dataset_type'], 'combined_training_transitions')
         self.assertEqual(transition_manifest['record_count'], 3)
@@ -83,6 +83,50 @@ class DatasetCollectionTests(unittest.TestCase):
         self.assertTrue(Path(report['transition_quality_path']).exists())
         self.assertTrue(Path(report['preference_quality_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
+
+    def test_collect_training_datasets_namespaces_repeated_batch_ids(self) -> None:
+        benchmark_dir = self._tempdir / 'benchmarks' / 'repeated-id-benchmark'
+        batch_one = self._write_batch(
+            benchmark_dir / 'batches' / 'random' / 'default' / 'seed-1' / 'batch-one',
+            batch_id='batch-one',
+            policy='random-legal',
+            seed=1,
+            transition_rows=[
+                self._transition_row('episode-1:1', reward=0.1),
+            ],
+            preference_rows=[
+                self._preference_row('pair-1', chosen_sample_id='episode-1:1', rejected_sample_id='episode-1:0'),
+            ],
+        )
+        batch_two = self._write_batch(
+            benchmark_dir / 'batches' / 'random' / 'default' / 'seed-2' / 'batch-two',
+            batch_id='batch-two',
+            policy='random-legal',
+            seed=2,
+            transition_rows=[
+                self._transition_row('episode-1:1', reward=0.2),
+            ],
+            preference_rows=[
+                self._preference_row('pair-1', chosen_sample_id='episode-1:1', rejected_sample_id='episode-1:0'),
+            ],
+        )
+        (benchmark_dir / 'benchmark_report.json').write_text(
+            json.dumps({
+                'benchmark_id': 'repeated-id-benchmark',
+                'seed_batch_reports': [{'report_path': str(batch_one)}, {'report_path': str(batch_two)}],
+            }),
+            encoding='utf-8',
+        )
+
+        report = collect_training_datasets([benchmark_dir], output_dir=self._tempdir / 'combined-repeated')
+
+        self.assertEqual(report['transition_quality_status'], 'pass')
+        self.assertEqual(report['preference_quality_status'], 'pass')
+        transitions = [json.loads(line) for line in Path(report['transition_path']).read_text(encoding='utf-8').splitlines()]
+        preferences = [json.loads(line) for line in Path(report['preference_path']).read_text(encoding='utf-8').splitlines()]
+        self.assertEqual({row['sample_id'] for row in transitions}, {'repeated-id-benchmark__batch-one::episode-1:1', 'repeated-id-benchmark__batch-two::episode-1:1'})
+        self.assertEqual({row['pair_id'] for row in preferences}, {'repeated-id-benchmark__batch-one::pair-1', 'repeated-id-benchmark__batch-two::pair-1'})
+        self.assertEqual({row['chosen_sample_id'] for row in preferences}, {'repeated-id-benchmark__batch-one::episode-1:1', 'repeated-id-benchmark__batch-two::episode-1:1'})
 
     def test_collect_training_datasets_can_start_from_benchmark_report_file(self) -> None:
         benchmark_dir = self._tempdir / 'benchmarks' / 'benchmark-from-file'
@@ -169,7 +213,13 @@ class DatasetCollectionTests(unittest.TestCase):
             'reward_channels': {'validity': reward},
         }
 
-    def _preference_row(self, pair_id: str) -> dict:
+    def _preference_row(
+        self,
+        pair_id: str,
+        *,
+        chosen_sample_id: str = 'chosen-sample',
+        rejected_sample_id: str = 'rejected-sample',
+    ) -> dict:
         return {
             'pair_id': pair_id,
             'prompt': 'Choose a useful action.',
@@ -180,6 +230,8 @@ class DatasetCollectionTests(unittest.TestCase):
             'reward_gap': 0.2,
             'chosen_metadata': {'reward_channels': {'offense': 0.2}},
             'rejected_metadata': {'reward_channels': {'validity': 0.0}},
+            'chosen_sample_id': chosen_sample_id,
+            'rejected_sample_id': rejected_sample_id,
         }
 
 

@@ -66,6 +66,15 @@ class TrainingReadinessReportTests(unittest.TestCase):
             + '\n',
             encoding='utf-8',
         )
+        raw_batch_dataset = benchmark_root / 'batch' / 'training_transitions.jsonl'
+        raw_batch_dataset.parent.mkdir(parents=True)
+        self._write_jsonl(raw_batch_dataset, [self._transition_row('raw-sample')])
+        write_dataset_manifest(
+            dataset_type='training_transitions',
+            dataset_path=raw_batch_dataset,
+            record_count=1,
+            source_paths=[],
+        )
 
         report = build_training_readiness_report([dataset_dir, benchmark_root])
 
@@ -73,6 +82,7 @@ class TrainingReadinessReportTests(unittest.TestCase):
         self.assertEqual(report['blocker_count'], 0)
         self.assertEqual(report['warning_count'], 0)
         self.assertEqual(report['dataset_count'], 1)
+        self.assertEqual([dataset['dataset_name'] for dataset in report['datasets']], ['combined_training_transitions.jsonl'])
         self.assertEqual(report['total_record_count'], 1)
         self.assertEqual(report['datasets'][0]['manifest_status'], 'present')
         self.assertEqual(report['datasets'][0]['quality_status'], 'pass')

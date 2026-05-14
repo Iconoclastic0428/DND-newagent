@@ -1,3 +1,11 @@
+## 2026-05-13 - Combined Dataset ID Namespacing
+- Request: continue after running the new readiness report on real baseline benchmark artifacts.
+- Finding: the generated readiness report correctly blocked training because combined datasets had duplicate `sample_id` and `pair_id` values. The duplicates came from concatenating multiple per-seed batch datasets whose episode-local IDs repeat. Passing `runs\benchmarks` as a readiness input also made the report enumerate raw per-batch manifests alongside the intended combined dataset outputs.
+- Solution: updated `training/dataset_collection.py` so combined transition and preference JSONL rows get stable source-batch ID prefixes during collection. Transition `sample_id` values and preference `pair_id`, `chosen_sample_id`, and `rejected_sample_id` values are namespaced by batch identity before quality checks run.
+- Readiness cleanup: updated `training/readiness_report.py` to prefer datasets referenced by collection reports when collection reports are present, while still supporting standalone manifest discovery when no collection report exists. This keeps benchmark roots useful for history without cluttering readiness status with every raw per-batch dataset.
+- Tests: expanded dataset collection coverage for namespaced combined IDs and readiness coverage for benchmark-root manifest noise.
+- Verification: py_compile passed for the changed modules/tests, `python -m unittest tests.test_dataset_collection tests.test_training_readiness tests.test_dataset_quality -v` passed 11 tests, regenerated `runs\datasets\latest`, and reran readiness successfully. The live readiness status moved from `blocked` to `needs_attention`: transition quality now passes, preference quality has one real runtime-mode imbalance warning, and no duplicate-ID blockers remain.
+
 ## 2026-05-13 - Training Readiness Report
 - Request: continue the RL infrastructure work by adding the planned lightweight training-readiness report that combines benchmark history, dataset manifests, collection reports, and quality status.
 - Solution: added `training/readiness_report.py` to discover readiness artifacts from one or more input paths, summarize datasets, benchmark history, blockers, and warnings, and render JSON/Markdown reports. Added `user-test/report_training_readiness.py` as the CLI wrapper.

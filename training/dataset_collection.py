@@ -41,12 +41,12 @@ def collect_training_datasets(
     if include_transitions:
         transition_sources = _dataset_sources(batch_reports, 'transition_path')
         transition_path = output_path / 'combined_training_transitions.jsonl'
-        transition_count = _concatenate_jsonl(transition_sources, transition_path)
+        transition_count = _concatenate_jsonl(transition_sources, transition_path, id_key='sample_id')
         transition_manifest_path = write_dataset_manifest(
             dataset_type='combined_training_transitions',
             dataset_path=transition_path,
             record_count=transition_count,
-            source_paths=transition_sources,
+            source_paths=[source['path'] for source in transition_sources],
             filters={'source_dataset_type': 'training_transitions'},
             context=_collection_context(collection_id=collection_id, source_summary=source_summary),
         )
@@ -64,12 +64,12 @@ def collect_training_datasets(
     if include_preferences:
         preference_sources = _dataset_sources(batch_reports, 'preference_path')
         preference_path = output_path / 'combined_preference_pairs.jsonl'
-        preference_count = _concatenate_jsonl(preference_sources, preference_path)
+        preference_count = _concatenate_jsonl(preference_sources, preference_path, id_key='pair_id')
         preference_manifest_path = write_dataset_manifest(
             dataset_type='combined_preference_pairs',
             dataset_path=preference_path,
             record_count=preference_count,
-            source_paths=preference_sources,
+            source_paths=[source['path'] for source in preference_sources],
             filters={'source_dataset_type': 'preference_pairs'},
             context=_collection_context(collection_id=collection_id, source_summary=source_summary),
         )
@@ -190,8 +190,8 @@ def _collection_context(*, collection_id: str, source_summary: list[dict[str, An
     }
 
 
-def _dataset_sources(batch_reports: list[dict[str, Any]], key: str) -> list[Path]:
-    sources: list[Path] = []
+def _dataset_sources(batch_reports: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
     seen: set[Path] = set()
     for report in batch_reports:
         value = report.get(key)
@@ -204,22 +204,59 @@ def _dataset_sources(batch_reports: list[dict[str, Any]], key: str) -> list[Path
         if resolved in seen:
             continue
         seen.add(resolved)
-        sources.append(path)
+        sources.append({
+            'path': path,
+            'namespace': _source_namespace(report, path),
+        })
     return sources
 
 
-def _concatenate_jsonl(source_paths: list[Path], output_path: Path) -> int:
+def _concatenate_jsonl(source_entries: list[dict[str, Any]], output_path: Path, *, id_key: str) -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     count = 0
     with output_path.open('w', encoding='utf-8') as output:
-        for source_path in source_paths:
+        for source in source_entries:
+            source_path = source['path']
+            namespace = str(source['namespace'])
             for line in source_path.read_text(encoding='utf-8-sig').splitlines():
                 if not line.strip():
                     continue
-                json.loads(line)
-                output.write(line.rstrip() + '\n')
+                row = json.loads(line)
+                if not isinstance(row, dict):
+                    raise ValueError(f'Expected JSON object rows in {source_path}.')
+                _namespace_dataset_row(row, id_key=id_key, namespace=namespace)
+                output.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
                 count += 1
     return count
+
+
+def _namespace_dataset_row(row: dict[str, Any], *, id_key: str, namespace: str) -> None:
+    value = row.get(id_key)
+    if isinstance(value, str) and value:
+        row[id_key] = f'{namespace}::{value}'
+    if id_key == 'pair_id':
+        for sample_key in ('chosen_sample_id', 'rejected_sample_id'):
+            sample_value = row.get(sample_key)
+            if isinstance(sample_value, str) and sample_value:
+                row[sample_key] = f'{namespace}::{sample_value}'
+    row['source_batch_id'] = namespace
+
+
+def _source_namespace(report: dict[str, Any], path: Path) -> str:
+    benchmark_context = report.get('_benchmark_context') if isinstance(report.get('_benchmark_context'), dict) else {}
+    parts = [
+        benchmark_context.get('benchmark_id'),
+        report.get('batch_id'),
+    ]
+    tokens = [_safe_token(str(part)) for part in parts if part]
+    if tokens:
+        return '__'.join(tokens)
+    return _safe_token(path.parent.name)
+
+
+def _safe_token(value: str) -> str:
+    token = ''.join(character if character.isalnum() or character in ('-', '_') else '-' for character in value.strip())
+    return token.strip('-') or 'source'
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
