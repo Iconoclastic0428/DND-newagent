@@ -114,6 +114,20 @@ def _canonical_cover(raw: str | None) -> CoverLevel | None:
     raise DMRuntimeError(f'Invalid cover level {raw!r}.')
 
 
+def _is_blank_operation_placeholder(item: Mapping[str, Any]) -> bool:
+    return all(_is_blank_operation_value(value) for key, value in item.items() if key != 'operation_type')
+
+
+def _is_blank_operation_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) == 0
+    return False
+
+
 def _serialize_document(document: CampaignDocument) -> dict[str, Any]:
     return {
         'id': document.doc_id,
@@ -224,6 +238,7 @@ class DMAdjudicationPlanner:
             + 'action_summary, doable, adjudication_type, reasoning_summary_for_dm, clarification_request, check_request, save_request, contest_request, attack_request, action_cost_recommendation, improvised_objects_to_create, terrain_changes_to_create, operation_plan, on_success, on_failure, on_partial, mode_switch_recommendation. '
             + 'adjudication_type must be one of automatic_success, ability_check, saving_throw, contest, attack_roll, impossible, partial_only, clarification_required, mode_switch_recommended. '
             + 'Use only these operation types: ' + ', '.join(context.allowed_operation_types) + '. '
+            + 'If no operation is needed, use an empty array. Never emit placeholder operation objects and never leave operation_type blank. '
             + 'Use only these improvised templates: ' + ', '.join(context.allowed_template_ids) + '. '
             + 'Use only these illusion templates: ' + ', '.join(context.allowed_illusion_template_ids) + '. '
             + 'All ability fields must use STR, DEX, CON, INT, WIS, CHA. '
@@ -488,6 +503,8 @@ class DMAdjudicationPlanner:
             if not isinstance(item, dict):
                 raise DMRuntimeError('Each adjudication operation must be an object.')
             op_type_raw = str(item.get('operation_type', '')).strip().lower()
+            if not op_type_raw and _is_blank_operation_placeholder(item):
+                continue
             try:
                 op_type = AdjudicationOperationType(op_type_raw)
             except ValueError as exc:

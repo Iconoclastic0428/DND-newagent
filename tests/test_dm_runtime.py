@@ -571,6 +571,38 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertIn('Return exactly one JSON object and nothing else.', payload['instructions'])
         self.assertIn('reviewed by a separate GPT verifier', payload['instructions'])
         self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', payload['instructions'])
+        self.assertIn('never leave operation_type blank', payload['instructions'])
+
+    def test_adjudication_parser_ignores_blank_operation_placeholders(self) -> None:
+        planner = DMAdjudicationPlanner(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=FakeTransport({'output_text': '{}'})),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        plan = planner._parse_plan_payload(
+            {
+                'action_summary': 'Player 1 checks the wagon straps.',
+                'doable': True,
+                'adjudication_type': 'automatic_success',
+                'reasoning_summary_for_dm': 'The action is simple and needs no state mutation.',
+                'clarification_request': None,
+                'check_request': None,
+                'save_request': None,
+                'contest_request': None,
+                'attack_request': None,
+                'action_cost_recommendation': None,
+                'improvised_objects_to_create': [],
+                'terrain_changes_to_create': [],
+                'operation_plan': [{'operation_type': '', 'note': ''}],
+                'on_success': {'public_text': 'The wagon straps look secure.', 'dm_note': '', 'operations': [{'operation_type': ''}]},
+                'on_failure': None,
+                'on_partial': None,
+                'mode_switch_recommendation': None,
+            },
+            raw_response_text='{}',
+        )
+        self.assertEqual(plan.operation_plan, ())
+        self.assertIsNotNone(plan.on_success)
+        self.assertEqual(plan.on_success.operations, ())
 
     def test_story_turn_retries_after_schema_validation_error(self) -> None:
         transport = FakeTransport(

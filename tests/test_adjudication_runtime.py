@@ -27,6 +27,7 @@ from shared_types.d20 import D20RollMode
 from shared_types.encounter_models import EncounterPhase
 from shared_types.models import Ability
 from shared_types.storytelling import RuntimeMode
+from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
 class QueueTransport:
@@ -62,7 +63,7 @@ class AdjudicationRuntimeTests(unittest.TestCase):
         )
         self.campaign_root = self._tempdir / 'campaigns' / 'lmop'
         shutil.copytree(repo_root / 'campaigns' / 'lmop', self.campaign_root)
-        self.base_url = Path('D:/5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/'
+        self.base_url = LOCAL_MIRROR_BASE_URL
 
     def tearDown(self) -> None:
         shutil.rmtree(self._tempdir, ignore_errors=True)
@@ -200,6 +201,38 @@ class AdjudicationRuntimeTests(unittest.TestCase):
         self.assertEqual(len(transport.requests), 2)
         retry_text = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
         self.assertIn('Unsupported improvised template id', retry_text)
+
+    def test_blank_operation_placeholders_are_treated_as_no_operation(self) -> None:
+        session, transport = self._build_session(
+            [
+                {
+                    'output_text': (
+                        '{'
+                        '"action_summary":"Player 1 checks the wagon straps.",'
+                        '"doable":true,'
+                        '"adjudication_type":"automatic_success",'
+                        '"reasoning_summary_for_dm":"The action is simple and does not need state mutation.",'
+                        '"clarification_request":null,'
+                        '"check_request":null,'
+                        '"save_request":null,'
+                        '"contest_request":null,'
+                        '"attack_request":null,'
+                        '"action_cost_recommendation":null,'
+                        '"improvised_objects_to_create":[],'
+                        '"terrain_changes_to_create":[],'
+                        '"operation_plan":[{"operation_type":"","note":""}],'
+                        '"on_success":{"public_text":"The wagon straps look secure.","dm_note":"","operations":[{"operation_type":""}]},'
+                        '"on_failure":null,'
+                        '"on_partial":null,'
+                        '"mode_switch_recommendation":null'
+                        '}'
+                    )
+                }
+            ]
+        )
+        self._shift_to_high_road(session)
+        session.execute_for_controller('player-1-controller', '/do I check the wagon straps before we move.')
+        self.assertEqual(len(transport.requests), 1)
 
     def test_adjudicated_ability_check_resolves_through_rules_engine_without_second_llm_call(self) -> None:
         session, transport = self._build_session(
