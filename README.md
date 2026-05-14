@@ -150,6 +150,14 @@ python user-test\validate_training_dataset.py --transitions runs\datasets\latest
 
 Quality checks flag empty datasets, invalid JSONL, duplicate ids, missing reward fields, missing prompts/actions, and heavily imbalanced source or actor distributions.
 
+To summarize whether benchmark output is ready for a training run, generate a readiness report:
+
+```powershell
+python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md
+```
+
+The report combines dataset manifests, quality reports, collection reports, and benchmark history into one status. It blocks on failed quality checks, missing dataset files, or empty datasets, and warns when expected quality reports or benchmark history are absent.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

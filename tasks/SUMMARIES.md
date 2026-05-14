@@ -1,3 +1,10 @@
+## 2026-05-13 - Training Readiness Report
+- Request: continue the RL infrastructure work by adding the planned lightweight training-readiness report that combines benchmark history, dataset manifests, collection reports, and quality status.
+- Solution: added `training/readiness_report.py` to discover readiness artifacts from one or more input paths, summarize datasets, benchmark history, blockers, and warnings, and render JSON/Markdown reports. Added `user-test/report_training_readiness.py` as the CLI wrapper.
+- Readiness behavior: the report marks datasets `blocked` when dataset files are missing, manifests are missing, record counts are empty, or quality reports fail. It marks `needs_attention` for missing quality reports, quality warnings, or missing benchmark history, and `ready` only when the discovered artifacts are clean.
+- Documentation/tests: documented the command in `README.md` and added `tests/test_training_readiness.py` covering ready, warning, blocked, JSON output, and Markdown output cases.
+- Verification: `python -m py_compile training\readiness_report.py user-test\report_training_readiness.py tests\test_training_readiness.py` passed, and `python -m unittest tests.test_training_readiness tests.test_dataset_quality tests.test_dataset_collection -v` passed 10 tests.
+
 ## 2026-04-17 - Live Four-Subagent Test Run And Transcript Logging
 
 - Request: run the current user-test/web verification, then use four real spawned subagents as the four players in a live browser-demo session and save the resulting player/DM exchange to a local log file.

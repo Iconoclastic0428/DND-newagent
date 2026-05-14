@@ -1,3 +1,36 @@
+## 2026-05-13 - Training Readiness Report
+
+### Scope
+- Add a lightweight report that summarizes whether collected benchmark datasets are ready for model training.
+- Combine dataset manifests, dataset quality reports, collection reports, and benchmark history into one JSON/Markdown status.
+- Keep the report deterministic and local-only; do not invoke external APIs or infer training quality beyond the recorded artifacts.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only the files changed for this task.
+
+### Steps
+- [x] Review current dataset manifest, collection, quality, and benchmark-history structures.
+- [x] Add a `training` module that discovers and summarizes readiness artifacts.
+- [x] Add a `user-test` CLI wrapper for JSON and Markdown output.
+- [x] Add focused tests for ready, warning, and blocking states.
+- [x] Document the command in `README.md`.
+- [x] Run focused verification and inspect the git diff.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification Plan
+- `python -m py_compile training\readiness_report.py user-test\report_training_readiness.py tests\test_training_readiness.py`
+- `python -m unittest tests.test_training_readiness tests.test_dataset_quality tests.test_dataset_collection -v`
+- `git diff --check -- README.md training\readiness_report.py user-test\report_training_readiness.py tests\test_training_readiness.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Added deterministic readiness reporting in `training/readiness_report.py`.
+- Added `user-test/report_training_readiness.py` for JSON and Markdown report output.
+- Readiness status is `blocked` for failed quality checks, missing dataset files, missing manifests, or empty datasets; `needs_attention` for missing quality reports, quality warnings, or missing benchmark history; and `ready` only when the artifact set is clean.
+- Documented the command in `README.md`.
+- Verification passed:
+  - `python -m py_compile training\readiness_report.py user-test\report_training_readiness.py tests\test_training_readiness.py`
+  - `python -m unittest tests.test_training_readiness tests.test_dataset_quality tests.test_dataset_collection -v` passed 10 tests.
+  - `git diff --check -- README.md training\readiness_report.py user-test\report_training_readiness.py tests\test_training_readiness.py tasks\TODO.md tasks\SUMMARIES.md`
+
 ## 2026-05-08 - Merge GitHub DnD-Agent Branch
 
 ### Scope
