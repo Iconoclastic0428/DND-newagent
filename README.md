@@ -201,6 +201,14 @@ python user-test\plan_mosaicml_training.py --recipe runs\training-recipes\<recip
 
 The plan does not submit a remote job. It records the intended MosaicML GPU target, datasets, objectives, baseline metrics to beat, and weak evaluation slices for the first trainable policy run.
 
+To run the first trainable policy preflight with the same entrypoint shape planned for MosaicML, run:
+
+```powershell
+python user-test\train_policy_mosaicml.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --baseline-report runs\training-runs\<baseline-run-id>\supervised_baseline_report.json --output-dir runs\training-runs
+```
+
+This local preflight trains a dependency-free sparse linear action policy and compares it with the frequency baseline. It updates model weights, writes a model artifact, and records whether the trainable policy beats the baseline overall and by weak evaluation slice.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

@@ -1,3 +1,11 @@
+## 2026-05-14 - Trainable Policy Preflight
+- Request: continue after the MosaicML handoff plan by adding the first trainable policy entrypoint.
+- Solution: added a dependency-free sparse linear action policy trainer plus the planned `user-test/train_policy_mosaicml.py` entrypoint, using the training recipe and supervised baseline report as inputs.
+- Why it matters: the project now has a real weight-updating trainer that can run locally before the entrypoint is wired to a MosaicML GPU job.
+- Tests: added focused coverage for model/report artifact generation, baseline comparison output, grouped eval metrics, Markdown rendering, and invalid baseline schema rejection.
+- Verification: compile checks and `tests.test_trainable_policy` passed; the real local preflight used 745 train rows and 186 eval rows, beating aggregate eval accuracy 0.6828 -> 0.6935 and `lmop_first_combat` 0.2892 -> 0.3133 while combat runtime dipped slightly 0.3478 -> 0.3333.
+- Next step: improve combat-specific features/targets for the trainable policy, then wire the same entrypoint into the MosaicML launch flow.
+
 ## 2026-05-14 - MosaicML Training Plan
 - Request: continue toward GPU training using MosaicML.
 - Solution: added a deterministic MosaicML training plan artifact that consumes the training recipe plus supervised baseline report, records local preflight checks, and surfaces weak eval slices as targets for the first trainable policy run.

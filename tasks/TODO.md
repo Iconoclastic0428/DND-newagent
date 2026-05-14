@@ -1,3 +1,30 @@
+## 2026-05-14 - Trainable Policy Preflight
+
+### Scope
+- Add the first trainable policy entrypoint shaped for MosaicML.
+- Keep the first implementation dependency-free and runnable locally.
+- Consume `training_recipe.json` plus the supervised baseline report.
+- Emit model, JSON report, Markdown report, and baseline comparisons.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect transition row shape and MosaicML plan expectations.
+- [x] Add a sparse linear trainable policy module.
+- [x] Add the `user-test/train_policy_mosaicml.py` CLI wrapper.
+- [x] Add focused tests for model/report output and baseline schema validation.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\trainable_policy.py user-test\train_policy_mosaicml.py tests\test_trainable_policy.py`
+- [x] `python -m unittest tests.test_trainable_policy -v`
+- [x] `python user-test\train_policy_mosaicml.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\trainable_policy.py user-test\train_policy_mosaicml.py tests\test_trainable_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: sparse linear preflight passed against the latest recipe and baseline. Overall eval improved from 0.6828 to 0.6935, `lmop_first_combat` improved from 0.2892 to 0.3133, storytelling improved from 0.8803 to 0.9060, and combat runtime dipped from 0.3478 to 0.3333.
+
 ## 2026-05-14 - MosaicML Training Plan
 
 ### Scope
