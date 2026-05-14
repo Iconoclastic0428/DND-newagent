@@ -1,3 +1,30 @@
+## 2026-05-13 - Training Recipe Planner
+
+### Scope
+- Add a trainer-facing dry-run recipe generated from `training_smoke_report.json`.
+- Include objective selection for supervised action prediction and preference ranking.
+- Record dataset paths, counts, readiness status, smoke checks, and planned next commands.
+- Keep generated recipe outputs out of git.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect the smoke report shape and existing training helpers.
+- [x] Add a training recipe planner module.
+- [x] Add a CLI wrapper under `user-test`.
+- [x] Add focused tests for pass/fail smoke report handling.
+- [x] Run the recipe planner against the latest local smoke report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- `python -m py_compile training\training_recipe.py user-test\plan_training_recipe.py tests\test_training_recipe.py`
+- `python -m unittest tests.test_training_recipe -v`
+- `python user-test\plan_training_recipe.py --smoke-report <latest training_smoke_report.json> --output-dir runs\training-recipes`
+- `git diff --check -- README.md training\training_recipe.py user-test\plan_training_recipe.py tests\test_training_recipe.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Pending implementation.
+
 ## 2026-05-13 - Training Smoke Dry Run
 
 ### Scope

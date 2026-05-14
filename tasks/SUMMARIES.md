@@ -1,3 +1,11 @@
+## 2026-05-13 - Training Recipe Planner
+- Request: continue after the smoke report by adding the first trainer-facing config stub.
+- Solution: added a dry-run training recipe planner plus `user-test/plan_training_recipe.py`, using the smoke report as a quality gate before writing recipe JSON/Markdown.
+- Why it matters: readiness and smoke reports prove datasets are usable, but the next handoff needs to state the intended objective mix and exact dataset inputs before real training code exists.
+- Tests: added focused coverage for objective planning, custom weight normalization, failed smoke rejection, and explicit failed-smoke override.
+- Verification: compile checks and `tests.test_training_recipe` passed; local recipe planning from the latest smoke report wrote a recipe with 0 failed checks, 931 transition records, and 355 preference records.
+- Next step: add the first actual trainer backend shim that can read this recipe and run a no-op epoch/accounting pass.
+
 ## 2026-05-13 - Training Smoke Dry Run
 - Request: continue after readiness reached `ready` by adding the first lightweight bridge toward training.
 - Solution: added a dry-run training smoke report builder plus `user-test/run_training_smoke.py`, gated by the existing readiness report and writing JSON/Markdown run artifacts.

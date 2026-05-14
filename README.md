@@ -167,6 +167,14 @@ python user-test\run_training_smoke.py --input runs\datasets\latest --input runs
 
 The smoke report refuses blocked or warning-level readiness by default, records the exact input datasets and manifests, and samples a few transitions and preference pairs so the next training command has a reproducible dry-run handoff.
 
+To turn a smoke report into a trainer-facing dry-run recipe, run:
+
+```powershell
+python user-test\plan_training_recipe.py --smoke-report runs\training-smoke\<run-id>\training_smoke_report.json --output-dir runs\training-recipes
+```
+
+The recipe records the selected objectives, dataset inputs, quality gate, and next commands without starting model training.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:
