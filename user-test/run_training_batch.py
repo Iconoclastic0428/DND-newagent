@@ -71,6 +71,7 @@ def run_batch(
     llm_player_agent_factory: LLMPlayerAgentFactory | None = None,
     llm_player_max_actions_per_pump: int = 1,
     baseline_seed: int = 0,
+    character_load_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if episodes <= 0:
         raise TrainingBatchError('episodes must be greater than 0.')
@@ -93,6 +94,7 @@ def run_batch(
                 max_combat_turns=max_combat_turns,
                 policy=policy,
                 baseline_seed=baseline_seed + episode_index - 1,
+                character_load_path=character_load_path,
                 llm_player_agents=_build_episode_llm_agents(
                     resolved_llm_specs,
                     llm_player_agent_factory=llm_player_agent_factory,
@@ -126,6 +128,7 @@ def run_batch(
         'llm_player_controllers': [controller_id for controller_id, _env_path in resolved_llm_specs],
         'llm_player_max_actions_per_pump': llm_player_max_actions_per_pump,
         'baseline_seed': baseline_seed,
+        'character_load_path': str(character_load_path) if character_load_path is not None else None,
         'max_combat_turns': max_combat_turns,
         'output_dir': str(batch_dir),
         **summarize_batch(episode_summaries),
@@ -164,6 +167,7 @@ def run_first_combat_episode(
     max_combat_turns: int,
     policy: str = 'scripted',
     baseline_seed: int = 0,
+    character_load_path: str | Path | None = None,
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
     llm_player_max_actions_per_pump: int = 1,
 ) -> Path:
@@ -176,6 +180,7 @@ def run_first_combat_episode(
         llm_player_agents=llm_player_agents,
         llm_player_autopump=(policy == 'llm-party'),
         llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
+        character_load_path=character_load_path,
         trajectory_recorder=recorder,
     )
     _run_script_until_combat(session)
@@ -272,12 +277,15 @@ def _run_script_until_combat(session) -> None:
         if step.get('type') not in {'command', 'command_if_prompt'}:
             continue
         controller_id = step['controller_id']
+        raw_input = step['input']
+        if raw_input.startswith('/create') and session.story_session is not None:
+            continue
         if step['type'] == 'command_if_prompt':
             prompt = session.prompt_for_controller(controller_id)
             if prompt is None or prompt.prompt_kind != step.get('prompt_kind'):
                 continue
-        session.handle_input(controller_id, step['input'])
-        if step.get('input') == '/travel engage':
+        session.handle_input(controller_id, raw_input)
+        if raw_input == '/travel engage':
             break
     if session.story_session is None or session.story_session.story_state.runtime_mode != RuntimeMode.COMBAT:
         raise TrainingBatchError('First-combat setup did not enter combat.')
@@ -462,6 +470,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--max-combat-turns', type=int, default=80, help='Maximum combat turns before an episode is marked failed.')
     parser.add_argument('--policy', choices=sorted(POLICIES), default='scripted', help='Player policy to evaluate after the deterministic setup.')
     parser.add_argument('--baseline-seed', type=int, default=0, help='Seed for deterministic baseline policies such as random-legal.')
+    parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file before running episodes.')
     parser.add_argument(
         '--llm-player',
         action='append',
@@ -486,6 +495,7 @@ def main() -> int:
         llm_player_specs=parse_llm_player_specs(args.llm_player) if args.llm_player else None,
         llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
         baseline_seed=args.baseline_seed,
+        character_load_path=args.load_characters,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

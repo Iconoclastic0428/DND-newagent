@@ -13,6 +13,8 @@ if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
 from run_policy_benchmark import run_policy_benchmark, run_policy_benchmark_from_manifest
+from session_server.bootstrap import build_default_character_record
+from shared_types.character_record_io import save_character_party
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
@@ -75,6 +77,8 @@ class PolicyBenchmarkTests(unittest.TestCase):
                 self.assertTrue(Path(report_path).exists())
 
     def test_policy_benchmark_runs_from_manifest(self) -> None:
+        party_path = self._tempdir / 'saved-party.json'
+        self._write_saved_party(party_path)
         manifest_path = self._tempdir / 'benchmark-manifest.json'
         manifest_path.write_text(
             json.dumps({
@@ -85,6 +89,10 @@ class PolicyBenchmarkTests(unittest.TestCase):
                 'base_url': LOCAL_MIRROR_BASE_URL,
                 'max_combat_turns': 120,
                 'seeds': [7],
+                'character_loadouts': {
+                    'default-party': 'saved-party.json',
+                },
+                'character_loadout': 'default-party',
                 'policies': [
                     'scripted',
                     {'label': 'random', 'policy': 'random-legal'},
@@ -103,7 +111,21 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertEqual(saved['seeds'], [7])
         self.assertEqual(saved['episodes_per_policy'], 1)
         self.assertEqual([batch['label'] for batch in saved['batch_reports']], ['scripted', 'random'])
+        self.assertEqual(saved['batch_reports'][0]['character_load_path'], str(party_path))
+        self.assertEqual(saved['seed_batch_reports'][0]['character_load_path'], str(party_path))
         self.assertTrue(Path(saved['markdown_summary_path']).exists())
+
+    def _write_saved_party(self, path: Path) -> None:
+        record = build_default_character_record(base_url=LOCAL_MIRROR_BASE_URL)
+        save_character_party(
+            path,
+            {
+                'player-1-controller': record,
+                'player-2-controller': record,
+                'player-3-controller': record,
+                'player-4-controller': record,
+            },
+        )
 
 
 if __name__ == '__main__':

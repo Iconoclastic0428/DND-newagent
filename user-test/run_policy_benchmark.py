@@ -39,6 +39,7 @@ def run_policy_benchmark(
     llm_player_specs: tuple[tuple[str, str | Path], ...] | None = None,
     llm_player_agent_factory: LLMPlayerAgentFactory | None = None,
     llm_player_max_actions_per_pump: int = 1,
+    character_load_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if policy_configs is None and not policies:
         raise ValueError('At least one policy must be provided.')
@@ -60,6 +61,7 @@ def run_policy_benchmark(
         label = str(policy_config['label'])
         policy = str(policy_config['policy'])
         policy_llm_player_specs = policy_config.get('llm_player_specs', llm_player_specs)
+        policy_character_load_path = policy_config.get('character_load_path', character_load_path)
         seed_reports: list[dict[str, Any]] = []
         for seed in seed_values:
             policy_dir = benchmark_dir / 'batches' / _safe_label(label) / f'seed-{seed}'
@@ -75,6 +77,7 @@ def run_policy_benchmark(
                 llm_player_agent_factory=llm_player_agent_factory,
                 llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
                 baseline_seed=seed,
+                character_load_path=policy_character_load_path,
             )
             seed_reports.append(report)
             seed_batch_reports.append({
@@ -86,6 +89,7 @@ def run_policy_benchmark(
                 'success_rate': report.get('success_rate'),
                 'avg_reward': report.get('avg_reward'),
                 'avg_invalid_actions': report.get('avg_invalid_actions'),
+                'character_load_path': report.get('character_load_path'),
             })
         report = _aggregate_policy_seed_reports(
             label=label,
@@ -106,6 +110,7 @@ def run_policy_benchmark(
             'avg_reward': report.get('avg_reward'),
             'avg_reward_stddev': report.get('avg_reward_stddev'),
             'avg_invalid_actions': report.get('avg_invalid_actions'),
+            'character_load_path': report.get('character_load_path'),
         })
     comparison = compare_policy_batches(entries)
     comparison['benchmark_metadata'] = {
@@ -156,6 +161,7 @@ def run_policy_benchmark_from_manifest(manifest_path: str | Path) -> dict[str, A
         seeds=_manifest_seeds(manifest),
         llm_player_specs=_manifest_llm_player_specs(manifest.get('llm_players'), manifest_dir),
         llm_player_max_actions_per_pump=_manifest_int(manifest, 'llm_player_max_actions_per_pump', default=1),
+        character_load_path=_manifest_character_load_path(manifest, manifest_dir),
     )
     report['manifest_path'] = str(path)
     benchmark_path = Path(report['benchmark_path'])
@@ -181,6 +187,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--max-combat-turns', type=int, default=120, help='Maximum combat turns before an episode is marked failed.')
     parser.add_argument('--baseline-seed', type=int, default=0, help='Seed for deterministic baseline policies such as random-legal.')
     parser.add_argument('--seed', action='append', type=int, default=[], help='Benchmark seed to run. Repeat for multi-seed benchmarks. Overrides --baseline-seed when provided.')
+    parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file before running each episode.')
     parser.add_argument(
         '--llm-player',
         action='append',
@@ -209,6 +216,7 @@ def main() -> int:
             seeds=tuple(args.seed) if args.seed else None,
             llm_player_specs=parse_llm_player_specs(args.llm_player) if args.llm_player else None,
             llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
+            character_load_path=args.load_characters,
         )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
@@ -283,6 +291,9 @@ def _manifest_policy_configs(value: Any, manifest_dir: Path) -> tuple[dict[str, 
         policy_llm_specs = _manifest_llm_player_specs(entry.get('llm_players'), manifest_dir)
         if policy_llm_specs is not None:
             config['llm_player_specs'] = policy_llm_specs
+        policy_character_load_path = _manifest_character_load_path(entry, manifest_dir)
+        if policy_character_load_path is not None:
+            config['character_load_path'] = policy_character_load_path
         configs.append(config)
     return tuple(configs)
 
@@ -304,6 +315,20 @@ def _manifest_llm_player_specs(value: Any, manifest_dir: Path) -> tuple[tuple[st
 def _manifest_path(value: Any, manifest_dir: Path) -> Path:
     path = Path(str(value))
     return path if path.is_absolute() else manifest_dir / path
+
+
+def _manifest_character_load_path(manifest: dict[str, Any], manifest_dir: Path) -> Path | None:
+    if manifest.get('character_load_path') is not None:
+        return _manifest_path(manifest['character_load_path'], manifest_dir)
+    loadout_name = manifest.get('character_loadout')
+    if loadout_name is None:
+        return None
+    loadouts = manifest.get('character_loadouts')
+    if not isinstance(loadouts, dict):
+        raise ValueError('character_loadout requires a character_loadouts object.')
+    if loadout_name not in loadouts:
+        raise ValueError(f'Unknown character_loadout {loadout_name!r}.')
+    return _manifest_path(loadouts[loadout_name], manifest_dir)
 
 
 def _manifest_int(manifest: dict[str, Any], key: str, *, default: int) -> int:
@@ -350,6 +375,7 @@ def _aggregate_policy_seed_reports(
         'seed_count': len(seed_reports),
         'seeds': list(seed_values),
         'seed_report_paths': [str(report.get('report_path')) for report in seed_reports if report.get('report_path')],
+        'character_load_path': _first_present(report.get('character_load_path') for report in seed_reports),
         'llm_player_controllers': _merged_list(report.get('llm_player_controllers') for report in seed_reports),
         'episodes': episodes,
         'successes': successes,
@@ -430,6 +456,13 @@ def _stddev(values: list[float]) -> float:
         return 0.0
     average = sum(values) / len(values)
     return math.sqrt(sum((value - average) ** 2 for value in values) / len(values))
+
+
+def _first_present(values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 def _number(value: Any) -> float:
