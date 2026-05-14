@@ -77,8 +77,10 @@ class PolicyBenchmarkTests(unittest.TestCase):
                 self.assertTrue(Path(report_path).exists())
 
     def test_policy_benchmark_runs_from_manifest(self) -> None:
-        party_path = self._tempdir / 'saved-party.json'
-        self._write_saved_party(party_path)
+        default_party_path = self._tempdir / 'saved-party.json'
+        alternate_party_path = self._tempdir / 'alternate-party.json'
+        self._write_saved_party(default_party_path)
+        self._write_saved_party(alternate_party_path)
         manifest_path = self._tempdir / 'benchmark-manifest.json'
         manifest_path.write_text(
             json.dumps({
@@ -91,8 +93,12 @@ class PolicyBenchmarkTests(unittest.TestCase):
                 'seeds': [7],
                 'character_loadouts': {
                     'default-party': 'saved-party.json',
+                    'alternate-party': 'alternate-party.json',
                 },
-                'character_loadout': 'default-party',
+                'character_loadout_scenarios': [
+                    'default-party',
+                    {'label': 'alternate-party', 'character_loadout': 'alternate-party'},
+                ],
                 'policies': [
                     'scripted',
                     {'label': 'random', 'policy': 'random-legal'},
@@ -109,10 +115,26 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertEqual(saved['manifest_path'], str(manifest_path))
         self.assertEqual(saved['seed_count'], 1)
         self.assertEqual(saved['seeds'], [7])
-        self.assertEqual(saved['episodes_per_policy'], 1)
+        self.assertEqual(saved['character_loadout_count'], 2)
+        self.assertEqual(saved['episodes_per_policy'], 2)
+        self.assertEqual(
+            [loadout['label'] for loadout in saved['character_loadouts']],
+            ['default-party', 'alternate-party'],
+        )
         self.assertEqual([batch['label'] for batch in saved['batch_reports']], ['scripted', 'random'])
-        self.assertEqual(saved['batch_reports'][0]['character_load_path'], str(party_path))
-        self.assertEqual(saved['seed_batch_reports'][0]['character_load_path'], str(party_path))
+        self.assertEqual(len(saved['seed_batch_reports']), 4)
+        for batch in saved['batch_reports']:
+            self.assertEqual(batch['loadout_count'], 2)
+            self.assertEqual(batch['character_loadout_labels'], ['default-party', 'alternate-party'])
+            self.assertEqual(
+                batch['character_load_paths'],
+                [str(default_party_path), str(alternate_party_path)],
+            )
+        self.assertEqual(saved['seed_batch_reports'][0]['character_loadout_label'], 'default-party')
+        self.assertEqual(saved['seed_batch_reports'][0]['character_load_path'], str(default_party_path))
+        self.assertEqual(saved['seed_batch_reports'][1]['character_loadout_label'], 'alternate-party')
+        self.assertEqual(saved['seed_batch_reports'][1]['character_load_path'], str(alternate_party_path))
+        self.assertEqual(saved['comparison']['benchmark_metadata']['loadout_count'], 2)
         self.assertTrue(Path(saved['markdown_summary_path']).exists())
 
     def _write_saved_party(self, path: Path) -> None:

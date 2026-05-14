@@ -40,6 +40,7 @@ def run_policy_benchmark(
     llm_player_agent_factory: LLMPlayerAgentFactory | None = None,
     llm_player_max_actions_per_pump: int = 1,
     character_load_path: str | Path | None = None,
+    character_loadout_scenarios: tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     if policy_configs is None and not policies:
         raise ValueError('At least one policy must be provided.')
@@ -53,6 +54,10 @@ def run_policy_benchmark(
     seed_values = tuple(seeds) if seeds is not None else (baseline_seed,)
     if not seed_values:
         raise ValueError('At least one benchmark seed must be provided.')
+    loadout_scenarios = _resolve_character_loadout_scenarios(
+        character_load_path=character_load_path,
+        character_loadout_scenarios=character_loadout_scenarios,
+    )
     benchmark_dir = Path(output_dir) / f'{scenario_id}-benchmark-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
     entries: list[tuple[str, dict[str, Any]]] = []
     batch_reports: list[dict[str, Any]] = []
@@ -61,42 +66,53 @@ def run_policy_benchmark(
         label = str(policy_config['label'])
         policy = str(policy_config['policy'])
         policy_llm_player_specs = policy_config.get('llm_player_specs', llm_player_specs)
-        policy_character_load_path = policy_config.get('character_load_path', character_load_path)
+        policy_loadout_scenarios = _resolve_character_loadout_scenarios(
+            character_load_path=policy_config.get('character_load_path'),
+            character_loadout_scenarios=policy_config.get('character_loadout_scenarios'),
+            fallback_scenarios=loadout_scenarios,
+        )
         seed_reports: list[dict[str, Any]] = []
-        for seed in seed_values:
-            policy_dir = benchmark_dir / 'batches' / _safe_label(label) / f'seed-{seed}'
-            report = run_batch(
-                episodes=episodes,
-                output_dir=policy_dir,
-                scenario_id=scenario_id,
-                env_path=env_path,
-                base_url=base_url,
-                max_combat_turns=max_combat_turns,
-                policy=policy,
-                llm_player_specs=policy_llm_player_specs,
-                llm_player_agent_factory=llm_player_agent_factory,
-                llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
-                baseline_seed=seed,
-                character_load_path=policy_character_load_path,
-            )
-            seed_reports.append(report)
-            seed_batch_reports.append({
-                'label': label,
-                'policy': policy,
-                'seed': seed,
-                'batch_id': report.get('batch_id'),
-                'report_path': report.get('report_path'),
-                'success_rate': report.get('success_rate'),
-                'avg_reward': report.get('avg_reward'),
-                'avg_invalid_actions': report.get('avg_invalid_actions'),
-                'character_load_path': report.get('character_load_path'),
-            })
+        for loadout_scenario in policy_loadout_scenarios:
+            loadout_label = str(loadout_scenario['label'])
+            loadout_path = loadout_scenario.get('character_load_path')
+            for seed in seed_values:
+                policy_dir = benchmark_dir / 'batches' / _safe_label(label) / _safe_label(loadout_label) / f'seed-{seed}'
+                report = run_batch(
+                    episodes=episodes,
+                    output_dir=policy_dir,
+                    scenario_id=scenario_id,
+                    env_path=env_path,
+                    base_url=base_url,
+                    max_combat_turns=max_combat_turns,
+                    policy=policy,
+                    llm_player_specs=policy_llm_player_specs,
+                    llm_player_agent_factory=llm_player_agent_factory,
+                    llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
+                    baseline_seed=seed,
+                    character_load_path=loadout_path,
+                )
+                report['character_loadout_label'] = loadout_label
+                report['character_load_path'] = str(loadout_path) if loadout_path is not None else report.get('character_load_path')
+                seed_reports.append(report)
+                seed_batch_reports.append({
+                    'label': label,
+                    'policy': policy,
+                    'character_loadout_label': loadout_label,
+                    'seed': seed,
+                    'batch_id': report.get('batch_id'),
+                    'report_path': report.get('report_path'),
+                    'success_rate': report.get('success_rate'),
+                    'avg_reward': report.get('avg_reward'),
+                    'avg_invalid_actions': report.get('avg_invalid_actions'),
+                    'character_load_path': report.get('character_load_path'),
+                })
         report = _aggregate_policy_seed_reports(
             label=label,
             policy=policy,
             scenario_id=scenario_id,
             seed_values=seed_values,
             seed_reports=seed_reports,
+            loadout_scenarios=policy_loadout_scenarios,
         )
         entries.append((label, report))
         batch_reports.append({
@@ -104,19 +120,25 @@ def run_policy_benchmark(
             'policy': policy,
             'batch_id': report.get('batch_id'),
             'seed_count': len(seed_values),
+            'loadout_count': len(policy_loadout_scenarios),
             'seeds': list(seed_values),
+            'character_loadouts': report.get('character_loadouts'),
+            'character_loadout_labels': report.get('character_loadout_labels'),
             'report_paths': report.get('seed_report_paths'),
             'success_rate': report.get('success_rate'),
             'avg_reward': report.get('avg_reward'),
             'avg_reward_stddev': report.get('avg_reward_stddev'),
             'avg_invalid_actions': report.get('avg_invalid_actions'),
             'character_load_path': report.get('character_load_path'),
+            'character_load_paths': report.get('character_load_paths'),
         })
     comparison = compare_policy_batches(entries)
     comparison['benchmark_metadata'] = {
         'episodes_per_seed': episodes,
         'seed_count': len(seed_values),
         'seeds': list(seed_values),
+        'loadout_count': len(loadout_scenarios),
+        'character_loadouts': _serialize_loadout_scenarios(loadout_scenarios),
     }
     comparison_path = benchmark_dir / 'policy_comparison.json'
     write_policy_comparison_report(comparison, comparison_path)
@@ -126,10 +148,12 @@ def run_policy_benchmark(
         'benchmark_id': benchmark_dir.name,
         'scenario_id': scenario_id,
         'episodes_per_seed': episodes,
-        'episodes_per_policy': episodes * len(seed_values),
+        'episodes_per_policy': episodes * len(seed_values) * len(loadout_scenarios),
         'baseline_seed': baseline_seed,
         'seed_count': len(seed_values),
         'seeds': list(seed_values),
+        'character_loadout_count': len(loadout_scenarios),
+        'character_loadouts': _serialize_loadout_scenarios(loadout_scenarios),
         'max_combat_turns': max_combat_turns,
         'output_dir': str(benchmark_dir),
         'comparison_path': str(comparison_path),
@@ -152,7 +176,7 @@ def run_policy_benchmark_from_manifest(manifest_path: str | Path) -> dict[str, A
         episodes=_manifest_int(manifest, 'episodes', default=1),
         output_dir=_manifest_path(manifest.get('output_dir', 'runs/benchmarks'), manifest_dir),
         policies=(),
-        policy_configs=_manifest_policy_configs(manifest.get('policies', list(DEFAULT_POLICIES)), manifest_dir),
+        policy_configs=_manifest_policy_configs(manifest.get('policies', list(DEFAULT_POLICIES)), manifest_dir, root_manifest=manifest),
         scenario_id=str(manifest.get('scenario_id', 'lmop_first_combat')),
         env_path=_manifest_path(manifest.get('env_path', '.env'), manifest_dir),
         base_url=manifest.get('base_url'),
@@ -162,6 +186,7 @@ def run_policy_benchmark_from_manifest(manifest_path: str | Path) -> dict[str, A
         llm_player_specs=_manifest_llm_player_specs(manifest.get('llm_players'), manifest_dir),
         llm_player_max_actions_per_pump=_manifest_int(manifest, 'llm_player_max_actions_per_pump', default=1),
         character_load_path=_manifest_character_load_path(manifest, manifest_dir),
+        character_loadout_scenarios=_manifest_character_loadout_scenarios(manifest, manifest_dir),
     )
     report['manifest_path'] = str(path)
     benchmark_path = Path(report['benchmark_path'])
@@ -267,7 +292,7 @@ def _load_benchmark_manifest(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _manifest_policy_configs(value: Any, manifest_dir: Path) -> tuple[dict[str, Any], ...]:
+def _manifest_policy_configs(value: Any, manifest_dir: Path, *, root_manifest: dict[str, Any] | None = None) -> tuple[dict[str, Any], ...]:
     if not isinstance(value, list) or not value:
         raise ValueError('Benchmark manifest must define a non-empty policies list.')
     configs: list[dict[str, Any]] = []
@@ -291,9 +316,12 @@ def _manifest_policy_configs(value: Any, manifest_dir: Path) -> tuple[dict[str, 
         policy_llm_specs = _manifest_llm_player_specs(entry.get('llm_players'), manifest_dir)
         if policy_llm_specs is not None:
             config['llm_player_specs'] = policy_llm_specs
-        policy_character_load_path = _manifest_character_load_path(entry, manifest_dir)
+        policy_character_load_path = _manifest_character_load_path(entry, manifest_dir, lookup_manifest=root_manifest)
         if policy_character_load_path is not None:
             config['character_load_path'] = policy_character_load_path
+        policy_loadout_scenarios = _manifest_character_loadout_scenarios(entry, manifest_dir, lookup_manifest=root_manifest)
+        if policy_loadout_scenarios is not None:
+            config['character_loadout_scenarios'] = policy_loadout_scenarios
         configs.append(config)
     return tuple(configs)
 
@@ -317,18 +345,111 @@ def _manifest_path(value: Any, manifest_dir: Path) -> Path:
     return path if path.is_absolute() else manifest_dir / path
 
 
-def _manifest_character_load_path(manifest: dict[str, Any], manifest_dir: Path) -> Path | None:
+def _manifest_character_load_path(
+    manifest: dict[str, Any],
+    manifest_dir: Path,
+    *,
+    lookup_manifest: dict[str, Any] | None = None,
+) -> Path | None:
     if manifest.get('character_load_path') is not None:
         return _manifest_path(manifest['character_load_path'], manifest_dir)
     loadout_name = manifest.get('character_loadout')
     if loadout_name is None:
         return None
-    loadouts = manifest.get('character_loadouts')
+    loadout_source = manifest if isinstance(manifest.get('character_loadouts'), dict) else lookup_manifest or manifest
+    loadouts = loadout_source.get('character_loadouts')
     if not isinstance(loadouts, dict):
         raise ValueError('character_loadout requires a character_loadouts object.')
     if loadout_name not in loadouts:
         raise ValueError(f'Unknown character_loadout {loadout_name!r}.')
     return _manifest_path(loadouts[loadout_name], manifest_dir)
+
+
+def _manifest_character_loadout_scenarios(
+    manifest: dict[str, Any],
+    manifest_dir: Path,
+    *,
+    lookup_manifest: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], ...] | None:
+    raw_scenarios = manifest.get('character_loadout_scenarios')
+    if raw_scenarios is None:
+        return None
+    if not isinstance(raw_scenarios, list) or not raw_scenarios:
+        raise ValueError('character_loadout_scenarios must be a non-empty list.')
+    scenarios: list[dict[str, Any]] = []
+    named_loadout_source = manifest if isinstance(manifest.get('character_loadouts'), dict) else lookup_manifest or manifest
+    for index, entry in enumerate(raw_scenarios, start=1):
+        if isinstance(entry, str):
+            scenarios.append(_manifest_named_character_loadout(entry, named_loadout_source, manifest_dir))
+            continue
+        if not isinstance(entry, dict):
+            raise ValueError('character_loadout_scenarios entries must be strings or objects.')
+        label = str(entry.get('label') or entry.get('character_loadout') or f'loadout-{index}').strip()
+        if not label:
+            raise ValueError('character_loadout_scenarios entry has an empty label.')
+        if entry.get('character_load_path') is not None:
+            character_load_path = _manifest_path(entry['character_load_path'], manifest_dir)
+        elif entry.get('character_loadout') is not None:
+            character_load_path = _manifest_named_character_loadout(str(entry['character_loadout']), named_loadout_source, manifest_dir)['character_load_path']
+        else:
+            character_load_path = None
+        scenarios.append({
+            'label': label,
+            'character_load_path': character_load_path,
+        })
+    return tuple(scenarios)
+
+
+def _manifest_named_character_loadout(name: str, manifest: dict[str, Any], manifest_dir: Path) -> dict[str, Any]:
+    loadouts = manifest.get('character_loadouts')
+    if not isinstance(loadouts, dict):
+        raise ValueError('Named character loadout scenarios require a character_loadouts object.')
+    if name not in loadouts:
+        raise ValueError(f'Unknown character loadout scenario {name!r}.')
+    return {
+        'label': name,
+        'character_load_path': _manifest_path(loadouts[name], manifest_dir),
+    }
+
+
+def _resolve_character_loadout_scenarios(
+    *,
+    character_load_path: str | Path | None = None,
+    character_loadout_scenarios: tuple[dict[str, Any], ...] | None = None,
+    fallback_scenarios: tuple[dict[str, Any], ...] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    if character_loadout_scenarios is not None:
+        if not character_loadout_scenarios:
+            raise ValueError('At least one character loadout scenario must be provided.')
+        return tuple(_normalize_loadout_scenario(scenario, index) for index, scenario in enumerate(character_loadout_scenarios, start=1))
+    if character_load_path is not None:
+        return ({
+            'label': Path(character_load_path).stem or 'loaded-party',
+            'character_load_path': character_load_path,
+        },)
+    if fallback_scenarios is not None:
+        return fallback_scenarios
+    return ({'label': 'default', 'character_load_path': None},)
+
+
+def _normalize_loadout_scenario(scenario: dict[str, Any], index: int) -> dict[str, Any]:
+    label = str(scenario.get('label') or f'loadout-{index}').strip()
+    if not label:
+        raise ValueError('Character loadout scenario label cannot be empty.')
+    return {
+        'label': label,
+        'character_load_path': scenario.get('character_load_path'),
+    }
+
+
+def _serialize_loadout_scenarios(scenarios: tuple[dict[str, Any], ...]) -> list[dict[str, str | None]]:
+    return [
+        {
+            'label': str(scenario['label']),
+            'character_load_path': str(scenario['character_load_path']) if scenario.get('character_load_path') is not None else None,
+        }
+        for scenario in scenarios
+    ]
 
 
 def _manifest_int(manifest: dict[str, Any], key: str, *, default: int) -> int:
@@ -356,6 +477,7 @@ def _aggregate_policy_seed_reports(
     scenario_id: str,
     seed_values: tuple[int, ...],
     seed_reports: list[dict[str, Any]],
+    loadout_scenarios: tuple[dict[str, Any], ...],
 ) -> dict[str, Any]:
     episodes = sum(_number(report.get('episodes')) for report in seed_reports)
     successes = sum(_number(report.get('successes')) for report in seed_reports)
@@ -368,14 +490,19 @@ def _aggregate_policy_seed_reports(
     ]
     avg_rewards = [_number(report.get('avg_reward')) for report in seed_reports]
     aggregate = {
-        'batch_id': f'{label}-aggregate-{len(seed_reports)}-seeds',
+        'batch_id': f'{label}-aggregate-{len(seed_reports)}-runs',
         'scenario_id': scenario_id,
         'policy': policy,
         'label': label,
-        'seed_count': len(seed_reports),
+        'seed_count': len(seed_values),
         'seeds': list(seed_values),
+        'run_count': len(seed_reports),
+        'loadout_count': len(loadout_scenarios),
+        'character_loadouts': _serialize_loadout_scenarios(loadout_scenarios),
         'seed_report_paths': [str(report.get('report_path')) for report in seed_reports if report.get('report_path')],
+        'character_loadout_labels': _merged_list(report.get('character_loadout_label') for report in seed_reports),
         'character_load_path': _first_present(report.get('character_load_path') for report in seed_reports),
+        'character_load_paths': _merged_list(report.get('character_load_path') for report in seed_reports),
         'llm_player_controllers': _merged_list(report.get('llm_player_controllers') for report in seed_reports),
         'episodes': episodes,
         'successes': successes,
@@ -441,9 +568,10 @@ def _merged_list(values: Any) -> list[str]:
     merged: list[str] = []
     seen: set[str] = set()
     for value in values:
-        if not isinstance(value, list):
+        if value is None:
             continue
-        for item in value:
+        items = value if isinstance(value, list) else [value]
+        for item in items:
             text = str(item)
             if text not in seen:
                 seen.add(text)
