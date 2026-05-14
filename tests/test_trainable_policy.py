@@ -53,6 +53,9 @@ class TrainablePolicyTests(unittest.TestCase):
         self.assertIn('action_family_accuracy', report['metrics']['eval'])
         self.assertIn('action_component_accuracy', report['metrics']['eval'])
         self.assertIn('arg_1', report['metrics']['train']['action_component_accuracy'])
+        self.assertIn('command_head_recommendation', report)
+        self.assertIn(report['command_head_recommendation']['architecture'], {'single_full_command_head_acceptable', 'multi_head_command_policy'})
+        self.assertEqual(report['command_head_recommendation']['heads'][0]['head'], 'command_family')
         self.assertGreater(report['model']['feature_count'], 12)
         self.assertTrue(Path(report['model_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
@@ -62,6 +65,7 @@ class TrainablePolicyTests(unittest.TestCase):
         self.assertIn('Baseline Comparison', markdown)
         self.assertIn('Family Accuracy', markdown)
         self.assertIn('Component Accuracy', markdown)
+        self.assertIn('Command Head Recommendation', markdown)
 
     def test_trainable_policy_rejects_invalid_baseline_schema(self) -> None:
         recipe_path = self._write_recipe()

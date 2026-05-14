@@ -1,3 +1,29 @@
+## 2026-05-14 - Command Head Recommendations
+
+### Scope
+- Add an explicit multi-head command policy recommendation to trainable policy reports.
+- Use component accuracy to choose family and weak argument heads.
+- Render the recommendation in Markdown.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect component metric output.
+- [x] Add command-head recommendation JSON.
+- [x] Render command-head recommendations in Markdown.
+- [x] Add focused tests for recommendation output.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\trainable_policy.py user-test\train_policy_mosaicml.py tests\test_trainable_policy.py`
+- [x] `python -m unittest tests.test_trainable_policy -v`
+- [x] `python user-test\train_policy_mosaicml.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\trainable_policy.py tests\test_trainable_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: the preflight recommended `multi_head_command_policy`: required `command_family` head at 0.6989 family accuracy, plus `command_arg_2` at 0.0714 and `command_arg_3` at 0.0400 because both weak argument components were below the 0.50 threshold with at least 10 eval examples.
+
 ## 2026-05-14 - Command Component Diagnostics
 
 ### Scope

@@ -17,6 +17,8 @@ from training.training_recipe import TRAINING_RECIPE_SCHEMA_VERSION
 TRAINABLE_POLICY_SCHEMA_VERSION = 'dnd-agents-trainable-policy-run-v1'
 SUPERVISED_OBJECTIVE = 'supervised_action_prediction'
 BREAKDOWN_FIELDS = ('scenario_id', 'runtime_mode')
+WEAK_COMPONENT_ACCURACY_THRESHOLD = 0.50
+WEAK_COMPONENT_MIN_RECORDS = 10
 SPLIT_STRATEGIES = {'hash', 'tail'}
 TOKEN_RE = re.compile(r'[a-z0-9_./:-]+')
 STOP_WORDS = {
@@ -146,6 +148,7 @@ def run_trainable_policy_preflight(
         },
         'metrics': metrics,
         'baseline_comparison': _baseline_comparison(metrics, baseline),
+        'command_head_recommendation': _command_head_recommendation(metrics),
         'checks': _run_checks(train_rows=train_rows, eval_rows=eval_rows, eval_metrics=eval_metrics),
         'model_path': str(model_path),
         'report_path': str(report_path),
@@ -164,6 +167,7 @@ def render_trainable_policy_markdown(report: dict[str, Any]) -> str:
     eval_metrics = metrics.get('eval') if isinstance(metrics.get('eval'), dict) else {}
     comparison = report.get('baseline_comparison') if isinstance(report.get('baseline_comparison'), dict) else {}
     overall = comparison.get('overall') if isinstance(comparison.get('overall'), dict) else {}
+    recommendation = report.get('command_head_recommendation') if isinstance(report.get('command_head_recommendation'), dict) else {}
     lines = [
         '# Trainable Policy Preflight',
         '',
@@ -200,6 +204,32 @@ def render_trainable_policy_markdown(report: dict[str, Any]) -> str:
         for component in sorted(component_metrics):
             item = component_metrics[component] if isinstance(component_metrics[component], dict) else {}
             lines.append(f'| {_markdown_text(component)} | {_format_int(item.get("record_count"))} | {_format_int(item.get("correct_count"))} | {_format_float(item.get("accuracy"))} |')
+        lines.append('')
+    heads = recommendation.get('heads') if isinstance(recommendation.get('heads'), list) else []
+    if heads:
+        lines.extend([
+            '## Command Head Recommendation',
+            '',
+            f'Architecture: {_markdown_text(recommendation.get("architecture"))}',
+            f'Rationale: {_markdown_text(recommendation.get("rationale"))}',
+            '',
+            '| Head | Component | Records | Accuracy | Purpose |',
+            '| --- | --- | ---: | ---: | --- |',
+        ])
+        for head in heads:
+            if not isinstance(head, dict):
+                continue
+            lines.append(
+                '| '
+                + ' | '.join([
+                    _markdown_text(head.get('head')),
+                    _markdown_text(head.get('component')),
+                    _format_int(head.get('record_count')),
+                    _format_float(head.get('accuracy')),
+                    _markdown_text(head.get('purpose')),
+                ])
+                + ' |'
+            )
         lines.append('')
     lines.extend([
         '## Baseline Comparison',
@@ -500,6 +530,58 @@ def _compare_metric(policy: dict[str, Any], baseline: dict[str, Any]) -> dict[st
         'baseline_accuracy': baseline_accuracy,
         'accuracy_delta': delta,
         'beats_baseline': delta is not None and delta > 0,
+    }
+
+
+def _command_head_recommendation(metrics: dict[str, Any]) -> dict[str, Any]:
+    eval_metrics = metrics.get('eval') if isinstance(metrics.get('eval'), dict) else {}
+    component_metrics = eval_metrics.get('action_component_accuracy') if isinstance(eval_metrics.get('action_component_accuracy'), dict) else {}
+    family = component_metrics.get('family') if isinstance(component_metrics.get('family'), dict) else {}
+    heads: list[dict[str, Any]] = [{
+        'head': 'command_family',
+        'component': 'family',
+        'record_count': family.get('record_count'),
+        'accuracy': family.get('accuracy'),
+        'purpose': 'Choose the command family or natural-language opening before argument prediction.',
+        'status': 'required',
+    }]
+    weak_argument_heads: list[dict[str, Any]] = []
+    for component, values in sorted(component_metrics.items()):
+        if not component.startswith('arg_') or not isinstance(values, dict):
+            continue
+        record_count = values.get('record_count')
+        accuracy = values.get('accuracy')
+        if not isinstance(record_count, int) or record_count < WEAK_COMPONENT_MIN_RECORDS:
+            continue
+        if not isinstance(accuracy, (int, float)):
+            continue
+        if float(accuracy) >= WEAK_COMPONENT_ACCURACY_THRESHOLD:
+            continue
+        weak_argument_heads.append({
+            'head': f'command_{component}',
+            'component': component,
+            'record_count': record_count,
+            'accuracy': float(accuracy),
+            'purpose': f'Predict slash-command {component.replace("_", " ")} separately from the command family.',
+            'status': 'recommended',
+        })
+    heads.extend(weak_argument_heads)
+    if weak_argument_heads:
+        architecture = 'multi_head_command_policy'
+        weak_names = ', '.join(head['component'] for head in weak_argument_heads)
+        rationale = (
+            f'Use separate heads because {weak_names} are below '
+            f'{WEAK_COMPONENT_ACCURACY_THRESHOLD:.2f} accuracy with at least {WEAK_COMPONENT_MIN_RECORDS} examples.'
+        )
+    else:
+        architecture = 'single_full_command_head_acceptable'
+        rationale = 'No slash-command argument component was weak enough to require a separate argument head.'
+    return {
+        'architecture': architecture,
+        'weak_component_accuracy_threshold': WEAK_COMPONENT_ACCURACY_THRESHOLD,
+        'weak_component_min_records': WEAK_COMPONENT_MIN_RECORDS,
+        'heads': heads,
+        'rationale': rationale,
     }
 
 

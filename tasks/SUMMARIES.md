@@ -1,3 +1,11 @@
+## 2026-05-14 - Command Head Recommendations
+- Request: continue from command component diagnostics toward a MosaicML multi-head trainer design.
+- Solution: added an explicit `command_head_recommendation` section to trainable policy reports and Markdown, using component accuracies to recommend a command-family head plus weak argument heads.
+- Why it matters: the report now turns diagnostics into a concrete MosaicML model shape instead of leaving the architecture decision implicit.
+- Tests: added focused coverage for recommendation output and Markdown rendering.
+- Verification: compile checks and `tests.test_trainable_policy` passed; the real preflight recommended `multi_head_command_policy` with `command_family`, `command_arg_2`, and `command_arg_3` heads.
+- Next step: implement the first local multi-head command trainer using this recommendation shape, then map it onto MosaicML.
+
 ## 2026-05-14 - Command Component Diagnostics
 - Request: continue after combat policy diagnostics by deciding whether full-command prediction should be split into command family and arguments.
 - Solution: added command-component accuracy to trainable policy metrics and Markdown reports, covering command family plus slash-command argument positions.
