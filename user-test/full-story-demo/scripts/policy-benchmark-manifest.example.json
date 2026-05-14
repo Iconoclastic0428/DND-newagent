@@ -1,0 +1,15 @@
+{
+  "episodes": 1,
+  "output_dir": "../../../runs/benchmarks",
+  "scenario_id": "lmop_first_combat",
+  "env_path": "../../../.env",
+  "max_combat_turns": 120,
+  "seeds": [11, 12, 13],
+  "policies": [
+    "scripted",
+    {
+      "label": "random",
+      "policy": "random-legal"
+    }
+  ]
+}

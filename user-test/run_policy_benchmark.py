@@ -29,6 +29,7 @@ def run_policy_benchmark(
     episodes: int,
     output_dir: str | Path,
     policies: tuple[str, ...] = DEFAULT_POLICIES,
+    policy_configs: tuple[dict[str, Any], ...] | None = None,
     scenario_id: str = 'lmop_first_combat',
     env_path: str | Path = '.env',
     base_url: str | None = None,
@@ -39,7 +40,14 @@ def run_policy_benchmark(
     llm_player_agent_factory: LLMPlayerAgentFactory | None = None,
     llm_player_max_actions_per_pump: int = 1,
 ) -> dict[str, Any]:
-    if not policies:
+    if policy_configs is None and not policies:
+        raise ValueError('At least one policy must be provided.')
+    resolved_policy_configs = (
+        tuple(policy_configs)
+        if policy_configs is not None
+        else _policy_configs_from_entries(policies, llm_player_specs=llm_player_specs)
+    )
+    if not resolved_policy_configs:
         raise ValueError('At least one policy must be provided.')
     seed_values = tuple(seeds) if seeds is not None else (baseline_seed,)
     if not seed_values:
@@ -48,8 +56,10 @@ def run_policy_benchmark(
     entries: list[tuple[str, dict[str, Any]]] = []
     batch_reports: list[dict[str, Any]] = []
     seed_batch_reports: list[dict[str, Any]] = []
-    for raw_policy in policies:
-        label, policy = _parse_policy_entry(raw_policy)
+    for policy_config in resolved_policy_configs:
+        label = str(policy_config['label'])
+        policy = str(policy_config['policy'])
+        policy_llm_player_specs = policy_config.get('llm_player_specs', llm_player_specs)
         seed_reports: list[dict[str, Any]] = []
         for seed in seed_values:
             policy_dir = benchmark_dir / 'batches' / _safe_label(label) / f'seed-{seed}'
@@ -61,7 +71,7 @@ def run_policy_benchmark(
                 base_url=base_url,
                 max_combat_turns=max_combat_turns,
                 policy=policy,
-                llm_player_specs=llm_player_specs,
+                llm_player_specs=policy_llm_player_specs,
                 llm_player_agent_factory=llm_player_agent_factory,
                 llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
                 baseline_seed=seed,
@@ -129,8 +139,33 @@ def run_policy_benchmark(
     return benchmark_report
 
 
+def run_policy_benchmark_from_manifest(manifest_path: str | Path) -> dict[str, Any]:
+    path = Path(manifest_path)
+    manifest = _load_benchmark_manifest(path)
+    manifest_dir = path.resolve().parent
+    report = run_policy_benchmark(
+        episodes=_manifest_int(manifest, 'episodes', default=1),
+        output_dir=_manifest_path(manifest.get('output_dir', 'runs/benchmarks'), manifest_dir),
+        policies=(),
+        policy_configs=_manifest_policy_configs(manifest.get('policies', list(DEFAULT_POLICIES)), manifest_dir),
+        scenario_id=str(manifest.get('scenario_id', 'lmop_first_combat')),
+        env_path=_manifest_path(manifest.get('env_path', '.env'), manifest_dir),
+        base_url=manifest.get('base_url'),
+        max_combat_turns=_manifest_int(manifest, 'max_combat_turns', default=120),
+        baseline_seed=_manifest_int(manifest, 'baseline_seed', default=0),
+        seeds=_manifest_seeds(manifest),
+        llm_player_specs=_manifest_llm_player_specs(manifest.get('llm_players'), manifest_dir),
+        llm_player_max_actions_per_pump=_manifest_int(manifest, 'llm_player_max_actions_per_pump', default=1),
+    )
+    report['manifest_path'] = str(path)
+    benchmark_path = Path(report['benchmark_path'])
+    benchmark_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    return report
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run multiple policy batches and write a comparison report.')
+    parser.add_argument('--manifest', type=Path, help='Optional JSON benchmark manifest. When set, manifest values define the run.')
     parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run per policy.')
     parser.add_argument('--output-dir', type=Path, default=Path('runs/benchmarks'), help='Directory for benchmark output.')
     parser.add_argument(
@@ -159,19 +194,22 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    report = run_policy_benchmark(
-        episodes=args.episodes,
-        output_dir=args.output_dir,
-        policies=tuple(args.policy) if args.policy else DEFAULT_POLICIES,
-        scenario_id=args.scenario_id,
-        env_path=args.env_path,
-        base_url=args.base_url,
-        max_combat_turns=args.max_combat_turns,
-        baseline_seed=args.baseline_seed,
-        seeds=tuple(args.seed) if args.seed else None,
-        llm_player_specs=parse_llm_player_specs(args.llm_player) if args.llm_player else None,
-        llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
-    )
+    if args.manifest is not None:
+        report = run_policy_benchmark_from_manifest(args.manifest)
+    else:
+        report = run_policy_benchmark(
+            episodes=args.episodes,
+            output_dir=args.output_dir,
+            policies=tuple(args.policy) if args.policy else DEFAULT_POLICIES,
+            scenario_id=args.scenario_id,
+            env_path=args.env_path,
+            base_url=args.base_url,
+            max_combat_turns=args.max_combat_turns,
+            baseline_seed=args.baseline_seed,
+            seeds=tuple(args.seed) if args.seed else None,
+            llm_player_specs=parse_llm_player_specs(args.llm_player) if args.llm_player else None,
+            llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
+        )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
@@ -193,6 +231,97 @@ def _parse_policy_entry(raw_entry: str) -> tuple[str, str]:
 def _safe_label(label: str) -> str:
     safe = ''.join(character if character.isalnum() or character in {'-', '_'} else '-' for character in label.strip().lower())
     return safe.strip('-') or 'policy'
+
+
+def _policy_configs_from_entries(
+    entries: tuple[str, ...],
+    *,
+    llm_player_specs: tuple[tuple[str, str | Path], ...] | None,
+) -> tuple[dict[str, Any], ...]:
+    configs: list[dict[str, Any]] = []
+    for raw_policy in entries:
+        label, policy = _parse_policy_entry(raw_policy)
+        configs.append({
+            'label': label,
+            'policy': policy,
+            'llm_player_specs': llm_player_specs,
+        })
+    return tuple(configs)
+
+
+def _load_benchmark_manifest(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding='utf-8-sig'))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f'Invalid benchmark manifest JSON at {path}: {exc}') from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f'Benchmark manifest at {path} must be a JSON object.')
+    return payload
+
+
+def _manifest_policy_configs(value: Any, manifest_dir: Path) -> tuple[dict[str, Any], ...]:
+    if not isinstance(value, list) or not value:
+        raise ValueError('Benchmark manifest must define a non-empty policies list.')
+    configs: list[dict[str, Any]] = []
+    for entry in value:
+        if isinstance(entry, str):
+            label, policy = _parse_policy_entry(entry)
+            configs.append({'label': label, 'policy': policy})
+            continue
+        if not isinstance(entry, dict):
+            raise ValueError('Manifest policy entries must be strings or objects.')
+        policy = str(entry.get('policy') or '').strip()
+        if not policy:
+            raise ValueError('Manifest policy object is missing policy.')
+        label = str(entry.get('label') or policy).strip()
+        if not label:
+            raise ValueError('Manifest policy object has an empty label.')
+        config = {
+            'label': label,
+            'policy': policy,
+        }
+        policy_llm_specs = _manifest_llm_player_specs(entry.get('llm_players'), manifest_dir)
+        if policy_llm_specs is not None:
+            config['llm_player_specs'] = policy_llm_specs
+        configs.append(config)
+    return tuple(configs)
+
+
+def _manifest_llm_player_specs(value: Any, manifest_dir: Path) -> tuple[tuple[str, Path], ...] | None:
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return tuple(
+            (str(controller_id), _manifest_path(env_path, manifest_dir))
+            for controller_id, env_path in value.items()
+        )
+    if isinstance(value, list):
+        parsed = parse_llm_player_specs([str(item) for item in value])
+        return tuple((controller_id, _manifest_path(env_path, manifest_dir)) for controller_id, env_path in parsed)
+    raise ValueError('llm_players must be an object or list of CONTROLLER_ID=ENV_PATH strings.')
+
+
+def _manifest_path(value: Any, manifest_dir: Path) -> Path:
+    path = Path(str(value))
+    return path if path.is_absolute() else manifest_dir / path
+
+
+def _manifest_int(manifest: dict[str, Any], key: str, *, default: int) -> int:
+    value = manifest.get(key, default)
+    if not isinstance(value, int):
+        raise ValueError(f'Benchmark manifest field {key!r} must be an integer.')
+    return value
+
+
+def _manifest_seeds(manifest: dict[str, Any]) -> tuple[int, ...] | None:
+    raw_seeds = manifest.get('seeds')
+    if raw_seeds is None:
+        return None
+    if not isinstance(raw_seeds, list) or not raw_seeds:
+        raise ValueError('Benchmark manifest field "seeds" must be a non-empty integer list.')
+    if not all(isinstance(seed, int) for seed in raw_seeds):
+        raise ValueError('Benchmark manifest field "seeds" must contain only integers.')
+    return tuple(raw_seeds)
 
 
 def _aggregate_policy_seed_reports(

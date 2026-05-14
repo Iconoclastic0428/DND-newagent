@@ -12,7 +12,7 @@ USER_TEST_ROOT = REPO_ROOT / 'user-test'
 if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
-from run_policy_benchmark import run_policy_benchmark
+from run_policy_benchmark import run_policy_benchmark, run_policy_benchmark_from_manifest
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
@@ -73,6 +73,37 @@ class PolicyBenchmarkTests(unittest.TestCase):
             self.assertEqual(batch['success_rate'], 1.0)
             for report_path in batch['report_paths']:
                 self.assertTrue(Path(report_path).exists())
+
+    def test_policy_benchmark_runs_from_manifest(self) -> None:
+        manifest_path = self._tempdir / 'benchmark-manifest.json'
+        manifest_path.write_text(
+            json.dumps({
+                'episodes': 1,
+                'output_dir': 'manifest-benchmarks',
+                'scenario_id': 'lmop_first_combat',
+                'env_path': '.env',
+                'base_url': LOCAL_MIRROR_BASE_URL,
+                'max_combat_turns': 120,
+                'seeds': [7],
+                'policies': [
+                    'scripted',
+                    {'label': 'random', 'policy': 'random-legal'},
+                ],
+            }),
+            encoding='utf-8',
+        )
+
+        report = run_policy_benchmark_from_manifest(manifest_path)
+
+        benchmark_path = Path(report['benchmark_path'])
+        self.assertTrue(benchmark_path.exists())
+        saved = json.loads(benchmark_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['manifest_path'], str(manifest_path))
+        self.assertEqual(saved['seed_count'], 1)
+        self.assertEqual(saved['seeds'], [7])
+        self.assertEqual(saved['episodes_per_policy'], 1)
+        self.assertEqual([batch['label'] for batch in saved['batch_reports']], ['scripted', 'random'])
+        self.assertTrue(Path(saved['markdown_summary_path']).exists())
 
 
 if __name__ == '__main__':
