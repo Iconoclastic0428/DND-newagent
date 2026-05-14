@@ -1,3 +1,29 @@
+## 2026-05-14 - Hash Split Baseline Evaluation
+
+### Scope
+- Add a deterministic hash split to the supervised action baseline.
+- Keep the old tail split available for comparison.
+- Report train/eval coverage counts by scenario, runtime mode, source, and agent.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect current supervised baseline split and report shape.
+- [x] Add hash/tail split strategy support.
+- [x] Add split coverage counts to JSON/Markdown reports.
+- [x] Add focused tests for hash split behavior and invalid strategy handling.
+- [x] Run the hash-split baseline against the latest local recipe.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\supervised_baseline.py user-test\run_supervised_baseline.py tests\test_supervised_baseline.py`
+- [x] `python -m unittest tests.test_supervised_baseline -v`
+- [x] `python user-test\run_supervised_baseline.py --recipe <latest training_recipe.json> --output-dir runs\training-runs --split-strategy hash`
+- [ ] `git diff --check -- README.md training\supervised_baseline.py user-test\run_supervised_baseline.py tests\test_supervised_baseline.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: hash-split baseline passed against the latest recipe with 745 train rows, 186 eval rows, eval accuracy 0.6828, eval negative log loss 1.2376, and train/eval coverage across both scenarios and runtime modes.
+
 ## 2026-05-14 - Supervised Action Baseline
 
 ### Scope

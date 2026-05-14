@@ -1,3 +1,11 @@
+## 2026-05-14 - Hash Split Baseline Evaluation
+- Request: continue after the supervised baseline by making evaluation less easy to flatter.
+- Solution: added deterministic `hash` and `tail` split strategies to the supervised baseline, made hash the default, and added train/eval coverage counts to JSON/Markdown reports.
+- Why it matters: the first baseline used a deterministic holdout slice that produced perfect eval accuracy, so the report needs a less order-sensitive split and more coverage visibility before metrics are trusted.
+- Tests: added focused coverage for default hash split reporting, tail split comparison, and invalid split strategy rejection.
+- Verification: compile checks and `tests.test_supervised_baseline` passed; local hash-split baseline used 931 transition rows, split 745 train / 186 eval, and reported eval accuracy 0.6828 with eval negative log loss 1.2376.
+- Next step: add a scenario-aware evaluation command/report, then begin replacing the frequency baseline with a lightweight trainable policy.
+
 ## 2026-05-14 - Supervised Action Baseline
 - Request: continue after the no-op trainer accounting pass by adding the first lightweight supervised baseline.
 - Solution: added a deterministic supervised action-frequency baseline plus `user-test/run_supervised_baseline.py`, training by runtime mode and agent from the recipe's transition dataset.

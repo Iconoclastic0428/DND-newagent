@@ -186,10 +186,10 @@ The no-op trainer reads each objective dataset, counts observed records, compare
 To train the first lightweight supervised action-prediction baseline, run:
 
 ```powershell
-python user-test\run_supervised_baseline.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --output-dir runs\training-runs
+python user-test\run_supervised_baseline.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --output-dir runs\training-runs --split-strategy hash
 ```
 
-The baseline learns deterministic action frequencies by runtime mode and agent, then reports held-out accuracy and smoothed negative log loss.
+The baseline learns deterministic action frequencies by runtime mode and agent, then reports held-out accuracy, smoothed negative log loss, and train/eval coverage counts. The default hash split is deterministic and less order-sensitive than a tail split.
 
 ## 4. Open The Web UIs
 

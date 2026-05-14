@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import math
 from pathlib import Path
@@ -14,6 +15,7 @@ from training.training_recipe import TRAINING_RECIPE_SCHEMA_VERSION
 SUPERVISED_BASELINE_SCHEMA_VERSION = 'dnd-agents-supervised-baseline-v1'
 SUPERVISED_OBJECTIVE = 'supervised_action_prediction'
 CONTEXT_FIELDS = ('runtime_mode', 'agent_id')
+SPLIT_STRATEGIES = {'hash', 'tail'}
 
 
 class SupervisedBaselineError(RuntimeError):
@@ -28,6 +30,7 @@ def run_supervised_action_baseline(
     holdout_fraction: float = 0.2,
     smoothing_alpha: float = 1.0,
     max_records: int | None = None,
+    split_strategy: str = 'hash',
 ) -> dict[str, Any]:
     if not 0.0 <= holdout_fraction < 1.0:
         raise SupervisedBaselineError('holdout_fraction must be at least 0 and less than 1.')
@@ -35,6 +38,8 @@ def run_supervised_action_baseline(
         raise SupervisedBaselineError('smoothing_alpha must be greater than 0.')
     if max_records is not None and max_records <= 0:
         raise SupervisedBaselineError('max_records must be greater than 0 when provided.')
+    if split_strategy not in SPLIT_STRATEGIES:
+        raise SupervisedBaselineError(f'split_strategy must be one of: {", ".join(sorted(SPLIT_STRATEGIES))}.')
 
     path = Path(recipe_path)
     recipe = _load_recipe(path)
@@ -54,7 +59,7 @@ def run_supervised_action_baseline(
         rows = rows[:max_records]
     if not rows:
         raise SupervisedBaselineError('Supervised dataset has no usable action rows.')
-    train_rows, eval_rows = _split_rows(rows, holdout_fraction=holdout_fraction)
+    train_rows, eval_rows = _split_rows(rows, holdout_fraction=holdout_fraction, strategy=split_strategy)
     if not train_rows:
         raise SupervisedBaselineError('Supervised baseline needs at least one training row.')
 
@@ -90,11 +95,13 @@ def run_supervised_action_baseline(
             'action_vocab_size': len(model['action_vocab']),
         },
         'split': {
+            'strategy': split_strategy,
             'holdout_fraction': holdout_fraction,
             'total_records': len(rows),
             'train_records': len(train_rows),
             'eval_records': len(eval_rows),
             'max_records': max_records,
+            'coverage': {'train': _split_counts(train_rows), 'eval': _split_counts(eval_rows)},
         },
         'metrics': {
             'train': train_metrics,
@@ -124,6 +131,7 @@ def render_supervised_baseline_markdown(report: dict[str, Any]) -> str:
         '',
         '## Split',
         '',
+        f'Strategy: {_markdown_text(split.get("strategy") or "unknown")}',
         f'Total records: {_format_int(split.get("total_records"))}',
         f'Train records: {_format_int(split.get("train_records"))}',
         f'Eval records: {_format_int(split.get("eval_records"))}',
@@ -136,6 +144,15 @@ def render_supervised_baseline_markdown(report: dict[str, Any]) -> str:
         f'| eval | {_format_int(eval_metrics.get("record_count"))} | {_format_float(eval_metrics.get("accuracy"))} | {_format_float(eval_metrics.get("negative_log_likelihood"))} |',
         '',
     ]
+    coverage = split.get('coverage') if isinstance(split.get('coverage'), dict) else {}
+    if coverage:
+        lines.extend([
+            '## Coverage',
+            '',
+            f'Train: {_coverage_summary(coverage.get("train"))}',
+            f'Eval: {_coverage_summary(coverage.get("eval"))}',
+            '',
+        ])
     return '\n'.join(lines)
 
 
@@ -178,13 +195,26 @@ def _load_transition_rows(path: Path) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: str(row.get('sample_id') or ''))
 
 
-def _split_rows(rows: list[dict[str, Any]], *, holdout_fraction: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _split_rows(rows: list[dict[str, Any]], *, holdout_fraction: float, strategy: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if len(rows) < 2 or holdout_fraction == 0:
         return rows, []
     eval_count = max(1, int(round(len(rows) * holdout_fraction)))
     eval_count = min(eval_count, len(rows) - 1)
+    if strategy == 'hash':
+        ranked = sorted(rows, key=lambda row: (_stable_split_score(row), str(row.get('sample_id') or '')))
+        eval_ids = {id(row) for row in ranked[:eval_count]}
+        train_rows = [row for row in rows if id(row) not in eval_ids]
+        eval_rows = [row for row in rows if id(row) in eval_ids]
+        return train_rows, eval_rows
+    if strategy != 'tail':
+        raise SupervisedBaselineError(f'Unsupported split strategy: {strategy!r}.')
     split_at = len(rows) - eval_count
     return rows[:split_at], rows[split_at:]
+
+
+def _stable_split_score(row: dict[str, Any]) -> str:
+    key = str(row.get('sample_id') or json.dumps(row, ensure_ascii=False, sort_keys=True))
+    return sha256(key.encode('utf-8')).hexdigest()
 
 
 def _fit_frequency_model(rows: list[dict[str, Any]], *, smoothing_alpha: float) -> dict[str, Any]:
@@ -302,6 +332,39 @@ def _baseline_checks(
     else:
         checks.append({'status': 'warn', 'message': 'Evaluation accuracy was not computed.'})
     return checks
+
+
+def _split_counts(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    return {
+        'scenario_counts': _counter_dict(row.get('scenario_id') for row in rows),
+        'runtime_mode_counts': _counter_dict(row.get('runtime_mode') for row in rows),
+        'source_counts': _counter_dict(row.get('source') for row in rows),
+        'agent_counts': _counter_dict(row.get('agent_id') for row in rows),
+    }
+
+
+def _counter_dict(values: Iterable[Any]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for value in values:
+        if value is None:
+            continue
+        counts[str(value)] += 1
+    return dict(sorted(counts.items()))
+
+
+def _coverage_summary(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return 'n/a'
+    parts: list[str] = []
+    for label in ('scenario_counts', 'runtime_mode_counts', 'source_counts', 'agent_counts'):
+        counts = value.get(label)
+        if isinstance(counts, dict) and counts:
+            parts.append(f'{label}: {_compact_counts(counts)}')
+    return '; '.join(parts) if parts else 'n/a'
+
+
+def _compact_counts(counts: dict[str, Any]) -> str:
+    return ', '.join(f'{key}={counts[key]}' for key in sorted(counts))
 
 
 def _safe_token(value: str) -> str:

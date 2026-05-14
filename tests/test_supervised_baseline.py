@@ -42,6 +42,10 @@ class SupervisedBaselineTests(unittest.TestCase):
         self.assertEqual(report['split']['total_records'], 8)
         self.assertEqual(report['split']['train_records'], 6)
         self.assertEqual(report['split']['eval_records'], 2)
+        self.assertEqual(report['split']['strategy'], 'hash')
+        self.assertIn('runtime_mode_counts', report['split']['coverage']['train'])
+        self.assertIn('runtime_mode_counts', report['split']['coverage']['eval'])
+        self.assertGreaterEqual(len(report['split']['coverage']['eval']['runtime_mode_counts']), 1)
         self.assertEqual(report['metrics']['train']['record_count'], 6)
         self.assertEqual(report['metrics']['eval']['record_count'], 2)
         self.assertIsInstance(report['metrics']['eval']['accuracy'], float)
@@ -67,6 +71,20 @@ class SupervisedBaselineTests(unittest.TestCase):
         self.assertEqual(report['split']['train_records'], 3)
         self.assertEqual(report['split']['eval_records'], 1)
 
+    def test_supervised_baseline_supports_tail_split_for_comparison(self) -> None:
+        recipe_path = self._write_recipe()
+
+        report = run_supervised_action_baseline(
+            recipe_path,
+            output_dir=self._tempdir / 'runs',
+            holdout_fraction=0.25,
+            split_strategy='tail',
+        )
+
+        self.assertEqual(report['split']['strategy'], 'tail')
+        self.assertEqual(report['split']['train_records'], 6)
+        self.assertEqual(report['split']['eval_records'], 2)
+
     def test_supervised_baseline_rejects_recipe_without_supervised_objective(self) -> None:
         recipe_path = self._write_recipe(include_supervised=False)
 
@@ -81,6 +99,16 @@ class SupervisedBaselineTests(unittest.TestCase):
                 recipe_path,
                 output_dir=self._tempdir / 'runs',
                 holdout_fraction=1.0,
+            )
+
+    def test_supervised_baseline_rejects_invalid_split_strategy(self) -> None:
+        recipe_path = self._write_recipe()
+
+        with self.assertRaises(SupervisedBaselineError):
+            run_supervised_action_baseline(
+                recipe_path,
+                output_dir=self._tempdir / 'runs',
+                split_strategy='middle',
             )
 
     def _write_recipe(self, *, include_supervised: bool = True) -> Path:

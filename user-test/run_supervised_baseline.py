@@ -20,6 +20,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--holdout-fraction', type=float, default=0.2, help='Fraction of rows held out for evaluation.')
     parser.add_argument('--smoothing-alpha', type=float, default=1.0, help='Additive smoothing for negative log loss.')
     parser.add_argument('--max-records', type=int, help='Optional cap on transition rows used by the baseline.')
+    parser.add_argument(
+        '--split-strategy',
+        choices=('hash', 'tail'),
+        default='hash',
+        help='Deterministic train/eval split strategy.',
+    )
     return parser.parse_args()
 
 
@@ -33,6 +39,7 @@ def main() -> int:
             holdout_fraction=args.holdout_fraction,
             smoothing_alpha=args.smoothing_alpha,
             max_records=args.max_records,
+            split_strategy=args.split_strategy,
         )
     except SupervisedBaselineError as exc:
         print(str(exc), file=sys.stderr)
