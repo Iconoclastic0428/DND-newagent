@@ -160,6 +160,25 @@ class CommandHeadPolicyTests(unittest.TestCase):
         self.assertIn('command_available_family=/dodge', features)
         self.assertIn('command_available_group=attacks', features)
 
+    def test_command_features_include_argument_choice_signals(self) -> None:
+        row = self._transition_row('arg-features', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 sword goblin-2', scene='ambush')
+        row['available_actions'] = [
+            {'group_id': 'attacks', 'option_id': 'dagger-melee-dex', 'label': 'Dagger Melee DEX'},
+            {'command': '/attack player-1 dagger-melee-dex monster-goblin-1', 'label': 'Attack Goblin'},
+        ]
+        row['observation']['summary_lines'].extend([
+            'monster-goblin-1: Goblin Ambusher 1 [monster] Pos (4,10,10); Status active',
+            'player-1: Player 1 [player] HP 10/10; Status active',
+        ])
+        row['state_before']['active_actor_side'] = 'player'
+
+        features = _command_features(row)
+
+        self.assertIn('command_attack_option=dagger-melee-dex', features)
+        self.assertIn('command_candidate_arg_2=dagger-melee-dex', features)
+        self.assertIn('command_candidate_target=monster-goblin-1', features)
+
+
     def _write_recipe(self) -> Path:
         transition_path = self._tempdir / 'combined_training_transitions.jsonl'
         rows = [

@@ -133,7 +133,7 @@ def run_command_head_policy_preflight(
         },
         'model': {
             'kind': 'multi_head_command_policy',
-            'feature_template': 'state_summary_sparse_features_v2_available_choice_family_features',
+            'feature_template': 'state_summary_sparse_features_v2_combat_argument_choice_features',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'heads': _head_summary(model),
@@ -352,10 +352,13 @@ def _command_features(row: dict[str, Any]) -> Counter[str]:
         label = _normalized_option(action.get('label') if isinstance(action, dict) else None)
         if group_id:
             features[f'command_available_group={group_id}'] += 1.0
+        _add_available_option_features(features, group_id=group_id, option_id=option_id, label=label)
         for family in _inferred_command_families(group_id=group_id, option_id=option_id, label=label):
             features[f'command_available_family={family}'] += 1.0
             if group_id:
                 features[f'command_available_family_group={group_id}:{family}'] += 1.0
+    _add_literal_command_candidate_features(features, row)
+    _add_visible_combat_actor_features(features, row)
     return features
 
 
@@ -381,6 +384,67 @@ def _inferred_command_families(*, group_id: str, option_id: str, label: str) -> 
         families.add('/attack')
     return sorted(families)
 
+
+def _add_available_option_features(features: Counter[str], *, group_id: str, option_id: str, label: str) -> None:
+    if option_id:
+        if group_id:
+            features[f'command_available_option={group_id}:{option_id}'] += 1.0
+        else:
+            features[f'command_available_option={option_id}'] += 1.0
+    if label and group_id:
+        features[f'command_available_label={group_id}:{label}'] += 1.0
+    if group_id == 'attacks':
+        if option_id:
+            features[f'command_attack_option={option_id}'] += 1.0
+        if label:
+            features[f'command_attack_label={label}'] += 1.0
+
+
+def _add_literal_command_candidate_features(features: Counter[str], row: dict[str, Any]) -> None:
+    for parts in _available_literal_command_parts(row):
+        if not parts:
+            continue
+        features[f'command_candidate_family={parts[0]}'] += 1.0
+        for index, value in enumerate(parts[1:5], start=1):
+            features[f'command_candidate_arg_{index}={value}'] += 1.0
+            features[f'command_candidate_family_arg_{index}={parts[0]}:{value}'] += 1.0
+
+
+def _available_literal_command_parts(row: dict[str, Any]) -> list[list[str]]:
+    parts_rows: list[list[str]] = []
+    for action in _available_action_items(row):
+        parts = _action_parts(_available_action_command(action))
+        if parts and parts[0].startswith('/'):
+            parts_rows.append(parts)
+    return parts_rows
+
+
+def _add_visible_combat_actor_features(features: Counter[str], row: dict[str, Any]) -> None:
+    state = row.get('state_before') if isinstance(row.get('state_before'), dict) else {}
+    active_side = str(state.get('active_actor_side') or '').strip().lower()
+    for actor_id in _visible_combat_actor_ids(row):
+        features[f'command_visible_actor={actor_id}'] += 1.0
+        if actor_id.startswith('monster-'):
+            features['command_visible_actor_side=monster'] += 1.0
+            if active_side == 'player':
+                features[f'command_candidate_target={actor_id}'] += 1.0
+        elif actor_id.startswith('player-'):
+            features['command_visible_actor_side=player'] += 1.0
+            if active_side == 'monster':
+                features[f'command_candidate_target={actor_id}'] += 1.0
+
+
+def _visible_combat_actor_ids(row: dict[str, Any]) -> list[str]:
+    observation = row.get('observation') if isinstance(row.get('observation'), dict) else {}
+    summary_lines = observation.get('summary_lines') if isinstance(observation.get('summary_lines'), list) else []
+    actor_ids: set[str] = set()
+    for line in summary_lines:
+        if not isinstance(line, str) or ':' not in line:
+            continue
+        actor_id = line.split(':', 1)[0].strip().lower()
+        if actor_id.startswith(('player-', 'monster-')) and ' ' not in actor_id:
+            actor_ids.add(actor_id)
+    return sorted(actor_ids)
 
 def _normalized_option(value: Any) -> str:
     if not isinstance(value, str):

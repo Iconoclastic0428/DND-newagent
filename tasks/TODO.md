@@ -1,3 +1,31 @@
+## 2026-05-14 - Combat Argument Choice Features
+
+### Scope
+- Add non-leaky command-argument features from attack option ids and labels.
+- Add literal slash-command candidate argument features when full commands are available.
+- Add visible combat actor and target-candidate features from observation summaries.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect current command feature helpers and combat row shape.
+- [x] Add attack-option argument features.
+- [x] Add literal command candidate argument features.
+- [x] Add visible combat actor target features.
+- [x] Add focused tests for argument choice features.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: argument choice features kept overall exact eval at 0.6935 vs. the 0.6828 frequency baseline. `command_arg_2` stayed at 0.0714, while target-slot `command_arg_3` improved from 0.0400 to 0.0800 overall and in `lmop_first_combat`.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T162824Z-01c73d15\command_head_policy_report.json`
+
 ## 2026-05-14 - Combat Choice Family Features
 
 ### Scope

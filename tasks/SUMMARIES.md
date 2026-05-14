@@ -1,3 +1,11 @@
+## 2026-05-14 - Combat Argument Choice Features
+- Request: continue from combat choice-family features by improving weak weapon and target argument heads.
+- Solution: added attack-option, literal command candidate, visible actor, and target-candidate sparse features for combat argument heads.
+- Why it matters: `command_arg_2` and `command_arg_3` need non-leaky signals for visible weapons, literal command candidates, and targetable combat actors.
+- Tests: added focused coverage for attack option ids, literal candidate arguments, and visible target candidates.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight held exact eval at 0.6935 and improved target-slot `arg_3` accuracy from 0.0400 to 0.0800.
+- Next step: add a clearer candidate-aware argument decoding/reporting pass, because exact action accuracy is now steady while component targets are improving slowly.
+
 ## 2026-05-14 - Combat Choice Family Features
 - Request: continue after combat command-family constraints by adding richer combat-state and available-action features.
 - Solution: added command-specific combat features that infer available command families from UI option groups, option ids, labels, and attack choice groups.
