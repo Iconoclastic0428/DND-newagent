@@ -7,6 +7,7 @@ from typing import Any, Iterable
 from uuid import uuid4
 
 from training.dataset_manifest import write_dataset_manifest
+from training.dataset_quality import validate_preference_dataset, validate_transition_dataset, write_dataset_quality_report
 
 
 def collect_training_datasets(
@@ -49,9 +50,14 @@ def collect_training_datasets(
             filters={'source_dataset_type': 'training_transitions'},
             context=_collection_context(collection_id=collection_id, source_summary=source_summary),
         )
+        transition_quality_path = output_path / 'combined_training_transitions.quality.json'
+        transition_quality = validate_transition_dataset(transition_path)
+        write_dataset_quality_report(transition_quality, transition_quality_path)
         report.update({
             'transition_path': str(transition_path),
             'transition_manifest_path': str(transition_manifest_path),
+            'transition_quality_path': str(transition_quality_path),
+            'transition_quality_status': transition_quality['status'],
             'transition_count': transition_count,
             'transition_source_count': len(transition_sources),
         })
@@ -67,9 +73,14 @@ def collect_training_datasets(
             filters={'source_dataset_type': 'preference_pairs'},
             context=_collection_context(collection_id=collection_id, source_summary=source_summary),
         )
+        preference_quality_path = output_path / 'combined_preference_pairs.quality.json'
+        preference_quality = validate_preference_dataset(preference_path)
+        write_dataset_quality_report(preference_quality, preference_quality_path)
         report.update({
             'preference_path': str(preference_path),
             'preference_manifest_path': str(preference_manifest_path),
+            'preference_quality_path': str(preference_quality_path),
+            'preference_quality_status': preference_quality['status'],
             'preference_pair_count': preference_count,
             'preference_source_count': len(preference_sources),
         })

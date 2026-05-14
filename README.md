@@ -142,6 +142,14 @@ python user-test\collect_training_datasets.py --input runs\benchmarks --output-d
 
 The collector writes `combined_training_transitions.jsonl`, `combined_preference_pairs.jsonl`, their manifests, and `dataset_collection_report.json`.
 
+The collector also writes quality reports for the combined datasets. You can validate any dataset manually with:
+
+```powershell
+python user-test\validate_training_dataset.py --transitions runs\datasets\latest\combined_training_transitions.jsonl --preferences runs\datasets\latest\combined_preference_pairs.jsonl
+```
+
+Quality checks flag empty datasets, invalid JSONL, duplicate ids, missing reward fields, missing prompts/actions, and heavily imbalanced source or actor distributions.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

@@ -28,11 +28,11 @@ class DatasetCollectionTests(unittest.TestCase):
             policy='scripted',
             seed=1,
             transition_rows=[
-                {'sample_id': 'episode-1:1', 'reward': 0.1},
-                {'sample_id': 'episode-1:2', 'reward': 0.2},
+                self._transition_row('episode-1:1', reward=0.1),
+                self._transition_row('episode-1:2', reward=0.2),
             ],
             preference_rows=[
-                {'pair_id': 'pair-1', 'chosen': '/attack', 'rejected': '/wait'},
+                self._preference_row('pair-1'),
             ],
         )
         batch_two = self._write_batch(
@@ -41,7 +41,7 @@ class DatasetCollectionTests(unittest.TestCase):
             policy='random-legal',
             seed=2,
             transition_rows=[
-                {'sample_id': 'episode-2:1', 'reward': -0.1},
+                self._transition_row('episode-2:1', reward=-0.1),
             ],
             preference_rows=[],
         )
@@ -78,6 +78,10 @@ class DatasetCollectionTests(unittest.TestCase):
         self.assertEqual(transition_manifest['context']['source_batch_count'], 2)
         self.assertEqual(transition_manifest['context']['policies'], ['scripted', 'random-legal'])
         self.assertEqual(transition_manifest['context']['baseline_seeds'], [1, 2])
+        self.assertEqual(report['transition_quality_status'], 'pass')
+        self.assertEqual(report['preference_quality_status'], 'pass')
+        self.assertTrue(Path(report['transition_quality_path']).exists())
+        self.assertTrue(Path(report['preference_quality_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
 
     def test_collect_training_datasets_can_start_from_benchmark_report_file(self) -> None:
@@ -87,7 +91,7 @@ class DatasetCollectionTests(unittest.TestCase):
             batch_id='batch-three',
             policy='scripted',
             seed=3,
-            transition_rows=[{'sample_id': 'episode-3:1', 'reward': 1.0}],
+            transition_rows=[self._transition_row('episode-3:1', reward=1.0)],
             preference_rows=[],
         )
         benchmark_report_path = benchmark_dir / 'benchmark_report.json'
@@ -149,6 +153,34 @@ class DatasetCollectionTests(unittest.TestCase):
             ''.join(json.dumps(row, sort_keys=True) + '\n' for row in rows),
             encoding='utf-8',
         )
+
+    def _transition_row(self, sample_id: str, *, reward: float) -> dict:
+        return {
+            'sample_id': sample_id,
+            'agent_id': 'player-1-controller',
+            'source': 'baseline',
+            'runtime_mode': 'combat',
+            'action': '/endturn player-1',
+            'reward': reward,
+            'action_reward': reward,
+            'terminal_reward': 0.0,
+            'observation': {'summary_lines': ['test']},
+            'available_actions': [],
+            'reward_channels': {'validity': reward},
+        }
+
+    def _preference_row(self, pair_id: str) -> dict:
+        return {
+            'pair_id': pair_id,
+            'prompt': 'Choose a useful action.',
+            'chosen': '/attack',
+            'rejected': '/wait',
+            'chosen_reward': 0.2,
+            'rejected_reward': 0.0,
+            'reward_gap': 0.2,
+            'chosen_metadata': {'reward_channels': {'offense': 0.2}},
+            'rejected_metadata': {'reward_channels': {'validity': 0.0}},
+        }
 
 
 if __name__ == '__main__':
