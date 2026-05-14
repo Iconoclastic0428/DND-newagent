@@ -133,7 +133,7 @@ def run_command_head_policy_preflight(
         },
         'model': {
             'kind': 'multi_head_command_policy',
-            'feature_template': 'state_summary_sparse_features_v2_available_action_constrained_args',
+            'feature_template': 'state_summary_sparse_features_v2_available_action_constrained_family_args',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'heads': _head_summary(model),
@@ -292,7 +292,7 @@ def _train_head(
 
 def _predict_command(row: dict[str, Any], model: dict[str, Any]) -> str:
     features = _features(row)
-    family = _predict_head(features, model['heads'].get('command_family'))
+    family = _predict_head(features, model['heads'].get('command_family'), candidate_labels=_available_command_families(row))
     if family is None:
         return ''
     if not family.startswith('/'):
@@ -340,6 +340,21 @@ def _predict_head(
 
 def _predict_label(features: Counter[str], weights: dict[str, Counter[str]], labels: list[str]) -> str:
     return sorted(labels, key=lambda label: (-_score(features, weights.get(label, Counter())), label))[0]
+
+
+def _available_command_families(row: dict[str, Any]) -> list[str]:
+    if str(row.get('runtime_mode') or '').strip().lower() != 'combat':
+        return []
+    available_actions = row.get('available_actions')
+    if not isinstance(available_actions, list):
+        return []
+    families: set[str] = set()
+    for action in available_actions:
+        parts = _action_parts(_available_action_command(action))
+        if not parts or not parts[0].startswith('/'):
+            continue
+        families.add(parts[0])
+    return sorted(families)
 
 
 def _available_command_parts(row: dict[str, Any], family: str) -> list[list[str]]:

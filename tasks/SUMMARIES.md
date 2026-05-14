@@ -1,3 +1,11 @@
+## 2026-05-14 - Combat Command Family Constraints
+- Request: continue after candidate-constrained command arguments by improving combat command-family selection.
+- Solution: constrained combat command-family decoding to the slash-command families available in the row, while preserving natural-action behavior for non-combat rows.
+- Why it matters: combat exact accuracy is capped when the family head chooses an unavailable or natural action before argument decoding gets a chance.
+- Tests: added focused coverage proving a high-scoring natural family cannot override a legal combat command family.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight stayed at 0.6882 overall vs. 0.6828 baseline, with combat exact still 0.3478.
+- Next step: add richer combat-state and available-action choice features for the family head, because simple legality constraints are not moving held-out combat accuracy.
+
 ## 2026-05-14 - Candidate-Constrained Command Arguments
 - Request: continue from the multi-head preflight by improving weak command argument heads.
 - Solution: constrained slash-command argument decoding to arguments from the row's available commands for the predicted command family, with fallback to unconstrained heads when candidates are absent.

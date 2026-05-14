@@ -1,3 +1,30 @@
+## 2026-05-14 - Combat Command Family Constraints
+
+### Scope
+- Constrain combat command-family decoding to locally available slash-command families when possible.
+- Keep natural-action family behavior for non-combat rows.
+- Document the command-family constraint in the training workflow.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect command-family and available-command prediction helpers.
+- [x] Add available command-family candidate extraction.
+- [x] Constrain combat command-family decoding before argument decoding.
+- [x] Add focused tests for combat family constraints.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: combat command-family constraints kept the aggregate result unchanged at 0.6882 exact eval vs. the 0.6828 frequency baseline. Combat runtime exact accuracy remained 0.3478, so the constraint is a legality guardrail rather than the missing combat signal.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T160720Z-459207b6\command_head_policy_report.json`
+
 ## 2026-05-14 - Candidate-Constrained Command Arguments
 
 ### Scope

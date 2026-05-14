@@ -72,6 +72,46 @@ class CommandHeadPolicyTests(unittest.TestCase):
                 output_dir=self._tempdir / 'runs',
             )
 
+    def test_combat_command_family_is_constrained_to_available_commands(self) -> None:
+        model = {
+            'heads': {
+                'command_family': {
+                    'labels': ['/attack', 'natural:ask'],
+                    'weights': {
+                        '/attack': Counter({'bias': 1.0}),
+                        'natural:ask': Counter({'bias': 5.0}),
+                    },
+                },
+                'command_arg_count': {
+                    'labels': ['3'],
+                    'weights': {'3': Counter({'bias': 1.0})},
+                },
+                'command_arg_1': {
+                    'labels': ['player-1'],
+                    'weights': {'player-1': Counter({'bias': 1.0})},
+                },
+                'command_arg_2': {
+                    'labels': ['sword'],
+                    'weights': {'sword': Counter({'bias': 1.0})},
+                },
+                'command_arg_3': {
+                    'labels': ['goblin-2'],
+                    'weights': {'goblin-2': Counter({'bias': 1.0})},
+                },
+                'natural_action': {
+                    'labels': ['Ask about the road.'],
+                    'weights': {'Ask about the road.': Counter({'bias': 1.0})},
+                },
+            },
+        }
+        row = self._transition_row('family-candidate', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 sword goblin-2', scene='ambush')
+        row['available_actions'] = [
+            {'command': '/attack player-1 sword goblin-2', 'label': 'Attack Goblin Two'},
+            {'command': '/dodge player-1', 'label': 'Dodge'},
+        ]
+
+        self.assertEqual(_predict_command(row, model), '/attack player-1 sword goblin-2')
+
     def test_command_arguments_are_constrained_to_available_commands(self) -> None:
         model = {
             'heads': {
