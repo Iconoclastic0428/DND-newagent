@@ -183,6 +183,14 @@ python user-test\run_training_noop.py --recipe runs\training-recipes\<recipe-id>
 
 The no-op trainer reads each objective dataset, counts observed records, compares them with the recipe plan, and writes a dry-run training report without updating a model.
 
+To train the first lightweight supervised action-prediction baseline, run:
+
+```powershell
+python user-test\run_supervised_baseline.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --output-dir runs\training-runs
+```
+
+The baseline learns deterministic action frequencies by runtime mode and agent, then reports held-out accuracy and smoothed negative log loss.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

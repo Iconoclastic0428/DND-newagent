@@ -1,3 +1,30 @@
+## 2026-05-14 - Supervised Action Baseline
+
+### Scope
+- Add a lightweight supervised baseline trainer for the `supervised_action_prediction` objective.
+- Use the recipe's transition dataset and avoid external ML dependencies.
+- Emit model, JSON report, Markdown report, accuracy, and smoothed loss artifacts.
+- Keep generated baseline run outputs out of git.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect the no-op trainer and recipe objective shape.
+- [x] Add a supervised action-frequency baseline module.
+- [x] Add a CLI wrapper under `user-test`.
+- [x] Add focused tests for metric generation and missing-objective handling.
+- [x] Run the baseline against the latest local recipe.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- `python -m py_compile training\supervised_baseline.py user-test\run_supervised_baseline.py tests\test_supervised_baseline.py`
+- `python -m unittest tests.test_supervised_baseline -v`
+- `python user-test\run_supervised_baseline.py --recipe <latest training_recipe.json> --output-dir runs\training-runs`
+- `git diff --check -- README.md training\supervised_baseline.py user-test\run_supervised_baseline.py tests\test_supervised_baseline.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Pending implementation.
+
 ## 2026-05-14 - No-Op Trainer Accounting Pass
 
 ### Scope

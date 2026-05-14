@@ -1,3 +1,11 @@
+## 2026-05-14 - Supervised Action Baseline
+- Request: continue after the no-op trainer accounting pass by adding the first lightweight supervised baseline.
+- Solution: added a deterministic supervised action-frequency baseline plus `user-test/run_supervised_baseline.py`, training by runtime mode and agent from the recipe's transition dataset.
+- Why it matters: no-op accounting proves orchestration, but the next step needs a real metric-producing baseline before heavier model training is introduced.
+- Tests: added focused coverage for metric/model artifact generation, row caps, missing supervised objective handling, and invalid holdout rejection.
+- Verification: compile checks and `tests.test_supervised_baseline` passed; local baseline run used 931 transition rows, split 745 train / 186 eval, and reported eval accuracy 1.0 with eval negative log loss 0.5135.
+- Next step: add a less leak-prone evaluation split or scenario-aware evaluation report, then begin replacing the frequency baseline with a lightweight trainable policy.
+
 ## 2026-05-14 - No-Op Trainer Accounting Pass
 - Request: continue after the training recipe planner by adding the first trainer backend shim.
 - Solution: added a no-op trainer accounting backend plus `user-test/run_training_noop.py`, reading `training_recipe.json` and writing JSON/Markdown run reports without model updates.
