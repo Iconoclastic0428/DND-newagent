@@ -11,6 +11,7 @@ from training.command_head_policy import (
     COMMAND_HEAD_POLICY_SCHEMA_VERSION,
     CommandHeadPolicyError,
     _predict_command,
+    _command_features,
     render_command_head_policy_markdown,
     run_command_head_policy_preflight,
 )
@@ -144,6 +145,20 @@ class CommandHeadPolicyTests(unittest.TestCase):
         ]
 
         self.assertEqual(_predict_command(row, model), '/attack player-1 sword goblin-2')
+
+    def test_command_features_include_available_option_families(self) -> None:
+        row = self._transition_row('features', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 sword goblin-2', scene='ambush')
+        row['available_actions'] = [
+            {'group_id': 'actions', 'option_id': 'attack', 'label': 'Attack'},
+            {'group_id': 'actions', 'option_id': 'dodge', 'label': 'Dodge'},
+            {'group_id': 'attacks', 'option_id': 'sword', 'label': 'Longsword'},
+        ]
+
+        features = _command_features(row)
+
+        self.assertIn('command_available_family=/attack', features)
+        self.assertIn('command_available_family=/dodge', features)
+        self.assertIn('command_available_group=attacks', features)
 
     def _write_recipe(self) -> Path:
         transition_path = self._tempdir / 'combined_training_transitions.jsonl'

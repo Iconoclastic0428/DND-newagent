@@ -1,3 +1,30 @@
+## 2026-05-14 - Combat Choice Family Features
+
+### Scope
+- Add non-leaky combat command-family features from available action option groups and ids.
+- Infer command-family availability from UI option ids such as `attack`, `dodge`, and attack choice groups.
+- Keep the trainer dependency-free and MosaicML-shaped.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect combat dataset available-action shape.
+- [x] Add command-specific feature augmentation.
+- [x] Add option-id to command-family inference.
+- [x] Add focused tests for inferred available-family features.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: available-choice family features improved overall exact eval from 0.6882 to 0.6935, doubling the margin over the frequency baseline to +0.0108. `lmop_first_combat` exact accuracy improved from 0.3012 to 0.3133, while the broader combat runtime bucket stayed at 0.3478.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T161705Z-1f699892\command_head_policy_report.json`
+
 ## 2026-05-14 - Combat Command Family Constraints
 
 ### Scope

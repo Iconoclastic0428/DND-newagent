@@ -133,7 +133,7 @@ def run_command_head_policy_preflight(
         },
         'model': {
             'kind': 'multi_head_command_policy',
-            'feature_template': 'state_summary_sparse_features_v2_available_action_constrained_family_args',
+            'feature_template': 'state_summary_sparse_features_v2_available_choice_family_features',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'heads': _head_summary(model),
@@ -274,7 +274,7 @@ def _train_head(
     feature_vocab: Counter[str] = Counter()
     for epoch in range(epochs):
         for row, expected in sorted(labeled_rows, key=lambda item: (str(item[0].get('sample_id') or ''), epoch)):
-            features = _features(row)
+            features = _command_features(row)
             feature_vocab.update(features)
             predicted = _predict_label(features, weights, labels)
             if predicted == expected:
@@ -291,7 +291,7 @@ def _train_head(
 
 
 def _predict_command(row: dict[str, Any], model: dict[str, Any]) -> str:
-    features = _features(row)
+    features = _command_features(row)
     family = _predict_head(features, model['heads'].get('command_family'), candidate_labels=_available_command_families(row))
     if family is None:
         return ''
@@ -340,6 +340,52 @@ def _predict_head(
 
 def _predict_label(features: Counter[str], weights: dict[str, Counter[str]], labels: list[str]) -> str:
     return sorted(labels, key=lambda label: (-_score(features, weights.get(label, Counter())), label))[0]
+
+
+def _command_features(row: dict[str, Any]) -> Counter[str]:
+    features = _features(row)
+    if str(row.get('runtime_mode') or '').strip().lower() != 'combat':
+        return features
+    for action in _available_action_items(row):
+        group_id = _normalized_option(action.get('group_id') if isinstance(action, dict) else None)
+        option_id = _normalized_option(action.get('option_id') if isinstance(action, dict) else None)
+        label = _normalized_option(action.get('label') if isinstance(action, dict) else None)
+        if group_id:
+            features[f'command_available_group={group_id}'] += 1.0
+        for family in _inferred_command_families(group_id=group_id, option_id=option_id, label=label):
+            features[f'command_available_family={family}'] += 1.0
+            if group_id:
+                features[f'command_available_family_group={group_id}:{family}'] += 1.0
+    return features
+
+
+def _available_action_items(row: dict[str, Any]) -> list[Any]:
+    items: list[Any] = []
+    available_actions = row.get('available_actions')
+    if isinstance(available_actions, list):
+        items.extend(available_actions[:80])
+    observation = row.get('observation') if isinstance(row.get('observation'), dict) else {}
+    choices = observation.get('available_choices') if isinstance(observation.get('available_choices'), dict) else {}
+    for choice_rows in choices.values():
+        if isinstance(choice_rows, list):
+            items.extend(choice_rows[:80])
+    return items
+
+
+def _inferred_command_families(*, group_id: str, option_id: str, label: str) -> list[str]:
+    families: set[str] = set()
+    for value in (option_id, label):
+        if value in ACTION_OPTION_FAMILIES:
+            families.add(ACTION_OPTION_FAMILIES[value])
+    if group_id == 'attacks':
+        families.add('/attack')
+    return sorted(families)
+
+
+def _normalized_option(value: Any) -> str:
+    if not isinstance(value, str):
+        return ''
+    return value.strip().lower().replace(' ', '-')
 
 
 def _available_command_families(row: dict[str, Any]) -> list[str]:
@@ -522,6 +568,24 @@ def _group_label(value: Any) -> str:
 def _safe_token(value: str) -> str:
     token = ''.join(character if character.isalnum() or character in ('-', '_') else '-' for character in value.strip())
     return token.strip('-') or 'mosaicml-command-head-policy'
+
+
+ACTION_OPTION_FAMILIES = {
+    'attack': '/attack',
+    'dash': '/dash',
+    'disengage': '/disengage',
+    'dodge': '/dodge',
+    'end-turn': '/endturn',
+    'endturn': '/endturn',
+    'grapple': '/grapple',
+    'help': '/help',
+    'hide': '/hide',
+    'ready': '/ready',
+    'search': '/search',
+    'shove': '/shove',
+    'study': '/study',
+    'utilize': '/utilize',
+}
 
 
 def _format_int(value: Any) -> str:

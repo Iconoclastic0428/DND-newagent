@@ -1,3 +1,11 @@
+## 2026-05-14 - Combat Choice Family Features
+- Request: continue after combat command-family constraints by adding richer combat-state and available-action features.
+- Solution: added command-specific combat features that infer available command families from UI option groups, option ids, labels, and attack choice groups.
+- Why it matters: real dataset rows expose UI option ids and groups more often than literal slash commands, so the family head needs features that understand those choices.
+- Tests: added focused coverage for inferred `/attack` and `/dodge` family features from available option rows.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight improved exact eval to 0.6935 vs. 0.6828 baseline and improved `lmop_first_combat` exact accuracy to 0.3133.
+- Next step: add candidate/choice features for command arguments, especially weapon and target slots, before mapping the trainer onto MosaicML.
+
 ## 2026-05-14 - Combat Command Family Constraints
 - Request: continue after candidate-constrained command arguments by improving combat command-family selection.
 - Solution: constrained combat command-family decoding to the slash-command families available in the row, while preserving natural-action behavior for non-combat rows.
