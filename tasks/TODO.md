@@ -1,3 +1,32 @@
+## 2026-05-14 - Legal Attack Probe Dataset
+
+### Scope
+- Add a focused scenario that produces valid `/attack` transition rows without changing the existing random-legal benchmark.
+- Keep the attack command snapshot-backed and executable through the normal session/trajectory pipeline.
+- Add campaign-root support so tests and probe runs can use sanitized campaign copies while local campaign notes are dirty.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/tests/task notes for this move.
+
+### Steps
+- [x] Try a live `legal-attack` policy and reject it after movement/pathfinding proved too slow and brittle.
+- [x] Add `campaign_root` plumbing to the batch runner and CLI.
+- [x] Add `lmop_legal_attack_probe` as a controlled attack-data scenario.
+- [x] Add a regression test proving the probe emits valid attack rows with no baseline errors.
+- [x] Re-run random-legal regression tests.
+- [x] Run a direct probe batch and inspect attack/error counts.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile user-test\run_training_batch.py tests\test_training_batch.py`
+- [x] `python -m unittest tests.test_training_batch.TrainingBatchTests.test_legal_attack_probe_batch_adds_valid_attack_rows tests.test_training_batch.TrainingBatchTests.test_random_legal_combat_commands_use_available_attack_choices tests.test_training_batch.TrainingBatchTests.test_random_legal_first_combat_batch_uses_baseline_actions -v`
+- [x] direct `run_batch(... scenario_id='lmop_legal_attack_probe', campaign_root=<sanitized copy>)` probe
+- [x] `git diff --check -- user-test/run_training_batch.py tests/test_training_batch.py tasks/TODO.md tasks/SUMMARIES.md`
+
+### Review
+- Result: the legal-attack probe produced 81 transition rows, 0 errors, and 1 valid `/attack player-1 dagger-melee-dex monster-goblin-1` row in `C:\tmp\legal-attack-probe-final\batch\lmop_legal_attack_probe-batch-20260514T221637Z-04149502\training_transitions.jsonl`.
+- Note: tests use a sanitized temp campaign copy because local dirty campaign summaries currently include Markdown without front matter.
+- Next: collect this probe into the combined training dataset and rerun supervised/command-head preflights to confirm `/attack` labels appear before MosaicML training.
+
 ## 2026-05-14 - Snapshot-Constrained Random-Legal Attacks
 
 ### Scope

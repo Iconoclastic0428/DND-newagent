@@ -21,6 +21,7 @@ from dm_agent.client import LLMClient
 from dm_agent.config import load_llm_config
 from session_server.llm_player import LLMPlayerAgent
 from shared_types.encounter_models import ActorSide, EncounterPhase
+from shared_types.encounter_models import GridPosition
 from shared_types.storytelling import RuntimeMode
 from story_demo_system_server import build_full_story_demo_manual_session
 from training.dataset_manifest import write_dataset_manifest
@@ -36,6 +37,7 @@ from web_story_demo_server import LocalDemoLLMTransport
 FIRST_COMBAT_SCRIPT = REPO_ROOT / 'user-test' / 'full-story-demo' / 'scripts' / 'lmop-friendly-live-web-run.json'
 SUPPORTED_SCENARIOS = {
     'lmop_first_combat',
+    'lmop_legal_attack_probe',
     'lmop_story_opening_choices',
 }
 PLAYER_CONTROLLER_IDS = (
@@ -123,6 +125,7 @@ def run_batch(
     llm_player_max_actions_per_pump: int = 1,
     baseline_seed: int = 0,
     character_load_path: str | Path | None = None,
+    campaign_root: str | Path | None = None,
 ) -> dict[str, Any]:
     if episodes <= 0:
         raise TrainingBatchError('episodes must be greater than 0.')
@@ -146,6 +149,7 @@ def run_batch(
                 policy=policy,
                 baseline_seed=baseline_seed + episode_index - 1,
                 character_load_path=character_load_path,
+                campaign_root=campaign_root,
                 llm_player_agents=_build_episode_llm_agents(
                     resolved_llm_specs,
                     llm_player_agent_factory=llm_player_agent_factory,
@@ -180,6 +184,7 @@ def run_batch(
         'llm_player_max_actions_per_pump': llm_player_max_actions_per_pump,
         'baseline_seed': baseline_seed,
         'character_load_path': str(character_load_path) if character_load_path is not None else None,
+        'campaign_root': str(campaign_root) if campaign_root is not None else None,
         'max_combat_turns': max_combat_turns,
         'output_dir': str(batch_dir),
         **summarize_batch(episode_summaries),
@@ -277,6 +282,7 @@ def run_training_episode(
     policy: str = 'scripted',
     baseline_seed: int = 0,
     character_load_path: str | Path | None = None,
+    campaign_root: str | Path | None = None,
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
     llm_player_max_actions_per_pump: int = 1,
 ) -> Path:
@@ -291,6 +297,7 @@ def run_training_episode(
             policy=policy,
             baseline_seed=baseline_seed,
             character_load_path=character_load_path,
+            campaign_root=campaign_root,
             llm_player_agents=llm_player_agents,
             llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
         )
@@ -302,6 +309,17 @@ def run_training_episode(
             env_path=env_path,
             base_url=base_url,
             character_load_path=character_load_path,
+            campaign_root=campaign_root,
+        )
+    if scenario_id == 'lmop_legal_attack_probe':
+        return run_legal_attack_probe_episode(
+            output_dir=output_dir,
+            episode_id=episode_id,
+            scenario_id=scenario_id,
+            env_path=env_path,
+            base_url=base_url,
+            character_load_path=character_load_path,
+            campaign_root=campaign_root,
         )
     raise TrainingBatchError(f'Unsupported scenario_id: {scenario_id!r}.')
 
@@ -317,6 +335,7 @@ def run_first_combat_episode(
     policy: str = 'scripted',
     baseline_seed: int = 0,
     character_load_path: str | Path | None = None,
+    campaign_root: str | Path | None = None,
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
     llm_player_max_actions_per_pump: int = 1,
 ) -> Path:
@@ -324,6 +343,7 @@ def run_first_combat_episode(
     recorder = TrajectoryRecorder(output_dir=output_dir, scenario_id=scenario_id, episode_id=episode_id)
     session = build_full_story_demo_manual_session(
         base_url=base_url,
+        campaign_root=campaign_root,
         env_path=env_path,
         client_transport=LocalDemoLLMTransport(),
         llm_player_agents=llm_player_agents,
@@ -360,10 +380,12 @@ def run_story_opening_choice_episode(
     env_path: str | Path,
     base_url: str | None,
     character_load_path: str | Path | None = None,
+    campaign_root: str | Path | None = None,
 ) -> Path:
     recorder = TrajectoryRecorder(output_dir=output_dir, scenario_id=scenario_id, episode_id=episode_id)
     session = build_full_story_demo_manual_session(
         base_url=base_url,
+        campaign_root=campaign_root,
         env_path=env_path,
         client_transport=LocalDemoLLMTransport(),
         character_load_path=character_load_path,
@@ -403,6 +425,95 @@ def run_story_opening_choice_episode(
         },
     )
     return recorder.path
+
+
+def run_legal_attack_probe_episode(
+    *,
+    output_dir: str | Path,
+    episode_id: str,
+    scenario_id: str,
+    env_path: str | Path,
+    base_url: str | None,
+    character_load_path: str | Path | None = None,
+    campaign_root: str | Path | None = None,
+) -> Path:
+    recorder = TrajectoryRecorder(output_dir=output_dir, scenario_id=scenario_id, episode_id=episode_id)
+    session = build_full_story_demo_manual_session(
+        base_url=base_url,
+        campaign_root=campaign_root,
+        env_path=env_path,
+        client_transport=LocalDemoLLMTransport(),
+        character_load_path=character_load_path,
+        trajectory_recorder=recorder,
+    )
+    _run_script_until_combat(session)
+    _advance_to_next_player_turn(session, max_turns=8)
+    assert session.story_session is not None
+    state = session.story_session.state
+    actor = state.actors[state.active_actor_id]
+    target = _first_living_enemy(state, actor)
+    actor.position = _adjacent_probe_position(state, target)
+    controller_id = session.story_session.encounter_session.control_runtime.controller_for_actor(actor.actor_id)
+    snapshot = session.story_session.encounter_session.command_interface.kernel.snapshot(state)
+    attack_ids = _available_choice_option_ids(snapshot.available_choices, 'attacks')
+    attacks = _available_attack_profiles(actor, available_attack_ids=attack_ids)
+    commands = _available_attack_commands(state, actor, available_attacks=attacks)
+    if not commands:
+        raise TrainingBatchError('Legal-attack probe could not build a valid attack command.')
+    _handle_baseline_input(session, controller_id, commands[0])
+    after = session._trajectory_snapshot(controller_id)
+    metadata = {
+        'success': True,
+        'reward_total': 0.0,
+        'result_summary': 'Generated a controlled legal attack training example.',
+        **after.get('state', {}),
+    }
+    recorder.record_event(
+        record_type='episode_completed',
+        source='system',
+        runtime_mode=RuntimeMode.COMBAT.value,
+        reward_components={},
+        metadata=metadata,
+    )
+    return recorder.path
+
+
+def _advance_to_next_player_turn(session, *, max_turns: int) -> None:
+    assert session.story_session is not None
+    for _index in range(max_turns):
+        state = session.story_session.state
+        active_actor_id = state.active_actor_id
+        if active_actor_id is None:
+            raise TrainingBatchError('Combat has no active actor.')
+        actor = state.actors[active_actor_id]
+        if actor.side == ActorSide.PLAYER:
+            return
+        session.handle_input('dm', f'/endturn {active_actor_id}')
+    raise TrainingBatchError('Legal-attack probe could not advance to a player turn.')
+
+
+def _first_living_enemy(state, actor):
+    enemies = [
+        candidate for candidate in state.actors.values()
+        if candidate.side != actor.side and candidate.current_hit_points > 0
+    ]
+    if not enemies:
+        raise TrainingBatchError('Legal-attack probe has no living enemy target.')
+    return sorted(enemies, key=lambda candidate: candidate.actor_id)[0]
+
+
+def _adjacent_probe_position(state, target) -> GridPosition:
+    occupied = {
+        (candidate.position.x, candidate.position.y)
+        for candidate in state.actors.values()
+        if candidate.actor_id != target.actor_id and candidate.current_hit_points > 0
+    }
+    for x_offset, y_offset in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)):
+        x = target.position.x + x_offset
+        y = target.position.y + y_offset
+        if (x, y) not in occupied:
+            return GridPosition(x, y, target.position.z)
+    raise TrainingBatchError('Legal-attack probe could not find an adjacent open position.')
 
 
 def _story_opening_context_snapshot(before: dict[str, Any], *, episode_id: str) -> dict[str, Any]:
@@ -730,6 +841,19 @@ def _available_attack_profiles(actor, *, available_attack_ids: set[str]) -> list
     return [attack for attack in attacks if not available_attack_ids or attack.attack_id in available_attack_ids]
 
 
+def _available_attack_commands(state, actor, *, available_attacks: list) -> list[str]:
+    enemies = [
+        candidate for candidate in state.actors.values()
+        if candidate.side != actor.side and candidate.current_hit_points > 0
+    ]
+    return [
+        f'/attack {actor.actor_id} {attack.attack_id} {target.actor_id}'
+        for attack in available_attacks
+        for target in enemies
+        if _target_within_attack_range(actor, target, attack)
+    ]
+
+
 def _target_within_attack_range(actor, target, attack) -> bool:
     if attack.range_ft is not None:
         return _grid_distance_ft(actor.position, target.position) <= attack.range_ft
@@ -773,6 +897,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--policy', choices=sorted(POLICIES), default='scripted', help='Player policy to evaluate after the deterministic setup.')
     parser.add_argument('--baseline-seed', type=int, default=0, help='Seed for deterministic baseline policies such as random-legal.')
     parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file before running episodes.')
+    parser.add_argument('--campaign-root', type=Path, help='Optional campaign root to use instead of campaigns/lmop.')
     parser.add_argument(
         '--llm-player',
         action='append',
@@ -798,6 +923,7 @@ def main() -> int:
         llm_player_max_actions_per_pump=args.llm_player_max_actions_per_pump,
         baseline_seed=args.baseline_seed,
         character_load_path=args.load_characters,
+        campaign_root=args.campaign_root,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

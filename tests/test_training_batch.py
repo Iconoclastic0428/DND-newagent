@@ -75,9 +75,33 @@ class TrainingBatchTests(unittest.TestCase):
             'OPENAI_RESPONSES_MODEL=test-model\n',
             encoding='utf-8',
         )
+        self.campaign_root = self._tempdir / 'campaigns' / 'lmop'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
+        self._ensure_campaign_front_matter(self.campaign_root)
 
     def tearDown(self) -> None:
         shutil.rmtree(self._tempdir, ignore_errors=True)
+
+    def _ensure_campaign_front_matter(self, campaign_root: Path) -> None:
+        for path in campaign_root.rglob('*.md'):
+            text = path.read_text(encoding='utf-8')
+            if text.lstrip('\ufeff').startswith('---'):
+                continue
+            slug = path.relative_to(campaign_root).with_suffix('').as_posix().replace('/', '-')
+            title = path.stem.replace('-', ' ').title()
+            path.write_text(
+                '---\n'
+                f'id: test-{slug}\n'
+                'type: dm_summary\n'
+                f'title: {title}\n'
+                'campaign: lmop\n'
+                'visibility: dm\n'
+                'state_scope: summary\n'
+                'token_budget_hint: small\n'
+                '---\n\n'
+                f'{text}',
+                encoding='utf-8',
+            )
 
     def test_summarize_trajectory_counts_rewards_errors_and_terminal_state(self) -> None:
         records = [
@@ -161,6 +185,7 @@ class TrainingBatchTests(unittest.TestCase):
             output_dir=self._tempdir / 'batches',
             env_path=self.env_path,
             base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
         )
 
         report_path = Path(report['report_path'])
@@ -202,6 +227,7 @@ class TrainingBatchTests(unittest.TestCase):
             output_dir=self._tempdir / 'llm-batches',
             env_path=self.env_path,
             base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
             policy='llm-party',
             llm_player_agent_factory=build_fake_agents,
             llm_player_max_actions_per_pump=1,
@@ -235,6 +261,7 @@ class TrainingBatchTests(unittest.TestCase):
             output_dir=self._tempdir / 'random-legal-batches',
             env_path=self.env_path,
             base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
             policy='random-legal',
             baseline_seed=123,
             max_combat_turns=120,
@@ -293,6 +320,32 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertIn('/attack player-1 dagger-melee-dex monster-goblin-1', commands)
         self.assertNotIn('/attack player-1 shortbow-ranged monster-goblin-1', commands)
 
+    def test_legal_attack_probe_batch_adds_valid_attack_rows(self) -> None:
+        report = run_batch(
+            episodes=1,
+            output_dir=self._tempdir / 'legal-attack-probe-batches',
+            scenario_id='lmop_legal_attack_probe',
+            env_path=self.env_path,
+            base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
+        )
+
+        report_path = Path(report['report_path'])
+        self.assertTrue(report_path.exists())
+        saved = json.loads(report_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['scenario_id'], 'lmop_legal_attack_probe')
+        self.assertEqual(saved['episodes'], 1)
+        self.assertEqual(saved['successes'], 1)
+        self.assertEqual(saved['success_rate'], 1.0)
+        transitions = [
+            json.loads(line)
+            for line in Path(saved['transition_path']).read_text(encoding='utf-8').splitlines()
+        ]
+        baseline_rows = [row for row in transitions if row['source'] == 'baseline']
+        attack_rows = [row for row in baseline_rows if str(row.get('action') or '').startswith('/attack ')]
+        self.assertFalse([row for row in baseline_rows if row.get('error')])
+        self.assertGreater(len(attack_rows), 0)
+
     def test_story_opening_choice_batch_writes_storytelling_preferences(self) -> None:
         report = run_batch(
             episodes=2,
@@ -300,6 +353,7 @@ class TrainingBatchTests(unittest.TestCase):
             scenario_id='lmop_story_opening_choices',
             env_path=self.env_path,
             base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
         )
 
         report_path = Path(report['report_path'])

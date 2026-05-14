@@ -1,3 +1,11 @@
+## 2026-05-14 - Legal Attack Probe Dataset
+- Request: continue after constraining random-legal attacks, with the next step of producing positive valid `/attack` examples for training.
+- Solution: added an `lmop_legal_attack_probe` scenario that reaches combat, advances to a player turn, places the actor adjacent to a living enemy in a controlled probe state, and records a real snapshot-backed `/attack` through the normal trajectory pipeline.
+- Why it matters: the filtered supervised corpus had no valid `/attack` labels, so MosaicML training needed at least one clean attack-data path before weapon/target argument heads could learn from executable labels.
+- Tests: added a legal-attack probe batch test and kept the random-legal regression tests passing.
+- Verification: compile checks, focused training-batch tests, and a direct probe run passed. The direct probe produced 81 transition rows, 0 errors, and 1 valid `/attack` row.
+- Next step: collect the probe output into the combined training dataset and rerun supervised/command-head preflights to confirm `/attack` labels are present before mapping this to MosaicML.
+
 ## 2026-05-14 - Snapshot-Constrained Random-Legal Attacks
 - Request: continue toward fixing legal combat data after invalid supervised attacks were filtered out.
 - Solution: constrained random-legal attack command generation to the runtime snapshot's available attack choices instead of every attack profile known by the actor.
