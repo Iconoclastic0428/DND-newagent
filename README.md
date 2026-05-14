@@ -207,7 +207,7 @@ To run the first trainable policy preflight with the same entrypoint shape plann
 python user-test\train_policy_mosaicml.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --baseline-report runs\training-runs\<baseline-run-id>\supervised_baseline_report.json --output-dir runs\training-runs
 ```
 
-This local preflight trains a dependency-free sparse linear action policy and compares it with the frequency baseline. It updates model weights, writes a model artifact, and records whether the trainable policy beats the baseline overall and by weak evaluation slice. Reports include exact-action accuracy and action-family accuracy so combat can be diagnosed separately from brittle target/weapon command details.
+This local preflight trains a dependency-free sparse linear action policy and compares it with the frequency baseline. It updates model weights, writes a model artifact, and records whether the trainable policy beats the baseline overall and by weak evaluation slice. Reports include exact-action, action-family, and command-component accuracy so combat can be diagnosed separately from brittle actor, weapon, and target command details.
 
 ## 4. Open The Web UIs
 

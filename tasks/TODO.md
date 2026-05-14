@@ -1,3 +1,29 @@
+## 2026-05-14 - Command Component Diagnostics
+
+### Scope
+- Add command-component accuracy to trainable policy reports.
+- Break slash commands into family plus argument-position diagnostics.
+- Keep the trainer local-runnable and dependency-free.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect current trainable policy metric shape.
+- [x] Add component-level accuracy metrics.
+- [x] Render eval component accuracy in Markdown.
+- [x] Add focused tests for component metrics.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\trainable_policy.py user-test\train_policy_mosaicml.py tests\test_trainable_policy.py`
+- [x] `python -m unittest tests.test_trainable_policy -v`
+- [x] `python user-test\train_policy_mosaicml.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\trainable_policy.py tests\test_trainable_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: component diagnostics passed against the latest recipe and baseline. Overall exact eval stayed 0.6935, family eval was 0.6989, slash arg_1 accuracy was 0.9250, arg_2 accuracy was 0.0714, and arg_3 accuracy was 0.0400, indicating weapon/target-style argument prediction is the main weak point.
+
 ## 2026-05-14 - Combat Policy Metrics
 
 ### Scope

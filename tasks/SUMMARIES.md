@@ -1,3 +1,11 @@
+## 2026-05-14 - Command Component Diagnostics
+- Request: continue after combat policy diagnostics by deciding whether full-command prediction should be split into command family and arguments.
+- Solution: added command-component accuracy to trainable policy metrics and Markdown reports, covering command family plus slash-command argument positions.
+- Why it matters: this separates whether combat failures come from choosing the wrong tactical command or from filling brittle command arguments such as actor, weapon, and target ids.
+- Tests: added focused coverage for component metric output and Markdown rendering.
+- Verification: compile checks and `tests.test_trainable_policy` passed; the real preflight kept exact eval at 0.6935 and reported family 0.6989, slash arg_1 0.9250, arg_2 0.0714, and arg_3 0.0400.
+- Next step: design the MosaicML trainer as separate command-family and argument heads, with special attention to weapon/target argument slots.
+
 ## 2026-05-14 - Combat Policy Metrics
 - Request: continue after the first trainable policy preflight by improving combat diagnostics/features.
 - Solution: added action-family accuracy to trainable policy metrics and Markdown, plus non-leaky combat state and available-choice features for the sparse policy.

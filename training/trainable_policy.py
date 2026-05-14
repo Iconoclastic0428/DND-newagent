@@ -188,12 +188,26 @@ def render_trainable_policy_markdown(report: dict[str, Any]) -> str:
         f'| train | {_format_int(train.get("record_count"))} | {_format_float(train.get("accuracy"))} | {_format_float(train.get("action_family_accuracy"))} | {_format_float(train.get("negative_log_likelihood"))} |',
         f'| eval | {_format_int(eval_metrics.get("record_count"))} | {_format_float(eval_metrics.get("accuracy"))} | {_format_float(eval_metrics.get("action_family_accuracy"))} | {_format_float(eval_metrics.get("negative_log_likelihood"))} |',
         '',
+    ]
+    component_metrics = eval_metrics.get('action_component_accuracy') if isinstance(eval_metrics.get('action_component_accuracy'), dict) else {}
+    if component_metrics:
+        lines.extend([
+            '## Component Accuracy',
+            '',
+            '| Component | Records | Correct | Accuracy |',
+            '| --- | ---: | ---: | ---: |',
+        ])
+        for component in sorted(component_metrics):
+            item = component_metrics[component] if isinstance(component_metrics[component], dict) else {}
+            lines.append(f'| {_markdown_text(component)} | {_format_int(item.get("record_count"))} | {_format_int(item.get("correct_count"))} | {_format_float(item.get("accuracy"))} |')
+        lines.append('')
+    lines.extend([
         '## Baseline Comparison',
         '',
         '| Scope | Baseline Accuracy | Policy Accuracy | Delta | Beats Baseline |',
         '| --- | ---: | ---: | ---: | --- |',
         f'| overall | {_format_float(overall.get("baseline_accuracy"))} | {_format_float(overall.get("policy_accuracy"))} | {_format_float(overall.get("accuracy_delta"))} | {_markdown_text(overall.get("beats_baseline"))} |',
-    ]
+    ])
     breakdowns = comparison.get('breakdowns') if isinstance(comparison.get('breakdowns'), dict) else {}
     for field in BREAKDOWN_FIELDS:
         groups = breakdowns.get(field)
@@ -396,6 +410,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
         return _empty_metrics()
     correct = 0
     family_correct = 0
+    component_counts: dict[str, dict[str, int]] = defaultdict(lambda: {'correct_count': 0, 'record_count': 0})
     total_loss = 0.0
     for row in rows:
         expected = str(row.get('action') or '')
@@ -405,6 +420,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
             correct += 1
         if _action_family(predicted) == _action_family(expected):
             family_correct += 1
+        _update_action_component_counts(component_counts, predicted=predicted, expected=expected)
         total_loss += -math.log(max(_action_probability(features, expected, model), 1e-12))
     return {
         'record_count': len(rows),
@@ -412,6 +428,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
         'accuracy': correct / len(rows),
         'action_family_correct_count': family_correct,
         'action_family_accuracy': family_correct / len(rows),
+        'action_component_accuracy': _component_accuracy(component_counts),
         'negative_log_likelihood': total_loss / len(rows),
     }
 
@@ -517,6 +534,7 @@ def _empty_metrics() -> dict[str, Any]:
         'accuracy': None,
         'action_family_correct_count': 0,
         'action_family_accuracy': None,
+        'action_component_accuracy': {},
         'negative_log_likelihood': None,
     }
 
@@ -562,6 +580,51 @@ def _group_label(value: Any) -> str:
     if value is None or str(value).strip() == '':
         return 'unknown'
     return str(value)
+
+
+def _update_action_component_counts(
+    counts: dict[str, dict[str, int]],
+    *,
+    predicted: str,
+    expected: str,
+) -> None:
+    predicted_parts = _action_parts(predicted)
+    expected_parts = _action_parts(expected)
+    if not expected_parts:
+        return
+    _count_component(counts, 'family', _action_family(predicted) == _action_family(expected))
+    if not expected_parts[0].startswith('/'):
+        expected_tokens = _text_tokens(expected)[:3]
+        predicted_tokens = _text_tokens(predicted)[:3]
+        for index, expected_token in enumerate(expected_tokens, start=1):
+            predicted_token = predicted_tokens[index - 1] if index <= len(predicted_tokens) else ''
+            _count_component(counts, f'natural_token_{index}', predicted_token == expected_token)
+        return
+    for index, expected_arg in enumerate(expected_parts[1:5], start=1):
+        predicted_arg = predicted_parts[index] if index < len(predicted_parts) else ''
+        _count_component(counts, f'arg_{index}', predicted_arg == expected_arg)
+
+
+def _count_component(counts: dict[str, dict[str, int]], component: str, correct: bool) -> None:
+    counts[component]['record_count'] += 1
+    if correct:
+        counts[component]['correct_count'] += 1
+
+
+def _component_accuracy(counts: dict[str, dict[str, int]]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    for component, item in sorted(counts.items()):
+        total = item['record_count']
+        result[component] = {
+            'record_count': total,
+            'correct_count': item['correct_count'],
+            'accuracy': item['correct_count'] / total if total else None,
+        }
+    return result
+
+
+def _action_parts(action: str) -> list[str]:
+    return action.strip().lower().split()
 
 
 def _action_family(action: str) -> str:
