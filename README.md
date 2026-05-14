@@ -134,6 +134,14 @@ Each run also appends a compact entry to `runs\benchmarks\benchmark_history.json
 
 Training datasets written by the batch runner also include sidecar manifests such as `training_transitions.jsonl.manifest.json` and `preference_pairs.jsonl.manifest.json`. These manifests record the source trajectories, policy, seed/loadout context, filters, record counts, file hash, and reward component-to-channel schema used to create the dataset.
 
+To combine benchmark outputs into one training dataset folder, run:
+
+```powershell
+python user-test\collect_training_datasets.py --input runs\benchmarks --output-dir runs\datasets\latest
+```
+
+The collector writes `combined_training_transitions.jsonl`, `combined_preference_pairs.jsonl`, their manifests, and `dataset_collection_report.json`.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:
