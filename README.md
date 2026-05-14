@@ -130,6 +130,8 @@ python user-test\run_policy_benchmark.py --manifest user-test\full-story-demo\sc
 
 The output report contains per-policy rewards, invalid action rates, success rates, loadout labels, and links to the generated trajectory files.
 
+Each run also appends a compact entry to `runs\benchmarks\benchmark_history.jsonl` and refreshes `runs\benchmarks\benchmark_history.md`, which gives a quick leaderboard across benchmark runs.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

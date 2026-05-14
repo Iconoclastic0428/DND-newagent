@@ -48,9 +48,13 @@ class PolicyBenchmarkTests(unittest.TestCase):
         benchmark_path = Path(report['benchmark_path'])
         comparison_path = Path(report['comparison_path'])
         markdown_summary_path = Path(report['markdown_summary_path'])
+        history_path = Path(report['benchmark_history_path'])
+        history_markdown_path = Path(report['benchmark_history_markdown_path'])
         self.assertTrue(benchmark_path.exists())
         self.assertTrue(comparison_path.exists())
         self.assertTrue(markdown_summary_path.exists())
+        self.assertTrue(history_path.exists())
+        self.assertTrue(history_markdown_path.exists())
         saved = json.loads(benchmark_path.read_text(encoding='utf-8'))
         self.assertEqual(saved['episodes_per_seed'], 1)
         self.assertEqual(saved['episodes_per_policy'], 2)
@@ -65,6 +69,21 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertEqual([row['label'] for row in saved['comparison']['rows']], ['scripted', 'random'])
         self.assertIn(saved['comparison']['diagnostics']['winner_label'], {'scripted', 'random'})
         self.assertEqual(len(saved['comparison']['diagnostics']['policy_notes']), 2)
+        history_entries = [
+            json.loads(line)
+            for line in history_path.read_text(encoding='utf-8').splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(len(history_entries), 1)
+        self.assertEqual(history_entries[0]['benchmark_id'], saved['benchmark_id'])
+        self.assertEqual(history_entries[0]['seed_count'], 2)
+        self.assertEqual(
+            {policy['label'] for policy in history_entries[0]['policies']},
+            {'scripted', 'random'},
+        )
+        history_markdown = history_markdown_path.read_text(encoding='utf-8')
+        self.assertIn('# Benchmark History', history_markdown)
+        self.assertIn('## Latest Policy Rows', history_markdown)
         markdown = markdown_summary_path.read_text(encoding='utf-8')
         self.assertIn('# Policy Benchmark Summary', markdown)
         self.assertIn('Seeds: 5, 6', markdown)
@@ -136,6 +155,8 @@ class PolicyBenchmarkTests(unittest.TestCase):
         self.assertEqual(saved['seed_batch_reports'][1]['character_load_path'], str(alternate_party_path))
         self.assertEqual(saved['comparison']['benchmark_metadata']['loadout_count'], 2)
         self.assertTrue(Path(saved['markdown_summary_path']).exists())
+        self.assertTrue(Path(saved['benchmark_history_path']).exists())
+        self.assertTrue(Path(saved['benchmark_history_markdown_path']).exists())
 
     def _write_saved_party(self, path: Path) -> None:
         record = build_default_character_record(base_url=LOCAL_MIRROR_BASE_URL)

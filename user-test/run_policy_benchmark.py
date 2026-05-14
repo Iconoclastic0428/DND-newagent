@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import sys
+import subprocess
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +42,7 @@ def run_policy_benchmark(
     llm_player_max_actions_per_pump: int = 1,
     character_load_path: str | Path | None = None,
     character_loadout_scenarios: tuple[dict[str, Any], ...] | None = None,
+    manifest_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if policy_configs is None and not policies:
         raise ValueError('At least one policy must be provided.')
@@ -58,7 +60,9 @@ def run_policy_benchmark(
         character_load_path=character_load_path,
         character_loadout_scenarios=character_loadout_scenarios,
     )
-    benchmark_dir = Path(output_dir) / f'{scenario_id}-benchmark-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
+    output_root = Path(output_dir)
+    created_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    benchmark_dir = output_root / f'{scenario_id}-benchmark-{created_at.replace("-", "").replace(":", "")}-{uuid4().hex[:8]}'
     entries: list[tuple[str, dict[str, Any]]] = []
     batch_reports: list[dict[str, Any]] = []
     seed_batch_reports: list[dict[str, Any]] = []
@@ -146,7 +150,10 @@ def run_policy_benchmark(
     write_policy_comparison_markdown(comparison, markdown_summary_path)
     benchmark_report = {
         'benchmark_id': benchmark_dir.name,
+        'created_at': created_at,
+        'git_commit': _current_git_commit(),
         'scenario_id': scenario_id,
+        'manifest_path': str(manifest_path) if manifest_path is not None else None,
         'episodes_per_seed': episodes,
         'episodes_per_policy': episodes * len(seed_values) * len(loadout_scenarios),
         'baseline_seed': baseline_seed,
@@ -164,6 +171,9 @@ def run_policy_benchmark(
     }
     benchmark_path = benchmark_dir / 'benchmark_report.json'
     benchmark_report['benchmark_path'] = str(benchmark_path)
+    benchmark_path.write_text(json.dumps(benchmark_report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    history_paths = _append_benchmark_history(benchmark_report, output_root)
+    benchmark_report.update(history_paths)
     benchmark_path.write_text(json.dumps(benchmark_report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     return benchmark_report
 
@@ -187,10 +197,8 @@ def run_policy_benchmark_from_manifest(manifest_path: str | Path) -> dict[str, A
         llm_player_max_actions_per_pump=_manifest_int(manifest, 'llm_player_max_actions_per_pump', default=1),
         character_load_path=_manifest_character_load_path(manifest, manifest_dir),
         character_loadout_scenarios=_manifest_character_loadout_scenarios(manifest, manifest_dir),
+        manifest_path=path,
     )
-    report['manifest_path'] = str(path)
-    benchmark_path = Path(report['benchmark_path'])
-    benchmark_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     return report
 
 
@@ -450,6 +458,196 @@ def _serialize_loadout_scenarios(scenarios: tuple[dict[str, Any], ...]) -> list[
         }
         for scenario in scenarios
     ]
+
+
+def _append_benchmark_history(benchmark_report: dict[str, Any], output_root: Path) -> dict[str, str]:
+    output_root.mkdir(parents=True, exist_ok=True)
+    history_entry = _benchmark_history_entry(benchmark_report)
+    history_jsonl_path = output_root / 'benchmark_history.jsonl'
+    with history_jsonl_path.open('a', encoding='utf-8') as handle:
+        handle.write(json.dumps(history_entry, ensure_ascii=False, sort_keys=True) + '\n')
+    history_markdown_path = output_root / 'benchmark_history.md'
+    _write_benchmark_history_markdown(history_jsonl_path, history_markdown_path)
+    return {
+        'benchmark_history_path': str(history_jsonl_path),
+        'benchmark_history_markdown_path': str(history_markdown_path),
+    }
+
+
+def _benchmark_history_entry(benchmark_report: dict[str, Any]) -> dict[str, Any]:
+    comparison = benchmark_report.get('comparison') if isinstance(benchmark_report.get('comparison'), dict) else {}
+    leaderboard = comparison.get('leaderboard') if isinstance(comparison.get('leaderboard'), list) else []
+    return {
+        'benchmark_id': benchmark_report.get('benchmark_id'),
+        'created_at': benchmark_report.get('created_at'),
+        'git_commit': benchmark_report.get('git_commit'),
+        'scenario_id': benchmark_report.get('scenario_id'),
+        'manifest_path': benchmark_report.get('manifest_path'),
+        'benchmark_path': benchmark_report.get('benchmark_path'),
+        'comparison_path': benchmark_report.get('comparison_path'),
+        'markdown_summary_path': benchmark_report.get('markdown_summary_path'),
+        'episodes_per_seed': benchmark_report.get('episodes_per_seed'),
+        'episodes_per_policy': benchmark_report.get('episodes_per_policy'),
+        'seed_count': benchmark_report.get('seed_count'),
+        'seeds': benchmark_report.get('seeds'),
+        'character_loadout_count': benchmark_report.get('character_loadout_count'),
+        'character_loadouts': benchmark_report.get('character_loadouts'),
+        'max_combat_turns': benchmark_report.get('max_combat_turns'),
+        'winner_label': (comparison.get('diagnostics') or {}).get('winner_label') if isinstance(comparison.get('diagnostics'), dict) else None,
+        'policies': [
+            _benchmark_history_policy_row(row)
+            for row in leaderboard
+            if isinstance(row, dict)
+        ],
+    }
+
+
+def _benchmark_history_policy_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        'rank': row.get('rank'),
+        'label': row.get('label'),
+        'policy': row.get('policy'),
+        'llm_player_controllers': row.get('llm_player_controllers') or [],
+        'episodes': row.get('episodes'),
+        'success_rate': row.get('success_rate'),
+        'avg_reward': row.get('avg_reward'),
+        'avg_reward_stddev': row.get('avg_reward_stddev'),
+        'avg_invalid_actions': row.get('avg_invalid_actions'),
+        'avg_turns': row.get('avg_turns'),
+        'avg_party_hp_remaining': row.get('avg_party_hp_remaining'),
+        'comparison_score': row.get('comparison_score'),
+        'reward_by_channel': row.get('reward_by_channel') or {},
+    }
+
+
+def _write_benchmark_history_markdown(history_jsonl_path: Path, output_path: Path) -> None:
+    entries = _load_benchmark_history_entries(history_jsonl_path)
+    lines = [
+        '# Benchmark History',
+        '',
+        '| Created | Benchmark | Commit | Scenario | Seeds | Loadouts | Winner | Top Score | Report |',
+        '| --- | --- | --- | --- | ---: | ---: | --- | ---: | --- |',
+    ]
+    for entry in reversed(entries):
+        top_policy = _top_history_policy(entry)
+        lines.append(
+            '| '
+            + ' | '.join([
+                _markdown_cell(entry.get('created_at')),
+                _markdown_cell(entry.get('benchmark_id')),
+                _markdown_cell(_short_commit(entry.get('git_commit'))),
+                _markdown_cell(entry.get('scenario_id')),
+                _format_history_number(entry.get('seed_count'), digits=0),
+                _format_history_number(entry.get('character_loadout_count'), digits=0),
+                _markdown_cell(entry.get('winner_label')),
+                _format_history_number(top_policy.get('comparison_score')),
+                _markdown_link('report', entry.get('benchmark_path')),
+            ])
+            + ' |'
+        )
+    lines.extend(['', '## Latest Policy Rows', ''])
+    if not entries:
+        lines.append('No benchmark runs have been recorded yet.')
+    else:
+        latest = entries[-1]
+        lines.extend([
+            f'Latest benchmark: {_markdown_cell(latest.get("benchmark_id"))}',
+            '',
+            '| Rank | Policy | Success | Avg Reward | Invalid Actions | Avg Turns | Party HP | Score |',
+            '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+        ])
+        for policy in latest.get('policies', []):
+            if not isinstance(policy, dict):
+                continue
+            lines.append(
+                '| '
+                + ' | '.join([
+                    _format_history_number(policy.get('rank'), digits=0),
+                    _markdown_cell(policy.get('label')),
+                    _format_history_percent(policy.get('success_rate')),
+                    _format_history_number(policy.get('avg_reward')),
+                    _format_history_number(policy.get('avg_invalid_actions')),
+                    _format_history_number(policy.get('avg_turns')),
+                    _format_history_percent(policy.get('avg_party_hp_remaining')),
+                    _format_history_number(policy.get('comparison_score')),
+                ])
+                + ' |'
+            )
+    output_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
+def _load_benchmark_history_entries(history_jsonl_path: Path) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    if not history_jsonl_path.exists():
+        return entries
+    for line in history_jsonl_path.read_text(encoding='utf-8-sig').splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict):
+            entries.append(entry)
+    return entries
+
+
+def _top_history_policy(entry: dict[str, Any]) -> dict[str, Any]:
+    policies = entry.get('policies') if isinstance(entry.get('policies'), list) else []
+    for policy in policies:
+        if isinstance(policy, dict) and policy.get('rank') == 1:
+            return policy
+    for policy in policies:
+        if isinstance(policy, dict):
+            return policy
+    return {}
+
+
+def _current_git_commit() -> str | None:
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--short=12', 'HEAD'],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def _short_commit(value: Any) -> str:
+    text = str(value) if value is not None else ''
+    return text[:12]
+
+
+def _markdown_link(label: str, value: Any) -> str:
+    if value is None:
+        return ''
+    target = str(value).replace(')', '%29')
+    return f'[{_markdown_cell(label)}]({target})'
+
+
+def _markdown_cell(value: Any) -> str:
+    text = str(value) if value is not None else ''
+    return text.replace('|', '\\|').replace('\n', ' ')
+
+
+def _format_history_number(value: Any, *, digits: int = 3) -> str:
+    if not isinstance(value, (int, float)):
+        return '0'
+    if digits <= 0:
+        return str(int(value))
+    return f'{float(value):.{digits}f}'
+
+
+def _format_history_percent(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return '0.0%'
+    return f'{float(value) * 100.0:.1f}%'
 
 
 def _manifest_int(manifest: dict[str, Any], key: str, *, default: int) -> int:
