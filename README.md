@@ -209,6 +209,14 @@ python user-test\train_policy_mosaicml.py --recipe runs\training-recipes\<recipe
 
 This local preflight trains a dependency-free sparse linear action policy and compares it with the frequency baseline. It updates model weights, writes a model artifact, and records whether the trainable policy beats the baseline overall and by weak evaluation slice. Reports include exact-action, action-family, and command-component accuracy so combat can be diagnosed separately from brittle actor, weapon, and target command details. When argument components are weak, the report recommends a multi-head MosaicML command policy with a family head plus argument heads.
 
+To run the first local multi-head command policy preflight, run:
+
+```powershell
+python user-test\train_command_head_policy.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --baseline-report runs\training-runs\<baseline-run-id>\supervised_baseline_report.json --output-dir runs\training-runs
+```
+
+This trainer splits command prediction into a command-family head, a natural-action fallback head, and slash-command argument heads. It is still a local preflight; it does not submit a MosaicML job.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

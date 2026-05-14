@@ -1,3 +1,11 @@
+## 2026-05-14 - Multi-Head Command Policy
+- Request: continue after command head recommendations by implementing the first local multi-head trainer.
+- Solution: added a dependency-free command-head policy trainer with separate family, natural-action, argument-count, and slash-argument heads plus a CLI wrapper.
+- Why it matters: this tests the MosaicML architecture idea locally before spending GPU time on it.
+- Tests: added focused coverage for model/report artifact generation, component metrics, baseline comparison output, and invalid baseline schema rejection.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight beat the supervised baseline overall 0.6828 -> 0.6882 while matching combat runtime at 0.3478.
+- Next step: improve weak slash argument heads, especially `command_arg_2` and `command_arg_3`, then wire the multi-head shape into the MosaicML launch path.
+
 ## 2026-05-14 - Command Head Recommendations
 - Request: continue from command component diagnostics toward a MosaicML multi-head trainer design.
 - Solution: added an explicit `command_head_recommendation` section to trainable policy reports and Markdown, using component accuracies to recommend a command-family head plus weak argument heads.

@@ -1,3 +1,31 @@
+## 2026-05-14 - Multi-Head Command Policy
+
+### Scope
+- Add the first local multi-head command policy trainer.
+- Train separate family, natural-action, and slash-command argument heads.
+- Compare multi-head output with the supervised baseline.
+- Keep the trainer dependency-free and MosaicML-shaped.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect reusable trainable policy helpers.
+- [x] Add multi-head command policy module.
+- [x] Add CLI wrapper under `user-test`.
+- [x] Add focused tests for generated heads and metrics.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: after adding an argument-count head so slash commands only compose the predicted number of arguments, the multi-head preflight beat the frequency baseline overall at 0.6882 vs. 0.6828. Family accuracy was 0.7097 and combat runtime exact accuracy matched the baseline at 0.3478. Argument heads remain uneven: `command_arg_1` was strong at 0.9250, while `command_arg_2` was 0.0536 and `command_arg_3` was 0.0400, so target/weapon-style slots need the next improvement.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T154351Z-0ac9324e\command_head_policy_report.json`
+
 ## 2026-05-14 - Command Head Recommendations
 
 ### Scope
