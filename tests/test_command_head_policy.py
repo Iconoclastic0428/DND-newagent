@@ -219,6 +219,7 @@ class CommandHeadPolicyTests(unittest.TestCase):
             self._transition_row('006', runtime_mode='storytelling', agent_id='player-3-controller', action='Ask Gundren about the road.', scene='briefing'),
             self._transition_row('007', runtime_mode='storytelling', agent_id='player-4-controller', action='Inspect the wagon.', scene='briefing'),
             self._transition_row('008', runtime_mode='storytelling', agent_id='player-4-controller', action='Inspect the wagon.', scene='briefing'),
+            self._transition_row('009', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 missing-weapon goblin-1', scene='ambush', error='The required weapon is not currently equipped or held.'),
         ]
         transition_path.write_text(
             ''.join(json.dumps(row, sort_keys=True) + '\n' for row in rows),
@@ -264,8 +265,8 @@ class CommandHeadPolicyTests(unittest.TestCase):
         )
         return baseline_path
 
-    def _transition_row(self, sample_id: str, *, runtime_mode: str, agent_id: str, action: str, scene: str) -> dict:
-        return {
+    def _transition_row(self, sample_id: str, *, runtime_mode: str, agent_id: str, action: str, scene: str, error: str | None = None) -> dict:
+        row = {
             'sample_id': sample_id,
             'agent_id': agent_id,
             'scenario_id': 'unit_combat' if runtime_mode == 'combat' else 'unit_story',
@@ -294,6 +295,9 @@ class CommandHeadPolicyTests(unittest.TestCase):
                 'monster_hp_max': 30,
             },
         }
+        if error is not None:
+            row['error'] = error
+        return row
 
 
 if __name__ == '__main__':

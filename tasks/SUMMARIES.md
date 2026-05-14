@@ -1,3 +1,11 @@
+## 2026-05-14 - Filter Invalid Supervised Actions
+- Request: continue after discovering that weak attack arguments came from invalid `/attack` labels.
+- Solution: changed supervised baseline/trainable loaders to skip transitions with `error`, and locked that behavior with baseline, trainable-policy, and command-head test fixtures.
+- Why it matters: invalid player attempts are useful for rewards/preferences, but supervised imitation should learn only executable actions before MosaicML training.
+- Tests: added errored fixture rows that no longer change supervised train/eval counts.
+- Verification: compile checks and focused supervised/trainable/command-head tests passed; rerunning the real baseline filtered 931 rows down to 726 valid supervised rows, and the command-head preflight reached 0.8207 eval accuracy vs. the filtered 0.8069 baseline.
+- Next step: regenerate or repair combat benchmark data so the supervised corpus contains legal `/attack` examples; the filtered dataset currently has 0 valid `/attack` labels.
+
 ## 2026-05-14 - Candidate-Aware Argument Diagnostics
 - Request: continue from combat argument features by separating candidate availability from argument scoring.
 - Solution: added candidate-aware argument extraction, conservative actor/target decoding, and per-argument candidate coverage metrics.

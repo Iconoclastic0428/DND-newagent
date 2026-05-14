@@ -127,6 +127,7 @@ class SupervisedBaselineTests(unittest.TestCase):
             self._transition_row('006', runtime_mode='storytelling', agent_id='player-2-controller', action='Ask Sildar about danger.'),
             self._transition_row('007', runtime_mode='storytelling', agent_id='player-2-controller', action='Inspect the wagon.'),
             self._transition_row('008', runtime_mode='storytelling', agent_id='player-2-controller', action='Ask Sildar about danger.'),
+            self._transition_row('009', runtime_mode='combat', agent_id='player-1-controller', action='/attack missing-weapon', error='The required weapon is not currently equipped or held.'),
         ]
         self._write_jsonl(transition_path, rows)
         objectives = []
@@ -163,8 +164,8 @@ class SupervisedBaselineTests(unittest.TestCase):
         )
         return recipe_path
 
-    def _transition_row(self, sample_id: str, *, runtime_mode: str, agent_id: str, action: str) -> dict:
-        return {
+    def _transition_row(self, sample_id: str, *, runtime_mode: str, agent_id: str, action: str, error: str | None = None) -> dict:
+        row = {
             'sample_id': sample_id,
             'agent_id': agent_id,
             'scenario_id': 'lmop_first_combat' if runtime_mode == 'combat' else 'lmop_story_opening_choices',
@@ -178,6 +179,9 @@ class SupervisedBaselineTests(unittest.TestCase):
             'available_actions': [],
             'reward_channels': {'validity': 0.1},
         }
+        if error is not None:
+            row['error'] = error
+        return row
 
     def _write_jsonl(self, path: Path, rows: list[dict]) -> None:
         path.write_text(

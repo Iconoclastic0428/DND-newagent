@@ -1,3 +1,34 @@
+## 2026-05-14 - Filter Invalid Supervised Actions
+
+### Scope
+- Exclude errored transitions from supervised imitation loaders.
+- Keep errored transitions available to reward/preference workflows.
+- Add regression fixtures for baseline, trainable policy, and command-head preflights.
+- Rerun the real baseline and command-head preflight against the filtered supervised corpus.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Trace why combat `arg_2` candidate coverage was zero.
+- [x] Confirm all current `/attack` labels are errored invalid actions.
+- [x] Filter errored rows from supervised baseline and trainable-policy loaders.
+- [x] Add focused regression coverage across supervised preflights.
+- [x] Rerun the real filtered supervised baseline.
+- [x] Rerun the real command-head preflight against the filtered baseline.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\supervised_baseline.py training\trainable_policy.py training\command_head_policy.py tests\test_supervised_baseline.py tests\test_trainable_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_supervised_baseline tests.test_trainable_policy tests.test_command_head_policy -v`
+- [x] `python user-test\run_supervised_baseline.py --recipe <latest training_recipe.json> --output-dir runs\training-runs`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <filtered supervised_baseline_report.json> --output-dir runs\training-runs`
+- [ ] `git diff --check -- README.md training\supervised_baseline.py training\trainable_policy.py tests\test_supervised_baseline.py tests\test_trainable_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: filtered supervised rows are 726 instead of 931, removing 205 errored actions from imitation. The filtered baseline eval accuracy is 0.8069; the command-head preflight is 0.8207, a +0.0138 delta.
+- Finding: after filtering, the current supervised corpus has 0 valid `/attack` labels, so the former weapon mismatch was not a canonicalization issue inside the model. It was invalid attack data entering supervised imitation.
+- Reports: `runs\training-runs\supervised-baseline-20260514T170448Z-60af5763\supervised_baseline_report.json`; `runs\training-runs\mosaicml-command-head-policy-20260514T170505Z-1ed87611\command_head_policy_report.json`
+
 ## 2026-05-14 - Candidate-Aware Argument Diagnostics
 
 ### Scope

@@ -285,6 +285,8 @@ def _load_transition_rows(path: Path) -> list[dict[str, Any]]:
             raise TrainablePolicyError(f'Invalid transition JSONL at {path}:{line_number}: {exc}') from exc
         if not isinstance(row, dict):
             continue
+        if row.get('error'):
+            continue
         action = row.get('action')
         if isinstance(action, str) and action.strip():
             rows.append(row)
