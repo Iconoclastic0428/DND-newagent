@@ -50,12 +50,17 @@ class SupervisedBaselineTests(unittest.TestCase):
         self.assertEqual(report['metrics']['eval']['record_count'], 2)
         self.assertIsInstance(report['metrics']['eval']['accuracy'], float)
         self.assertIsInstance(report['metrics']['eval']['negative_log_likelihood'], float)
+        breakdowns = report['metrics']['breakdowns']
+        self.assertIn('scenario_id', breakdowns['eval'])
+        seen_scenarios = set(breakdowns['train']['scenario_id']) | set(breakdowns['eval']['scenario_id'])
+        self.assertEqual(seen_scenarios, {'lmop_first_combat', 'lmop_story_opening_choices'})
         self.assertTrue(Path(report['model_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
         self.assertTrue(Path(report['markdown_path']).exists())
         markdown = render_supervised_baseline_markdown(report)
         self.assertIn('Supervised Action Baseline', markdown)
         self.assertIn('Negative Log Loss', markdown)
+        self.assertIn('Evaluation Breakdown', markdown)
 
     def test_supervised_baseline_supports_max_records(self) -> None:
         recipe_path = self._write_recipe()
@@ -162,6 +167,7 @@ class SupervisedBaselineTests(unittest.TestCase):
         return {
             'sample_id': sample_id,
             'agent_id': agent_id,
+            'scenario_id': 'lmop_first_combat' if runtime_mode == 'combat' else 'lmop_story_opening_choices',
             'source': 'baseline',
             'runtime_mode': runtime_mode,
             'action': action,

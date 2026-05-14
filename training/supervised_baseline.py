@@ -15,6 +15,7 @@ from training.training_recipe import TRAINING_RECIPE_SCHEMA_VERSION
 SUPERVISED_BASELINE_SCHEMA_VERSION = 'dnd-agents-supervised-baseline-v1'
 SUPERVISED_OBJECTIVE = 'supervised_action_prediction'
 CONTEXT_FIELDS = ('runtime_mode', 'agent_id')
+BREAKDOWN_FIELDS = ('scenario_id', 'runtime_mode')
 SPLIT_STRATEGIES = {'hash', 'tail'}
 
 
@@ -106,6 +107,10 @@ def run_supervised_action_baseline(
         'metrics': {
             'train': train_metrics,
             'eval': eval_metrics,
+            'breakdowns': {
+                'train': _metric_breakdowns(train_rows, model),
+                'eval': _metric_breakdowns(eval_rows, model),
+            },
         },
         'checks': _baseline_checks(train_rows=train_rows, eval_rows=eval_rows, eval_metrics=eval_metrics),
     }
@@ -121,6 +126,7 @@ def render_supervised_baseline_markdown(report: dict[str, Any]) -> str:
     metrics = report.get('metrics') if isinstance(report.get('metrics'), dict) else {}
     train = metrics.get('train') if isinstance(metrics.get('train'), dict) else {}
     eval_metrics = metrics.get('eval') if isinstance(metrics.get('eval'), dict) else {}
+    breakdowns = metrics.get('breakdowns') if isinstance(metrics.get('breakdowns'), dict) else {}
     lines = [
         '# Supervised Action Baseline',
         '',
@@ -153,6 +159,24 @@ def render_supervised_baseline_markdown(report: dict[str, Any]) -> str:
             f'Eval: {_coverage_summary(coverage.get("eval"))}',
             '',
         ])
+    eval_breakdowns = breakdowns.get('eval') if isinstance(breakdowns.get('eval'), dict) else {}
+    if eval_breakdowns:
+        lines.extend([
+            '## Evaluation Breakdown',
+            '',
+            '| Field | Value | Records | Accuracy | Negative Log Loss |',
+            '| --- | --- | ---: | ---: | ---: |',
+        ])
+        for field in BREAKDOWN_FIELDS:
+            groups = eval_breakdowns.get(field)
+            if not isinstance(groups, dict):
+                continue
+            for label in sorted(groups):
+                group_metrics = groups[label] if isinstance(groups[label], dict) else {}
+                lines.append(
+                    f'| {_markdown_text(field)} | {_markdown_text(label)} | {_format_int(group_metrics.get("record_count"))} | {_format_float(group_metrics.get("accuracy"))} | {_format_float(group_metrics.get("negative_log_likelihood"))} |'
+                )
+        lines.append('')
     return '\n'.join(lines)
 
 
@@ -254,6 +278,23 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
     }
 
 
+def _metric_breakdowns(
+    rows: list[dict[str, Any]],
+    model: dict[str, Any],
+    fields: tuple[str, ...] = BREAKDOWN_FIELDS,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    result: dict[str, dict[str, dict[str, Any]]] = {}
+    for field in fields:
+        buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in rows:
+            buckets[_group_label(row.get(field))].append(row)
+        result[field] = {
+            label: _evaluate_rows(bucket_rows, model)
+            for label, bucket_rows in sorted(buckets.items())
+        }
+    return result
+
+
 def _empty_metrics() -> dict[str, Any]:
     return {
         'record_count': 0,
@@ -350,6 +391,12 @@ def _counter_dict(values: Iterable[Any]) -> dict[str, int]:
             continue
         counts[str(value)] += 1
     return dict(sorted(counts.items()))
+
+
+def _group_label(value: Any) -> str:
+    if value is None or str(value).strip() == '':
+        return 'unknown'
+    return str(value)
 
 
 def _coverage_summary(value: Any) -> str:

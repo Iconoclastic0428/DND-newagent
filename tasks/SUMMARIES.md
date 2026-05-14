@@ -1,3 +1,11 @@
+## 2026-05-14 - Scenario-Aware Baseline Evaluation
+- Request: continue after hash-split baseline evaluation and account for the plan to run real GPU training on MosaicML.
+- Solution: added grouped supervised baseline metrics by scenario and runtime mode, surfaced held-out breakdowns in Markdown, and documented MosaicML as the expected real training environment.
+- Why it matters: the aggregate hash-split score is useful, but before launching GPU jobs we need to see whether combat and storytelling slices behave differently.
+- Tests: added focused coverage that the baseline report contains scenario/runtime metric breakdowns and renders the evaluation breakdown section.
+- Verification: compile checks, `tests.test_supervised_baseline`, diff check, and a real hash-split baseline run passed; eval accuracy stayed 0.6828 overall, with combat at 0.3478 by runtime mode and storytelling at 0.8803.
+- Next step: use this scenario-aware report as the local preflight, then add the first MosaicML-oriented trainable policy entrypoint/config with combat performance as the first weak slice to improve.
+
 ## 2026-05-14 - Hash Split Baseline Evaluation
 - Request: continue after the supervised baseline by making evaluation less easy to flatter.
 - Solution: added deterministic `hash` and `tail` split strategies to the supervised baseline, made hash the default, and added train/eval coverage counts to JSON/Markdown reports.

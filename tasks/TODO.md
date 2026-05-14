@@ -1,3 +1,30 @@
+## 2026-05-14 - Scenario-Aware Baseline Evaluation
+
+### Scope
+- Add scenario-aware metric breakdowns to the supervised baseline report.
+- Keep the report deterministic and local-only for MosaicML preflight.
+- Document that real GPU training will run on MosaicML.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect current supervised baseline report shape.
+- [x] Add grouped metrics by scenario and runtime mode.
+- [x] Render held-out grouped metrics in Markdown.
+- [x] Add focused tests for grouped metric output.
+- [x] Document MosaicML as the intended GPU training target.
+- [x] Run the scenario-aware baseline against the latest local recipe.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\supervised_baseline.py user-test\run_supervised_baseline.py tests\test_supervised_baseline.py`
+- [x] `python -m unittest tests.test_supervised_baseline -v`
+- [x] `python user-test\run_supervised_baseline.py --recipe <latest training_recipe.json> --output-dir runs\training-runs --split-strategy hash`
+- [x] `git diff --check -- README.md training\supervised_baseline.py tests\test_supervised_baseline.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: scenario-aware baseline passed against the latest recipe with 745 train rows and 186 eval rows. Overall eval accuracy was 0.6828. Runtime-mode eval accuracy split was combat 0.3478 over 69 rows and storytelling 0.8803 over 117 rows. Scenario eval accuracy split was `lmop_first_combat` 0.2892 over 83 rows and `lmop_story_opening_choices` 1.0000 over 103 rows.
+
 ## 2026-05-14 - Hash Split Baseline Evaluation
 
 ### Scope

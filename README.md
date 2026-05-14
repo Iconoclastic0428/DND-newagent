@@ -189,7 +189,9 @@ To train the first lightweight supervised action-prediction baseline, run:
 python user-test\run_supervised_baseline.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --output-dir runs\training-runs --split-strategy hash
 ```
 
-The baseline learns deterministic action frequencies by runtime mode and agent, then reports held-out accuracy, smoothed negative log loss, and train/eval coverage counts. The default hash split is deterministic and less order-sensitive than a tail split.
+The baseline learns deterministic action frequencies by runtime mode and agent, then reports held-out accuracy, smoothed negative log loss, train/eval coverage counts, and held-out metric breakdowns by scenario and runtime mode. The default hash split is deterministic and less order-sensitive than a tail split.
+
+Real GPU training is expected to run on MosaicML. Treat the local smoke, recipe, no-op, and supervised baseline reports as preflight artifacts before launching a MosaicML job.
 
 ## 4. Open The Web UIs
 
