@@ -198,6 +198,36 @@ Behavior:
 - if a player prompt is active, the connector routes control directly to that player before asking for any new freeform turn
 - combat player turns stay player-owned, while DM monster turns can be auto-passed to keep the demo moving
 
+## DeepSeek Web DM + Four Players
+
+For the local DeepSeek setup, the helper scripts in `user-test/full-story-demo/scripts` keep the commands consistent with the checked-in `.env` and `user-test/llm-players/deepseek-v4-flash-player.env`.
+
+Start the web server with DeepSeek as the DM:
+
+```powershell
+.\user-test\full-story-demo\scripts\start-deepseek-web-server.ps1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000/?portal=dm&autoconnect=1
+```
+
+In a second terminal, start the four autonomous DeepSeek player agents:
+
+```powershell
+.\user-test\full-story-demo\scripts\run-deepseek-party-connector.ps1
+```
+
+If you want the web server itself to own the four built-in `LLMPlayerAgent` controllers instead of using the external party connector, start it with:
+
+```powershell
+.\user-test\full-story-demo\scripts\start-deepseek-web-server.ps1 -ServerSidePlayers
+```
+
+Use either the external party connector or `-ServerSidePlayers` for a run, not both, unless you are deliberately testing duplicate player drivers. Both paths use DeepSeek-compatible chat completions through the local env files and write trajectory/transcript artifacts under `C:\tmp\dnd-web-deepseek-demo-20260514` by default.
+
 ## Stop The Demo
 
 Close the controller terminals or type `exit`. Stop the system terminal with `Ctrl+C`.

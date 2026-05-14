@@ -16,10 +16,10 @@
       "label": "full-llm-party",
       "policy": "llm-party",
       "llm_players": {
-        "player-1-controller": "../../llm-players/player-1.env",
-        "player-2-controller": "../../llm-players/player-2.env",
-        "player-3-controller": "../../llm-players/player-3.env",
-        "player-4-controller": "../../llm-players/player-4.env"
+        "player-1-controller": "../../llm-players/deepseek-v4-flash-player.env",
+        "player-2-controller": "../../llm-players/deepseek-v4-flash-player.env",
+        "player-3-controller": "../../llm-players/deepseek-v4-flash-player.env",
+        "player-4-controller": "../../llm-players/deepseek-v4-flash-player.env"
       }
     }
   ]

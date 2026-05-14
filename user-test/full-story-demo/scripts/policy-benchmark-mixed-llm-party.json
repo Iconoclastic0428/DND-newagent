@@ -24,15 +24,15 @@
       "label": "one-llm-player",
       "policy": "llm-party",
       "llm_players": {
-        "player-1-controller": "../../llm-players/player-1.env"
+        "player-1-controller": "../../llm-players/deepseek-v4-flash-player.env"
       }
     },
     {
       "label": "two-llm-players",
       "policy": "llm-party",
       "llm_players": {
-        "player-1-controller": "../../llm-players/player-1.env",
-        "player-2-controller": "../../llm-players/player-2.env"
+        "player-1-controller": "../../llm-players/deepseek-v4-flash-player.env",
+        "player-2-controller": "../../llm-players/deepseek-v4-flash-player.env"
       }
     }
   ]
