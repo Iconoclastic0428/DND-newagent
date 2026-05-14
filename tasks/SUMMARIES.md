@@ -1,3 +1,11 @@
+## 2026-05-14 - Candidate-Constrained Command Arguments
+- Request: continue from the multi-head preflight by improving weak command argument heads.
+- Solution: constrained slash-command argument decoding to arguments from the row's available commands for the predicted command family, with fallback to unconstrained heads when candidates are absent.
+- Why it matters: target and weapon slots should stay inside the row's legal available commands before we map the trainer to MosaicML.
+- Tests: added focused coverage proving an unavailable high-scoring target cannot be selected when a legal target candidate exists.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight stayed at 0.6882 overall vs. 0.6828 baseline, confirming this is a legality guardrail rather than an aggregate accuracy gain on the current dataset.
+- Next step: improve command-family selection for combat, because combat exact accuracy is now bounded mainly by family choice rather than candidate-constrained argument decoding.
+
 ## 2026-05-14 - Multi-Head Command Policy
 - Request: continue after command head recommendations by implementing the first local multi-head trainer.
 - Solution: added a dependency-free command-head policy trainer with separate family, natural-action, argument-count, and slash-argument heads plus a CLI wrapper.

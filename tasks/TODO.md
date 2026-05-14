@@ -1,3 +1,30 @@
+## 2026-05-14 - Candidate-Constrained Command Arguments
+
+### Scope
+- Constrain slash-command argument decoding to locally available commands when possible.
+- Keep fallback behavior for rows without available command candidates.
+- Document the new decoding shape.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect command-head prediction and available-action feature helpers.
+- [x] Add available-command candidate extraction.
+- [x] Constrain argument head decoding by predicted command family.
+- [x] Add focused tests for candidate-constrained decoding.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: candidate-constrained argument decoding kept the same aggregate result as the previous multi-head run: 0.6882 exact eval vs. the 0.6828 frequency baseline, with family accuracy 0.7097 and combat runtime exact accuracy 0.3478. The change still matters because slash arguments now stay inside locally available commands whenever the row supplies command candidates; the unchanged score means the next improvement should target combat command-family choice.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T155625Z-0c3cb0c6\command_head_policy_report.json`
+
 ## 2026-05-14 - Multi-Head Command Policy
 
 ### Scope

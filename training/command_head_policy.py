@@ -133,7 +133,7 @@ def run_command_head_policy_preflight(
         },
         'model': {
             'kind': 'multi_head_command_policy',
-            'feature_template': 'state_summary_sparse_features_v2',
+            'feature_template': 'state_summary_sparse_features_v2_available_action_constrained_args',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'heads': _head_summary(model),
@@ -300,8 +300,9 @@ def _predict_command(row: dict[str, Any], model: dict[str, Any]) -> str:
         return natural or family
     parts = [family]
     arg_count = _predicted_arg_count(features, model)
+    available_parts = _available_command_parts(row, family)
     for index in range(1, arg_count + 1):
-        arg = _predict_head(features, model['heads'].get(f'command_arg_{index}'))
+        arg = _predict_head(features, model['heads'].get(f'command_arg_{index}'), candidate_labels=_candidate_args(available_parts, index))
         if arg is None:
             continue
         parts.append(arg)
@@ -318,18 +319,55 @@ def _predicted_arg_count(features: Counter[str], model: dict[str, Any]) -> int:
         return MAX_ARG_HEADS
 
 
-def _predict_head(features: Counter[str], head: dict[str, Any] | None) -> str | None:
+def _predict_head(
+    features: Counter[str],
+    head: dict[str, Any] | None,
+    *,
+    candidate_labels: list[str] | None = None,
+) -> str | None:
     if not isinstance(head, dict):
         return None
     labels = head.get('labels')
     weights = head.get('weights')
     if not isinstance(labels, list) or not labels or not isinstance(weights, dict):
         return None
+    if candidate_labels:
+        constrained = sorted({label for label in candidate_labels if label})
+        if constrained:
+            labels = constrained
     return _predict_label(features, weights, labels)
 
 
 def _predict_label(features: Counter[str], weights: dict[str, Counter[str]], labels: list[str]) -> str:
-    return sorted(labels, key=lambda label: (-_score(features, weights[label]), label))[0]
+    return sorted(labels, key=lambda label: (-_score(features, weights.get(label, Counter())), label))[0]
+
+
+def _available_command_parts(row: dict[str, Any], family: str) -> list[list[str]]:
+    available_actions = row.get('available_actions')
+    if not isinstance(available_actions, list):
+        return []
+    result: list[list[str]] = []
+    for action in available_actions:
+        parts = _action_parts(_available_action_command(action))
+        if parts and parts[0] == family:
+            result.append(parts)
+    return result
+
+
+def _available_action_command(action: Any) -> str:
+    if isinstance(action, str):
+        return action
+    if not isinstance(action, dict):
+        return ''
+    for key in ('command', 'action', 'id'):
+        value = action.get(key)
+        if isinstance(value, str) and value.strip().startswith('/'):
+            return value
+    return ''
+
+
+def _candidate_args(available_parts: list[list[str]], index: int) -> list[str]:
+    return sorted({parts[index] for parts in available_parts if index < len(parts)})
 
 
 def _score(features: Counter[str], weights: Counter[str]) -> float:

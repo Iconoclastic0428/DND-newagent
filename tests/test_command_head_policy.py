@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 import json
 from pathlib import Path
 import shutil
@@ -9,6 +10,7 @@ from uuid import uuid4
 from training.command_head_policy import (
     COMMAND_HEAD_POLICY_SCHEMA_VERSION,
     CommandHeadPolicyError,
+    _predict_command,
     render_command_head_policy_markdown,
     run_command_head_policy_preflight,
 )
@@ -69,6 +71,39 @@ class CommandHeadPolicyTests(unittest.TestCase):
                 baseline_report_path=baseline_path,
                 output_dir=self._tempdir / 'runs',
             )
+
+    def test_command_arguments_are_constrained_to_available_commands(self) -> None:
+        model = {
+            'heads': {
+                'command_family': {
+                    'labels': ['/attack'],
+                    'weights': {'/attack': Counter({'bias': 1.0})},
+                },
+                'command_arg_count': {
+                    'labels': ['3'],
+                    'weights': {'3': Counter({'bias': 1.0})},
+                },
+                'command_arg_1': {
+                    'labels': ['player-1'],
+                    'weights': {'player-1': Counter({'bias': 1.0})},
+                },
+                'command_arg_2': {
+                    'labels': ['sword'],
+                    'weights': {'sword': Counter({'bias': 1.0})},
+                },
+                'command_arg_3': {
+                    'labels': ['goblin-9'],
+                    'weights': {'goblin-9': Counter({'bias': 5.0})},
+                },
+            },
+        }
+        row = self._transition_row('candidate', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 sword goblin-2', scene='ambush')
+        row['available_actions'] = [
+            {'command': '/attack player-1 sword goblin-2', 'label': 'Attack Goblin Two'},
+            {'command': '/dodge player-1', 'label': 'Dodge'},
+        ]
+
+        self.assertEqual(_predict_command(row, model), '/attack player-1 sword goblin-2')
 
     def _write_recipe(self) -> Path:
         transition_path = self._tempdir / 'combined_training_transitions.jsonl'
