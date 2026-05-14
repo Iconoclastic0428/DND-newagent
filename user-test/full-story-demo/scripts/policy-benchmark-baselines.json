@@ -1,0 +1,20 @@
+{
+  "description": "Compare non-LLM baseline policies on the first LMOP combat using one saved balanced party.",
+  "episodes": 1,
+  "output_dir": "../../../runs/benchmarks",
+  "scenario_id": "lmop_first_combat",
+  "env_path": "../../../.env",
+  "max_combat_turns": 120,
+  "seeds": [11, 12, 13],
+  "character_loadouts": {
+    "balanced-party": "../../saved-characters/lmop-balanced-test-party.json"
+  },
+  "character_loadout_scenarios": ["balanced-party"],
+  "policies": [
+    "scripted",
+    {
+      "label": "random",
+      "policy": "random-legal"
+    }
+  ]
+}

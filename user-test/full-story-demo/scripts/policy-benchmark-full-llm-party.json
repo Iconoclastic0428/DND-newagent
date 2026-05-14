@@ -1,0 +1,26 @@
+{
+  "description": "Evaluate a full LLM-controlled party against the first LMOP combat using one saved balanced party.",
+  "episodes": 1,
+  "output_dir": "../../../runs/benchmarks",
+  "scenario_id": "lmop_first_combat",
+  "env_path": "../../../.env",
+  "max_combat_turns": 200,
+  "llm_player_max_actions_per_pump": 4,
+  "seeds": [31, 32, 33],
+  "character_loadouts": {
+    "balanced-party": "../../saved-characters/lmop-balanced-test-party.json"
+  },
+  "character_loadout_scenarios": ["balanced-party"],
+  "policies": [
+    {
+      "label": "full-llm-party",
+      "policy": "llm-party",
+      "llm_players": {
+        "player-1-controller": "../../llm-players/player-1.env",
+        "player-2-controller": "../../llm-players/player-2.env",
+        "player-3-controller": "../../llm-players/player-3.env",
+        "player-4-controller": "../../llm-players/player-4.env"
+      }
+    }
+  ]
+}

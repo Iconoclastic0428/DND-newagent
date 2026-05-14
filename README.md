@@ -102,6 +102,34 @@ python user-test\web_story_demo_server.py --host 127.0.0.1 --http-port 8000 --ws
 
 Use `--disable-llm-player-autopump` if you want to configure LLM players without automatically submitting their actions. Env files are ignored by git, but keep API keys out of committed docs and scripts.
 
+### Running Policy Benchmarks
+
+The benchmark runner can replay the first LMOP combat and write trajectories, reward summaries, preference pairs, and policy comparisons under `runs/benchmarks/`.
+
+Create or copy one env file per LLM player from the safe template:
+
+```powershell
+Copy-Item user-test\llm-players\player.env.example user-test\llm-players\player-1.env
+```
+
+Then edit the copied env file with that player's provider, model, and API key. For a full LLM party, create `player-1.env` through `player-4.env`. These env files are ignored by git.
+
+The committed benchmark manifests live in `user-test\full-story-demo\scripts`:
+
+- `policy-benchmark-baselines.json` compares scripted and random-legal baselines.
+- `policy-benchmark-mixed-llm-party.json` compares baselines with one-player and two-player LLM parties.
+- `policy-benchmark-full-llm-party.json` runs all four players as LLM players.
+
+Each manifest expects a saved party at `user-test\saved-characters\lmop-balanced-test-party.json`. You can create that once with `--save-characters`, or change the manifest `character_loadouts` path to another saved party file.
+
+Run a manifest with:
+
+```powershell
+python user-test\run_policy_benchmark.py --manifest user-test\full-story-demo\scripts\policy-benchmark-baselines.json
+```
+
+The output report contains per-policy rewards, invalid action rates, success rates, loadout labels, and links to the generated trajectory files.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

@@ -1,0 +1,39 @@
+{
+  "description": "Compare baselines against mixed parties where one or two player controllers are LLM-driven.",
+  "episodes": 1,
+  "output_dir": "../../../runs/benchmarks",
+  "scenario_id": "lmop_first_combat",
+  "env_path": "../../../.env",
+  "max_combat_turns": 160,
+  "llm_player_max_actions_per_pump": 4,
+  "seeds": [21, 22, 23],
+  "character_loadouts": {
+    "balanced-party": "../../saved-characters/lmop-balanced-test-party.json"
+  },
+  "character_loadout_scenarios": ["balanced-party"],
+  "policies": [
+    {
+      "label": "scripted-baseline",
+      "policy": "scripted"
+    },
+    {
+      "label": "random-baseline",
+      "policy": "random-legal"
+    },
+    {
+      "label": "one-llm-player",
+      "policy": "llm-party",
+      "llm_players": {
+        "player-1-controller": "../../llm-players/player-1.env"
+      }
+    },
+    {
+      "label": "two-llm-players",
+      "policy": "llm-party",
+      "llm_players": {
+        "player-1-controller": "../../llm-players/player-1.env",
+        "player-2-controller": "../../llm-players/player-2.env"
+      }
+    }
+  ]
+}
