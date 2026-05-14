@@ -1,3 +1,30 @@
+## 2026-05-13 - Training Smoke Dry Run
+
+### Scope
+- Add a lightweight dry-run report that consumes ready combined datasets before real training.
+- Reuse the existing readiness report as the gate.
+- Record input dataset paths, manifests, quality status, counts, and small sample previews.
+- Keep generated smoke reports out of git.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect readiness, collection, and dataset helper APIs.
+- [x] Add a training smoke report module.
+- [x] Add a CLI wrapper under `user-test`.
+- [x] Add focused tests for ready and blocked readiness behavior.
+- [x] Run the smoke report against current local generated datasets.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- `python -m py_compile training\training_smoke.py user-test\run_training_smoke.py tests\test_training_smoke.py`
+- `python -m unittest tests.test_training_smoke -v`
+- `python user-test\run_training_smoke.py --input runs\datasets\latest --input runs\benchmarks --output-dir runs\training-smoke`
+- `git diff --check -- README.md training\training_smoke.py user-test\run_training_smoke.py tests\test_training_smoke.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Pending implementation.
+
 ## 2026-05-13 - Story Opening Preference Benchmark
 
 ### Scope

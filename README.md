@@ -159,6 +159,14 @@ python user-test\report_training_readiness.py --input runs\datasets\latest --inp
 
 The report combines dataset manifests, quality reports, collection reports, and benchmark history into one status. It blocks on failed quality checks, missing dataset files, or empty datasets, and warns when expected quality reports or benchmark history are absent.
 
+To create a lightweight training smoke report from ready datasets, run:
+
+```powershell
+python user-test\run_training_smoke.py --input runs\datasets\latest --input runs\benchmarks --output-dir runs\training-smoke
+```
+
+The smoke report refuses blocked or warning-level readiness by default, records the exact input datasets and manifests, and samples a few transitions and preference pairs so the next training command has a reproducible dry-run handoff.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

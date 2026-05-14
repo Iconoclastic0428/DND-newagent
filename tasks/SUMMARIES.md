@@ -1,3 +1,11 @@
+## 2026-05-13 - Training Smoke Dry Run
+- Request: continue after readiness reached `ready` by adding the first lightweight bridge toward training.
+- Solution: added a dry-run training smoke report builder plus `user-test/run_training_smoke.py`, gated by the existing readiness report and writing JSON/Markdown run artifacts.
+- Why it matters: the project needs a low-risk handoff between dataset readiness and actual RL/model training so runs can record inputs, readiness status, and sampled data before expensive training starts.
+- Tests: added focused coverage for ready dataset handoff, blocked readiness rejection, and explicit `allow_not_ready` dry-run output.
+- Verification: compile checks and `tests.test_training_smoke` passed; local smoke run against `runs/datasets/latest` and `runs/benchmarks` wrote a report with readiness `ready`, 931 transition records, and 355 preference records.
+- Next step: add the first trainer-facing config stub that can consume the smoke report paths and choose a supervised/preference objective.
+
 ## 2026-05-13 - Story Opening Preference Benchmark
 - Request: continue from readiness recommendation output by adding more non-combat preference examples.
 - Solution: added a deterministic `lmop_story_opening_choices` training scenario that records multiple candidate player declarations against varied opening Waterdeep/Gundren story contexts, producing storytelling transitions and preference pairs without external LLM calls or combat execution.
