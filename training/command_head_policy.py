@@ -133,7 +133,7 @@ def run_command_head_policy_preflight(
         },
         'model': {
             'kind': 'multi_head_command_policy',
-            'feature_template': 'state_summary_sparse_features_v2_combat_argument_choice_features',
+            'feature_template': 'state_summary_sparse_features_v2_candidate_aware_arguments',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'heads': _head_summary(model),
@@ -300,9 +300,8 @@ def _predict_command(row: dict[str, Any], model: dict[str, Any]) -> str:
         return natural or family
     parts = [family]
     arg_count = _predicted_arg_count(features, model)
-    available_parts = _available_command_parts(row, family)
     for index in range(1, arg_count + 1):
-        arg = _predict_head(features, model['heads'].get(f'command_arg_{index}'), candidate_labels=_candidate_args(available_parts, index))
+        arg = _predict_head(features, model['heads'].get(f'command_arg_{index}'), candidate_labels=_argument_candidates(row, family, index, for_decoding=True))
         if arg is None:
             continue
         parts.append(arg)
@@ -491,8 +490,51 @@ def _available_action_command(action: Any) -> str:
     return ''
 
 
+def _argument_candidates(row: dict[str, Any], family: str, index: int, *, for_decoding: bool) -> list[str]:
+    candidates: set[str] = set(_candidate_args(_available_command_parts(row, family), index))
+    if family == '/attack' and index == 3:
+        candidates.update(_target_argument_candidates(row))
+    if index == 1:
+        for value in _actor_argument_candidates(row):
+            candidates.add(value)
+    if not for_decoding and family == '/attack' and index == 2:
+        candidates.update(_attack_option_candidates(row))
+    return sorted(candidate for candidate in candidates if candidate)
+
+
+def _actor_argument_candidates(row: dict[str, Any]) -> list[str]:
+    values = [row.get('acting_actor_id')]
+    state = row.get('state_before') if isinstance(row.get('state_before'), dict) else {}
+    values.append(state.get('active_actor_id'))
+    return sorted({str(value).strip().lower() for value in values if isinstance(value, str) and value.strip()})
+
+
+def _attack_option_candidates(row: dict[str, Any]) -> list[str]:
+    options: set[str] = set()
+    for action in _available_action_items(row):
+        if not isinstance(action, dict):
+            continue
+        if _normalized_option(action.get('group_id')) == 'attacks':
+            option_id = _normalized_option(action.get('option_id'))
+            if option_id:
+                options.add(option_id)
+    return sorted(options)
+
+
 def _candidate_args(available_parts: list[list[str]], index: int) -> list[str]:
     return sorted({parts[index] for parts in available_parts if index < len(parts)})
+
+
+def _target_argument_candidates(row: dict[str, Any]) -> list[str]:
+    state = row.get('state_before') if isinstance(row.get('state_before'), dict) else {}
+    active_side = str(state.get('active_actor_side') or '').strip().lower()
+    targets: set[str] = set()
+    for actor_id in _visible_combat_actor_ids(row):
+        if actor_id.startswith('monster-') and active_side == 'player':
+            targets.add(actor_id)
+        elif actor_id.startswith('player-') and active_side == 'monster':
+            targets.add(actor_id)
+    return sorted(targets)
 
 
 def _score(features: Counter[str], weights: Counter[str]) -> float:
@@ -505,6 +547,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
     correct = 0
     family_correct = 0
     component_counts: dict[str, dict[str, int]] = defaultdict(lambda: {'correct_count': 0, 'record_count': 0})
+    candidate_counts: dict[str, dict[str, int]] = defaultdict(lambda: {'covered_count': 0, 'record_count': 0})
     for row in rows:
         expected = str(row.get('action') or '')
         predicted = _predict_command(row, model)
@@ -512,6 +555,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
             correct += 1
         if _action_family(predicted) == _action_family(expected):
             family_correct += 1
+        _update_argument_candidate_counts(candidate_counts, row, expected=expected)
         _update_action_component_counts(component_counts, predicted=predicted, expected=expected)
     return {
         'record_count': len(rows),
@@ -520,6 +564,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
         'action_family_correct_count': family_correct,
         'action_family_accuracy': family_correct / len(rows),
         'action_component_accuracy': _component_accuracy(component_counts),
+        'argument_candidate_coverage': _candidate_coverage(candidate_counts),
     }
 
 
@@ -532,6 +577,39 @@ def _metric_breakdowns(rows: list[dict[str, Any]], model: dict[str, Any]) -> dic
         result[field] = {
             label: _evaluate_rows(bucket_rows, model)
             for label, bucket_rows in sorted(buckets.items())
+        }
+    return result
+
+
+def _update_argument_candidate_counts(
+    counts: dict[str, dict[str, int]],
+    row: dict[str, Any],
+    *,
+    expected: str,
+) -> None:
+    expected_parts = _action_parts(expected)
+    if not expected_parts or not expected_parts[0].startswith('/'):
+        return
+    family = expected_parts[0]
+    for index, expected_arg in enumerate(expected_parts[1:5], start=1):
+        candidates = _argument_candidates(row, family, index, for_decoding=False)
+        if not candidates:
+            continue
+        key = f'arg_{index}'
+        counts[key]['record_count'] += 1
+        if expected_arg in candidates:
+            counts[key]['covered_count'] += 1
+
+
+def _candidate_coverage(counts: dict[str, dict[str, int]]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    for component, item in sorted(counts.items()):
+        total = item['record_count']
+        covered = item['covered_count']
+        result[component] = {
+            'record_count': total,
+            'covered_count': covered,
+            'coverage': covered / total if total else None,
         }
     return result
 

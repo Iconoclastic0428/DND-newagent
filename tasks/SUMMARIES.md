@@ -1,3 +1,11 @@
+## 2026-05-14 - Candidate-Aware Argument Diagnostics
+- Request: continue from combat argument features by separating candidate availability from argument scoring.
+- Solution: added candidate-aware argument extraction, conservative actor/target decoding, and per-argument candidate coverage metrics.
+- Why it matters: the next MosaicML trainer needs to know whether weak weapon and target heads are missing candidates or scoring the wrong candidate.
+- Tests: added focused coverage for visible target candidates, attack option candidate reporting, and report-level candidate coverage output.
+- Verification: compile checks and `tests.test_command_head_policy` passed; the real preflight stayed at 0.6935 exact eval while showing `arg_1` and `arg_3` candidate coverage at 1.0000 and `arg_2` weapon candidate coverage at 0.0000 for combat rows with candidates.
+- Next step: normalize weapon option ids into the command argument vocabulary or enrich generated available actions with literal weapon command arguments before MosaicML training.
+
 ## 2026-05-14 - Combat Argument Choice Features
 - Request: continue from combat choice-family features by improving weak weapon and target argument heads.
 - Solution: added attack-option, literal command candidate, visible actor, and target-candidate sparse features for combat argument heads.

@@ -11,6 +11,7 @@ from training.command_head_policy import (
     COMMAND_HEAD_POLICY_SCHEMA_VERSION,
     CommandHeadPolicyError,
     _predict_command,
+    _argument_candidates,
     _command_features,
     render_command_head_policy_markdown,
     run_command_head_policy_preflight,
@@ -54,6 +55,7 @@ class CommandHeadPolicyTests(unittest.TestCase):
         self.assertEqual(report['split']['train_records'], 6)
         self.assertEqual(report['split']['eval_records'], 2)
         self.assertIn('action_component_accuracy', report['metrics']['eval'])
+        self.assertIn('argument_candidate_coverage', report['metrics']['eval'])
         self.assertIn('baseline_comparison', report)
         self.assertTrue(Path(report['model_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
@@ -177,6 +179,33 @@ class CommandHeadPolicyTests(unittest.TestCase):
         self.assertIn('command_attack_option=dagger-melee-dex', features)
         self.assertIn('command_candidate_arg_2=dagger-melee-dex', features)
         self.assertIn('command_candidate_target=monster-goblin-1', features)
+
+    def test_argument_candidates_include_visible_targets(self) -> None:
+        row = self._transition_row('target-candidates', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 sword monster-goblin-1', scene='ambush')
+        row['observation']['summary_lines'].extend([
+            'monster-goblin-1: Goblin Ambusher 1 [monster] Pos (4,10,10); Status active',
+            'monster-goblin-2: Goblin Ambusher 2 [monster] Pos (5,10,10); Status active',
+            'player-1: Player 1 [player] HP 10/10; Status active',
+        ])
+        row['state_before']['active_actor_side'] = 'player'
+
+        candidates = _argument_candidates(row, '/attack', 3, for_decoding=True)
+
+        self.assertIn('monster-goblin-1', candidates)
+        self.assertIn('monster-goblin-2', candidates)
+        self.assertNotIn('player-1', candidates)
+
+    def test_argument_candidates_report_attack_options(self) -> None:
+        row = self._transition_row('weapon-candidates', runtime_mode='combat', agent_id='player-1-controller', action='/attack player-1 dagger-melee-dex monster-goblin-1', scene='ambush')
+        row['available_actions'] = [
+            {'group_id': 'attacks', 'option_id': 'dagger-melee-dex', 'label': 'Dagger Melee DEX'},
+        ]
+
+        decode_candidates = _argument_candidates(row, '/attack', 2, for_decoding=True)
+        report_candidates = _argument_candidates(row, '/attack', 2, for_decoding=False)
+
+        self.assertNotIn('dagger-melee-dex', decode_candidates)
+        self.assertIn('dagger-melee-dex', report_candidates)
 
 
     def _write_recipe(self) -> Path:

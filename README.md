@@ -215,7 +215,7 @@ To run the first local multi-head command policy preflight, run:
 python user-test\train_command_head_policy.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --baseline-report runs\training-runs\<baseline-run-id>\supervised_baseline_report.json --output-dir runs\training-runs
 ```
 
-This trainer splits command prediction into a command-family head, a natural-action fallback head, an argument-count head, and slash-command argument heads. Combat features include available option groups, option ids, inferred command-family choices, attack choice ids, visible combat actor ids, and literal command candidate arguments when present. Command-family and argument decoding are constrained by literal available commands when possible, so predicted command types and actor, weapon, or target slots stay inside the locally legal action set. It is still a local preflight; it does not submit a MosaicML job.
+This trainer splits command prediction into a command-family head, a natural-action fallback head, an argument-count head, and slash-command argument heads. Combat features include available option groups, option ids, inferred command-family choices, attack choice ids, visible combat actor ids, and literal command candidate arguments when present. Command-family and argument decoding are constrained by literal available commands, actor ids, and target candidates when possible, and reports include candidate coverage for each argument slot. It is still a local preflight; it does not submit a MosaicML job.
 
 ## 4. Open The Web UIs
 

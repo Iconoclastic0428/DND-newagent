@@ -1,3 +1,31 @@
+## 2026-05-14 - Candidate-Aware Argument Diagnostics
+
+### Scope
+- Add explicit argument candidate sets for literal commands, actors, targets, and attack option ids.
+- Use conservative candidate-aware decoding for actor/target slots.
+- Report per-argument candidate coverage during evaluation.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect current argument feature and evaluation helpers.
+- [x] Add argument candidate extraction helpers.
+- [x] Use candidate-aware decoding for command arguments.
+- [x] Add candidate coverage metrics to reports.
+- [x] Add focused tests for candidate extraction and report coverage.
+- [x] Run the preflight against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py`
+- [x] `python -m unittest tests.test_command_head_policy -v`
+- [x] `python user-test\train_command_head_policy.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\training-runs`
+- [x] `git diff --check -- README.md training\command_head_policy.py user-test\train_command_head_policy.py tests\test_command_head_policy.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: exact eval stayed at 0.6935 vs. the 0.6828 frequency baseline. Candidate coverage explained the remaining split: combat `arg_1` and `arg_3` coverage were 1.0000, but combat `arg_2` coverage was 0.0000 over 30 rows, meaning target candidates exist but weapon candidates do not match the supervised command vocabulary.
+- Report: `runs\training-runs\mosaicml-command-head-policy-20260514T164514Z-965a568e\command_head_policy_report.json`
+
 ## 2026-05-14 - Combat Argument Choice Features
 
 ### Scope
