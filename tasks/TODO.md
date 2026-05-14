@@ -1,3 +1,32 @@
+## 2026-05-13 - Story Opening Preference Benchmark
+
+### Scope
+- Add a deterministic non-combat benchmark/data path to address the readiness recommendation.
+- Keep the scenario lightweight and local: no external LLM calls, no combat loop, no generated dataset files committed.
+- Generate story-mode preference pairs from the opening Waterdeep/Gundren scene.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/manifest/task notes for this move.
+
+### Steps
+- [x] Inspect the current training-batch scenario and preference-pair generation flow.
+- [x] Add `lmop_story_opening_choices` scenario support.
+- [x] Add a committed policy benchmark manifest for the story-opening benchmark.
+- [x] Add focused tests for non-combat transition/preference generation.
+- [x] Run focused verification and regenerate local benchmark/dataset/readiness artifacts.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- `python -m py_compile user-test\run_training_batch.py user-test\run_policy_benchmark.py tests\test_training_batch.py`
+- `python -m unittest tests.test_training_batch tests.test_policy_benchmark_manifests -v`
+- `python user-test\run_policy_benchmark.py --manifest user-test\full-story-demo\scripts\policy-benchmark-story-opening.json`
+- `python user-test\collect_training_datasets.py --input runs\benchmarks --output-dir runs\datasets\latest`
+- `python user-test\report_training_readiness.py --input runs\datasets\latest --input runs\benchmarks --output-json runs\datasets\latest\training_readiness.json --output-md runs\datasets\latest\training_readiness.md`
+- `git diff --check -- user-test\run_training_batch.py user-test\run_policy_benchmark.py user-test\full-story-demo\scripts\policy-benchmark-story-opening.json tests\test_training_batch.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Remaining readiness recommendation before this move: add more non-combat preference examples because combat covers 98.3% of preference records.
+- Pending implementation.
+
 ## 2026-05-13 - Readiness Coverage Recommendations
 
 ### Scope

@@ -1,3 +1,11 @@
+## 2026-05-13 - Story Opening Preference Benchmark
+- Request: continue from readiness recommendation output by adding more non-combat preference examples.
+- Solution: added a deterministic `lmop_story_opening_choices` training scenario that records multiple candidate player declarations against varied opening Waterdeep/Gundren story contexts, producing storytelling transitions and preference pairs without external LLM calls or combat execution.
+- Benchmark manifest: added `user-test/full-story-demo/scripts/policy-benchmark-story-opening.json` with enough episodes to materially rebalance preference runtime-mode coverage when collected with the existing combat benchmark.
+- Why it matters: the readiness report's remaining warning was that combat covered 98.3% of preference records. This benchmark creates non-combat preferences in the same benchmark/collector pipeline, so coverage can improve without hand-editing datasets.
+- Tests: added focused training-batch coverage for the new scenario and manifest validation for supported scenario IDs.
+- Verification: compile checks and focused unit tests passed; the story benchmark generated 240 storytelling transitions and 180 storytelling preference pairs; collection and readiness regeneration produced `status: ready` with 0 blockers and 0 warnings.
+
 ## 2026-05-13 - Readiness Coverage Recommendations
 - Request: continue after the readiness report reached `needs_attention`, following the required workflow of done/why/tests/next/commit-push for each move.
 - Solution: enhanced `training/readiness_report.py` so dataset summaries carry quality count breakdowns and quality issue details, and the top-level report now includes explicit recommendations derived from readiness and quality issues.

@@ -254,6 +254,35 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertGreater(summary['action_count_by_source']['baseline'], 0)
         self.assertEqual(saved['policy_evaluation']['action_count_by_source']['baseline'], summary['action_count_by_source']['baseline'])
 
+    def test_story_opening_choice_batch_writes_storytelling_preferences(self) -> None:
+        report = run_batch(
+            episodes=2,
+            output_dir=self._tempdir / 'story-opening-batches',
+            scenario_id='lmop_story_opening_choices',
+            env_path=self.env_path,
+            base_url=LOCAL_MIRROR_BASE_URL,
+        )
+
+        report_path = Path(report['report_path'])
+        self.assertTrue(report_path.exists())
+        saved = json.loads(report_path.read_text(encoding='utf-8'))
+        self.assertEqual(saved['scenario_id'], 'lmop_story_opening_choices')
+        self.assertEqual(saved['policy'], 'scripted')
+        self.assertEqual(saved['success_rate'], 1.0)
+        self.assertGreater(saved['transition_count'], 0)
+        self.assertEqual(saved['preference_pair_count'], 6)
+        transitions = [
+            json.loads(line)
+            for line in Path(saved['transition_path']).read_text(encoding='utf-8').splitlines()
+        ]
+        preferences = [
+            json.loads(line)
+            for line in Path(saved['preference_path']).read_text(encoding='utf-8').splitlines()
+        ]
+        self.assertEqual({row['runtime_mode'] for row in transitions}, {'storytelling'})
+        self.assertEqual({row['runtime_mode'] for row in preferences}, {'storytelling'})
+        self.assertTrue(all(row['source'] == 'baseline' for row in transitions))
+
 
 if __name__ == '__main__':
     unittest.main()

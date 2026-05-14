@@ -1,0 +1,16 @@
+{
+  "description": "Generate deterministic non-combat preference examples from the opening Waterdeep/Gundren story scene.",
+  "episodes": 60,
+  "output_dir": "../../../runs/benchmarks",
+  "scenario_id": "lmop_story_opening_choices",
+  "env_path": "../../../.env",
+  "max_combat_turns": 1,
+  "seeds": [21],
+  "character_loadouts": {
+    "balanced-party": "../../saved-characters/lmop-balanced-test-party.json"
+  },
+  "character_loadout_scenarios": ["balanced-party"],
+  "policies": [
+    "scripted"
+  ]
+}

@@ -26,6 +26,7 @@ from story_demo_system_server import build_full_story_demo_manual_session
 from training.dataset_manifest import write_dataset_manifest
 from training.evaluation import summarize_policy_evaluation, write_policy_evaluation_report
 from training.preferences import build_preference_pairs, write_preference_pairs_jsonl
+from training.rewards import reward_total
 from training.trajectory import TrajectoryRecorder
 from training.trajectory_summary import summarize_batch, summarize_trajectory
 from training.transitions import build_training_transitions, write_training_transitions_jsonl
@@ -33,6 +34,10 @@ from web_story_demo_server import LocalDemoLLMTransport
 
 
 FIRST_COMBAT_SCRIPT = REPO_ROOT / 'user-test' / 'full-story-demo' / 'scripts' / 'lmop-friendly-live-web-run.json'
+SUPPORTED_SCENARIOS = {
+    'lmop_first_combat',
+    'lmop_story_opening_choices',
+}
 PLAYER_CONTROLLER_IDS = (
     'player-1-controller',
     'player-2-controller',
@@ -53,6 +58,51 @@ TARGETED_HEALING_SPELLS = frozenset({
     'cure-wounds',
     'healing-word',
 })
+
+STORY_OPENING_CANDIDATES = (
+    {
+        'controller_id': 'player-1-controller',
+        'action': 'I thank Gundren for trusting us and ask what danger he expects on the road to Phandalin.',
+        'reward_components': {'valid_action': 0.01, 'story_progress': 0.08, 'state_progress': 0.02},
+    },
+    {
+        'controller_id': 'player-2-controller',
+        'action': 'I ask Sildar what signs of trouble he has seen between Waterdeep and Phandalin.',
+        'reward_components': {'valid_action': 0.01, 'story_progress': 0.07, 'state_progress': 0.02},
+    },
+    {
+        'controller_id': 'player-3-controller',
+        'action': 'I inspect the wagon contract and supplies for anything that could become important later.',
+        'reward_components': {'valid_action': 0.01, 'story_progress': 0.04, 'state_progress': 0.02},
+    },
+    {
+        'controller_id': 'player-4-controller',
+        'action': 'I ignore Gundren and try to start a tavern brawl instead of preparing for the job.',
+        'reward_components': {'valid_action': 0.01},
+    },
+)
+
+STORY_OPENING_CONTEXT_CUES = (
+    'Gundren worries that word of the Rockseeker contract has already reached the wrong ears.',
+    'Sildar quietly asks the party to watch for signs of organized bandit activity.',
+    'The supply wagon includes fragile trade goods that should arrive intact.',
+    'Gundren hints that speed matters because another group may be chasing the same lead.',
+    'Sildar mentions that Phandalin has been short on reliable guards.',
+    'A nervous teamster reports fresh wheel tracks leaving the High Road.',
+    'Gundren asks the party to keep the mining details discreet until they reach town.',
+    'The party notices the oxen are skittish before the road journey begins.',
+    'Sildar wants the party to learn who has been intimidating travelers near Triboar Trail.',
+    'Gundren reminds everyone that the job is more than a simple delivery.',
+    'A merchant warns that the weather could make the trail difficult by dusk.',
+    'Sildar suggests that careful questions may reveal danger before swords are drawn.',
+)
+STORY_OPENING_CONTEXT_PRESSURES = (
+    'prioritize caution without stalling the job',
+    'balance secrecy with useful questions',
+    'protect the supplies and the people traveling with them',
+    'gather actionable information before leaving Waterdeep',
+    'show the employer that the party is organized and trustworthy',
+)
 
 
 class TrainingBatchError(RuntimeError):
@@ -76,8 +126,8 @@ def run_batch(
 ) -> dict[str, Any]:
     if episodes <= 0:
         raise TrainingBatchError('episodes must be greater than 0.')
-    if scenario_id != 'lmop_first_combat':
-        raise TrainingBatchError(f'Unsupported scenario_id: {scenario_id!r}.')
+    if scenario_id not in SUPPORTED_SCENARIOS:
+        raise TrainingBatchError(f'Unsupported scenario_id: {scenario_id!r}. Expected one of: {", ".join(sorted(SUPPORTED_SCENARIOS))}.')
     policy = _normalize_policy(policy)
     resolved_llm_specs = _resolve_llm_player_specs(policy=policy, env_path=env_path, llm_player_specs=llm_player_specs)
     batch_dir = Path(output_dir) / f'{scenario_id}-batch-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
@@ -86,7 +136,7 @@ def run_batch(
     transition_rows: list[dict[str, Any]] = []
     for episode_index in range(1, episodes + 1):
         try:
-            trajectory_path = run_first_combat_episode(
+            trajectory_path = run_training_episode(
                 output_dir=episode_output_dir,
                 episode_id=f'{scenario_id}-{episode_index:04d}',
                 scenario_id=scenario_id,
@@ -216,6 +266,46 @@ def _batch_dataset_context(
     }
 
 
+def run_training_episode(
+    *,
+    output_dir: str | Path,
+    episode_id: str,
+    scenario_id: str,
+    env_path: str | Path,
+    base_url: str | None,
+    max_combat_turns: int,
+    policy: str = 'scripted',
+    baseline_seed: int = 0,
+    character_load_path: str | Path | None = None,
+    llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
+    llm_player_max_actions_per_pump: int = 1,
+) -> Path:
+    if scenario_id == 'lmop_first_combat':
+        return run_first_combat_episode(
+            output_dir=output_dir,
+            episode_id=episode_id,
+            scenario_id=scenario_id,
+            env_path=env_path,
+            base_url=base_url,
+            max_combat_turns=max_combat_turns,
+            policy=policy,
+            baseline_seed=baseline_seed,
+            character_load_path=character_load_path,
+            llm_player_agents=llm_player_agents,
+            llm_player_max_actions_per_pump=llm_player_max_actions_per_pump,
+        )
+    if scenario_id == 'lmop_story_opening_choices':
+        return run_story_opening_choice_episode(
+            output_dir=output_dir,
+            episode_id=episode_id,
+            scenario_id=scenario_id,
+            env_path=env_path,
+            base_url=base_url,
+            character_load_path=character_load_path,
+        )
+    raise TrainingBatchError(f'Unsupported scenario_id: {scenario_id!r}.')
+
+
 def run_first_combat_episode(
     *,
     output_dir: str | Path,
@@ -260,6 +350,127 @@ def run_first_combat_episode(
     else:
         raise TrainingBatchError(f'Unsupported policy: {policy!r}.')
     return recorder.path
+
+
+def run_story_opening_choice_episode(
+    *,
+    output_dir: str | Path,
+    episode_id: str,
+    scenario_id: str,
+    env_path: str | Path,
+    base_url: str | None,
+    character_load_path: str | Path | None = None,
+) -> Path:
+    recorder = TrajectoryRecorder(output_dir=output_dir, scenario_id=scenario_id, episode_id=episode_id)
+    session = build_full_story_demo_manual_session(
+        base_url=base_url,
+        env_path=env_path,
+        client_transport=LocalDemoLLMTransport(),
+        character_load_path=character_load_path,
+        precreate_characters=(character_load_path is None),
+        trajectory_recorder=None,
+    )
+    if session.story_session is None or session.story_session.story_state.runtime_mode != RuntimeMode.STORYTELLING:
+        raise TrainingBatchError('Story-opening setup did not enter storytelling mode.')
+    recorder.record_event(
+        record_type='story_started',
+        source='system',
+        runtime_mode=RuntimeMode.STORYTELLING.value,
+        metadata={'scenario_id': scenario_id},
+    )
+    before = session._trajectory_snapshot('player-1-controller')
+    before = _story_opening_context_snapshot(before, episode_id=episode_id)
+    after = _story_candidate_after_snapshot(before)
+    for candidate in STORY_OPENING_CANDIDATES:
+        _record_story_candidate(
+            recorder,
+            before=before,
+            after=after,
+            controller_id=str(candidate['controller_id']),
+            raw_text=str(candidate['action']),
+            reward_components=dict(candidate['reward_components']),
+        )
+    recorder.record_event(
+        record_type='episode_completed',
+        source='system',
+        runtime_mode=RuntimeMode.STORYTELLING.value,
+        reward_components={},
+        metadata={
+            'success': True,
+            'reward_total': 0.0,
+            'result_summary': 'Generated opening story preference candidates.',
+            **after['state'],
+        },
+    )
+    return recorder.path
+
+
+def _story_opening_context_snapshot(before: dict[str, Any], *, episode_id: str) -> dict[str, Any]:
+    snapshot = json.loads(json.dumps(before, ensure_ascii=False))
+    observation = snapshot.get('observation') if isinstance(snapshot.get('observation'), dict) else {}
+    context_index = _episode_context_index(episode_id)
+    cue = STORY_OPENING_CONTEXT_CUES[context_index % len(STORY_OPENING_CONTEXT_CUES)]
+    pressure = STORY_OPENING_CONTEXT_PRESSURES[
+        (context_index // len(STORY_OPENING_CONTEXT_CUES)) % len(STORY_OPENING_CONTEXT_PRESSURES)
+    ]
+    summary_lines = list(observation.get('summary_lines') or [])
+    summary_lines.append(f'Opening cue: {cue}')
+    summary_lines.append(f'Current party priority: {pressure}.')
+    observation['summary_lines'] = summary_lines
+    prompt = observation.get('prompt')
+    if isinstance(prompt, dict):
+        prompt_text = str(prompt.get('text') or '').strip()
+        context_text = f'Opening cue: {cue} Priority: {pressure}.'
+        prompt['text'] = f'{prompt_text}\n\n{context_text}' if prompt_text else context_text
+    snapshot['observation'] = observation
+    state = snapshot.get('state') if isinstance(snapshot.get('state'), dict) else {}
+    state['story_context_cue'] = cue
+    state['story_context_priority'] = pressure
+    snapshot['state'] = state
+    return snapshot
+
+
+def _episode_context_index(episode_id: str) -> int:
+    suffix = episode_id.rsplit('-', 1)[-1]
+    try:
+        value = int(suffix)
+    except ValueError:
+        return 0
+    return max(value - 1, 0)
+
+
+def _story_candidate_after_snapshot(before: dict[str, Any]) -> dict[str, Any]:
+    after = json.loads(json.dumps(before, ensure_ascii=False))
+    state = after.get('state') if isinstance(after.get('state'), dict) else {}
+    state['transcript_count'] = int(state.get('transcript_count') or 0) + 1
+    state['event_count'] = int(state.get('event_count') or 0) + 1
+    after['state'] = state
+    return after
+
+
+def _record_story_candidate(
+    recorder: TrajectoryRecorder,
+    *,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    controller_id: str,
+    raw_text: str,
+    reward_components: dict[str, float],
+) -> None:
+    recorder.record_turn(
+        agent_id=controller_id,
+        role='player',
+        runtime_mode=RuntimeMode.STORYTELLING.value,
+        source='baseline',
+        raw_text=raw_text,
+        parsed_action={'kind': 'natural_language', 'utterance': raw_text},
+        observation=before.get('observation'),
+        post_observation=after.get('observation'),
+        state_before=before.get('state'),
+        state_after=after.get('state'),
+        reward_components=reward_components,
+        metadata={'reward_total': reward_total(reward_components)},
+    )
 
 
 def build_llm_player_agents(specs: tuple[tuple[str, str | Path], ...]) -> tuple[LLMPlayerAgent, ...]:
@@ -523,7 +734,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run repeated training/evaluation episodes and summarize trajectories.')
     parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
     parser.add_argument('--output-dir', type=Path, default=Path('runs/batches'), help='Directory for batch reports and episode trajectories.')
-    parser.add_argument('--scenario-id', default='lmop_first_combat', help='Scenario to run. Currently supports lmop_first_combat.')
+    parser.add_argument('--scenario-id', default='lmop_first_combat', choices=sorted(SUPPORTED_SCENARIOS), help='Scenario to run.')
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Environment file used by the demo runtime.')
     parser.add_argument('--base-url', default=None, help='Optional explicit 5etools mirror base URL.')
     parser.add_argument('--max-combat-turns', type=int, default=80, help='Maximum combat turns before an episode is marked failed.')

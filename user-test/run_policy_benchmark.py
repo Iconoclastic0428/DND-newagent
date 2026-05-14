@@ -214,7 +214,7 @@ def parse_args() -> argparse.Namespace:
         metavar='[LABEL=]POLICY',
         help='Policy to benchmark. Repeat for multiple policies. Defaults to scripted and random-legal.',
     )
-    parser.add_argument('--scenario-id', default='lmop_first_combat', help='Scenario to run. Currently supports lmop_first_combat.')
+    parser.add_argument('--scenario-id', default='lmop_first_combat', help='Scenario to run. Supports lmop_first_combat and lmop_story_opening_choices.')
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Environment file used by the demo runtime.')
     parser.add_argument('--base-url', default=None, help='Optional explicit 5etools mirror base URL.')
     parser.add_argument('--max-combat-turns', type=int, default=120, help='Maximum combat turns before an episode is marked failed.')

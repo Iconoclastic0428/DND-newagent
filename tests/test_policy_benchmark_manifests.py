@@ -7,6 +7,10 @@ import unittest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_DIR = REPO_ROOT / 'user-test' / 'full-story-demo' / 'scripts'
+SUPPORTED_SCENARIOS = {
+    'lmop_first_combat',
+    'lmop_story_opening_choices',
+}
 
 
 class PolicyBenchmarkManifestTests(unittest.TestCase):
@@ -20,7 +24,7 @@ class PolicyBenchmarkManifestTests(unittest.TestCase):
                 manifest = json.loads(raw_text)
                 self.assertIsInstance(manifest.get('policies'), list)
                 self.assertGreater(len(manifest['policies']), 0)
-                self.assertEqual(manifest.get('scenario_id', 'lmop_first_combat'), 'lmop_first_combat')
+                self.assertIn(manifest.get('scenario_id', 'lmop_first_combat'), SUPPORTED_SCENARIOS)
                 self.assertIsInstance(manifest.get('seeds', [0]), list)
                 self.assertGreater(len(manifest.get('seeds', [0])), 0)
                 for policy_entry in manifest['policies']:

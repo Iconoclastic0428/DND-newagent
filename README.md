@@ -119,6 +119,7 @@ The committed benchmark manifests live in `user-test\full-story-demo\scripts`:
 - `policy-benchmark-baselines.json` compares scripted and random-legal baselines.
 - `policy-benchmark-mixed-llm-party.json` compares baselines with one-player and two-player LLM parties.
 - `policy-benchmark-full-llm-party.json` runs all four players as LLM players.
+- `policy-benchmark-story-opening.json` runs a deterministic non-combat story-opening scenario that adds storytelling preference coverage.
 
 Each manifest expects a saved party at `user-test\saved-characters\lmop-balanced-test-party.json`. You can create that once with `--save-characters`, or change the manifest `character_loadouts` path to another saved party file.
 
