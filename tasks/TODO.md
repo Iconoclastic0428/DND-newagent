@@ -1,3 +1,34 @@
+## 2026-05-14 - Snapshot-Constrained Random-Legal Attacks
+
+### Scope
+- Constrain random-legal weapon attacks to the runtime snapshot's available attack choices.
+- Avoid reintroducing the movement-aware attack approach experiment into this small fix.
+- Add focused coverage for unavailable known attacks such as stowed or unheld weapons.
+- Verify the random-legal batch still completes with zero baseline errors.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/tests/task notes for this move.
+
+### Steps
+- [x] Inspect the random-legal generator and runtime attack choice source.
+- [x] Remove the movement-aware approach experiment from the current working tree.
+- [x] Pass snapshot `available_choices` into random-legal combat command generation.
+- [x] Filter attack profiles through snapshot attack option ids.
+- [x] Add a focused regression test for snapshot-constrained attacks.
+- [x] Run compile checks, focused tests, integration, and a direct batch probe.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile user-test\run_training_batch.py tests\test_training_batch.py`
+- [x] `python -m unittest tests.test_training_batch.TrainingBatchTests.test_random_legal_combat_commands_use_available_attack_choices -v`
+- [x] `python -m unittest tests.test_training_batch.TrainingBatchTests.test_random_legal_first_combat_batch_uses_baseline_actions -v`
+- [x] direct `run_batch(... policy='random-legal', baseline_seed=123, max_combat_turns=120)` probe
+- [x] `git diff --check -- user-test/run_training_batch.py tests/test_training_batch.py`
+
+### Review
+- Result: random-legal attack generation now uses runtime `available_choices['attacks']`, so unavailable known attacks are not emitted as baseline actions.
+- Probe: `C:\tmp\random-legal-check-final\lmop_first_combat-batch-20260514T175902Z-3a3ab57b\training_transitions.jsonl` had 147 rows, 0 errors, and 0 `/attack` rows.
+- Next: create a dedicated legal-attack data pass, scenario, or movement-aware benchmark to generate positive valid `/attack` examples for MosaicML training.
+
 ## 2026-05-14 - Filter Invalid Supervised Actions
 
 ### Scope

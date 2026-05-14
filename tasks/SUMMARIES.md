@@ -1,3 +1,11 @@
+## 2026-05-14 - Snapshot-Constrained Random-Legal Attacks
+- Request: continue toward fixing legal combat data after invalid supervised attacks were filtered out.
+- Solution: constrained random-legal attack command generation to the runtime snapshot's available attack choices instead of every attack profile known by the actor.
+- Why it matters: known attacks can include unavailable weapons, while snapshot attack choices are already filtered through runtime equipment and action legality, so random-legal no longer emits stowed or unheld weapons such as `shortbow-ranged`.
+- Tests: added a focused generator test for snapshot attack filtering and strengthened the random-legal batch integration to assert zero baseline errors.
+- Verification: compile checks, focused unit test, random-legal integration test, and a direct random-legal probe passed. The probe produced 147 transition rows, 0 errors, and 0 `/attack` rows.
+- Next step: add a dedicated legal-attack data pass, scenario, or movement-aware benchmark that produces valid `/attack` rows without slowing the existing random-legal benchmark.
+
 ## 2026-05-14 - Filter Invalid Supervised Actions
 - Request: continue after discovering that weak attack arguments came from invalid `/attack` labels.
 - Solution: changed supervised baseline/trainable loaders to skip transitions with `error`, and locked that behavior with baseline, trainable-policy, and command-head test fixtures.

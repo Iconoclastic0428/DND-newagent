@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import random
 import shutil
 import sys
+from types import SimpleNamespace
 import unittest
 from uuid import uuid4
 
@@ -14,9 +16,9 @@ USER_TEST_ROOT = REPO_ROOT / 'user-test'
 if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
-from run_training_batch import run_batch
+from run_training_batch import _random_legal_combat_commands, run_batch
 from session_server.llm_player import LLMPlayerDecision
-from shared_types.encounter_models import ActorSide
+from shared_types.encounter_models import ActorSide, GridPosition
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 
@@ -253,6 +255,43 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertEqual(summary['final_runtime_mode'], 'demo-complete')
         self.assertGreater(summary['action_count_by_source']['baseline'], 0)
         self.assertEqual(saved['policy_evaluation']['action_count_by_source']['baseline'], summary['action_count_by_source']['baseline'])
+        transitions = [
+            json.loads(line)
+            for line in Path(saved['transition_path']).read_text(encoding='utf-8').splitlines()
+        ]
+        baseline_rows = [row for row in transitions if row['source'] == 'baseline']
+        self.assertFalse([row for row in baseline_rows if row.get('error')])
+
+    def test_random_legal_combat_commands_use_available_attack_choices(self) -> None:
+        actor = SimpleNamespace(
+            actor_id='player-1',
+            action_available=True,
+            side=ActorSide.PLAYER,
+            current_hit_points=10,
+            max_hit_points=10,
+            position=GridPosition(0, 0, 0),
+            spells={},
+            attacks={
+                'dagger-melee-dex': SimpleNamespace(attack_id='dagger-melee-dex', range_ft=None, reach_ft=5),
+                'shortbow-ranged': SimpleNamespace(attack_id='shortbow-ranged', range_ft=80, reach_ft=None),
+            },
+        )
+        target = SimpleNamespace(
+            actor_id='monster-goblin-1',
+            side=ActorSide.MONSTER,
+            current_hit_points=7,
+            max_hit_points=7,
+            position=GridPosition(1, 0, 0),
+        )
+        state = SimpleNamespace(actors={actor.actor_id: actor, target.actor_id: target})
+        available_choices = {
+            'attacks': (SimpleNamespace(option_id='dagger-melee-dex'),),
+        }
+
+        commands = _random_legal_combat_commands(state, actor, random.Random(0), available_choices=available_choices)
+
+        self.assertIn('/attack player-1 dagger-melee-dex monster-goblin-1', commands)
+        self.assertNotIn('/attack player-1 shortbow-ranged monster-goblin-1', commands)
 
     def test_story_opening_choice_batch_writes_storytelling_preferences(self) -> None:
         report = run_batch(

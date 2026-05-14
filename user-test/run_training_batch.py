@@ -642,7 +642,13 @@ def _finish_first_combat_with_random_legal_actions(session, *, max_combat_turns:
             session.handle_input('dm', f'/endturn {active_actor_id}')
             continue
         controller_id = session.story_session.encounter_session.control_runtime.controller_for_actor(active_actor_id)
-        commands = _random_legal_combat_commands(state, actor, rng)
+        snapshot = session.story_session.encounter_session.command_interface.kernel.snapshot(state)
+        commands = _random_legal_combat_commands(
+            state,
+            actor,
+            rng,
+            available_choices=snapshot.available_choices,
+        )
         if not _try_baseline_commands(session, controller_id, commands):
             _handle_baseline_input(session, controller_id, f'/endturn {active_actor_id}')
             continue
@@ -656,7 +662,13 @@ def _finish_first_combat_with_random_legal_actions(session, *, max_combat_turns:
         raise TrainingBatchError(f'Random-legal first combat did not complete within {max_combat_turns} turns.')
 
 
-def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str, ...]:
+def _random_legal_combat_commands(
+    state,
+    actor,
+    rng: random.Random,
+    *,
+    available_choices: dict[str, tuple] | None = None,
+) -> tuple[str, ...]:
     if not actor.action_available:
         return (f'/endturn {actor.actor_id}',)
     enemies = [
@@ -669,6 +681,8 @@ def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str
         and candidate.current_hit_points > 0
         and candidate.current_hit_points < candidate.max_hit_points
     ]
+    available_attack_ids = _available_choice_option_ids(available_choices, 'attacks')
+    available_attacks = _available_attack_profiles(actor, available_attack_ids=available_attack_ids)
     commands: list[str] = []
     for spell_id in sorted(TARGETED_OFFENSE_SPELLS.intersection(actor.spells)):
         spell = actor.spells[spell_id]
@@ -688,7 +702,7 @@ def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str
         for target in allies_to_heal:
             if _target_within_range(actor, target, spell.range_ft):
                 commands.append(f'/cast {actor.actor_id} {spell_id} {target.actor_id}')
-    for attack in sorted(actor.attacks.values(), key=lambda candidate: candidate.attack_id):
+    for attack in available_attacks:
         for target in enemies:
             if _target_within_attack_range(actor, target, attack):
                 commands.append(f'/attack {actor.actor_id} {attack.attack_id} {target.actor_id}')
@@ -696,6 +710,24 @@ def _random_legal_combat_commands(state, actor, rng: random.Random) -> tuple[str
         rng.shuffle(commands)
         return tuple(commands)
     return (f'/dodge {actor.actor_id}', f'/endturn {actor.actor_id}')
+
+
+def _available_choice_option_ids(available_choices: dict[str, tuple] | None, group_id: str) -> set[str]:
+    if not isinstance(available_choices, dict):
+        return set()
+    choices = available_choices.get(group_id)
+    if not isinstance(choices, (list, tuple)):
+        return set()
+    return {
+        str(getattr(choice, 'option_id', '')).strip()
+        for choice in choices
+        if str(getattr(choice, 'option_id', '')).strip()
+    }
+
+
+def _available_attack_profiles(actor, *, available_attack_ids: set[str]) -> list:
+    attacks = sorted(actor.attacks.values(), key=lambda candidate: candidate.attack_id)
+    return [attack for attack in attacks if not available_attack_ids or attack.attack_id in available_attack_ids]
 
 
 def _target_within_attack_range(actor, target, attack) -> bool:
