@@ -50,12 +50,15 @@ class TrainablePolicyTests(unittest.TestCase):
         self.assertIn('baseline_comparison', report)
         self.assertIn('overall', report['baseline_comparison'])
         self.assertIn('scenario_id', report['metrics']['breakdowns']['eval'])
+        self.assertIn('action_family_accuracy', report['metrics']['eval'])
+        self.assertGreater(report['model']['feature_count'], 12)
         self.assertTrue(Path(report['model_path']).exists())
         self.assertTrue(Path(report['report_path']).exists())
         self.assertTrue(Path(report['markdown_path']).exists())
         markdown = render_trainable_policy_markdown(report)
         self.assertIn('Trainable Policy Preflight', markdown)
         self.assertIn('Baseline Comparison', markdown)
+        self.assertIn('Family Accuracy', markdown)
 
     def test_trainable_policy_rejects_invalid_baseline_schema(self) -> None:
         recipe_path = self._write_recipe()
@@ -173,6 +176,10 @@ class TrainablePolicyTests(unittest.TestCase):
                 'party_hp_max': 40,
                 'monster_hp_current': 20,
                 'monster_hp_max': 30,
+                'living_monster_count': 2,
+                'living_party_count': 4,
+                'active_actor_id': agent_id.replace('-controller', ''),
+                'event_count': 5,
             },
         }
 

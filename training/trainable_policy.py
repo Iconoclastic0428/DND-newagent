@@ -129,7 +129,7 @@ def run_trainable_policy_preflight(
         },
         'model': {
             'kind': 'sparse_linear_action_policy',
-            'feature_template': 'state_summary_sparse_features_v1',
+            'feature_template': 'state_summary_sparse_features_v2',
             'epochs': epochs,
             'learning_rate': learning_rate,
             'action_vocab_size': len(model['actions']),
@@ -183,10 +183,10 @@ def render_trainable_policy_markdown(report: dict[str, Any]) -> str:
         '',
         '## Metrics',
         '',
-        '| Split | Records | Accuracy | Negative Log Loss |',
-        '| --- | ---: | ---: | ---: |',
-        f'| train | {_format_int(train.get("record_count"))} | {_format_float(train.get("accuracy"))} | {_format_float(train.get("negative_log_likelihood"))} |',
-        f'| eval | {_format_int(eval_metrics.get("record_count"))} | {_format_float(eval_metrics.get("accuracy"))} | {_format_float(eval_metrics.get("negative_log_likelihood"))} |',
+        '| Split | Records | Accuracy | Family Accuracy | Negative Log Loss |',
+        '| --- | ---: | ---: | ---: | ---: |',
+        f'| train | {_format_int(train.get("record_count"))} | {_format_float(train.get("accuracy"))} | {_format_float(train.get("action_family_accuracy"))} | {_format_float(train.get("negative_log_likelihood"))} |',
+        f'| eval | {_format_int(eval_metrics.get("record_count"))} | {_format_float(eval_metrics.get("accuracy"))} | {_format_float(eval_metrics.get("action_family_accuracy"))} | {_format_float(eval_metrics.get("negative_log_likelihood"))} |',
         '',
         '## Baseline Comparison',
         '',
@@ -296,21 +296,35 @@ def _features(row: dict[str, Any]) -> Counter[str]:
     features['bias'] = 1.0
     for field in ('runtime_mode', 'agent_id', 'scenario_id', 'source', 'role'):
         _add_value_feature(features, field, row.get(field))
+    _add_value_feature(features, 'acting_actor_id', row.get('acting_actor_id'))
     parsed_action = row.get('parsed_action') if isinstance(row.get('parsed_action'), dict) else {}
     _add_value_feature(features, 'parsed_kind', parsed_action.get('kind'))
     state = row.get('state_before') if isinstance(row.get('state_before'), dict) else {}
-    for field in ('scene_id', 'location_id', 'active_actor_side', 'encounter_phase'):
+    for field in ('scene_id', 'location_id', 'active_actor_id', 'active_actor_side', 'encounter_phase'):
         _add_value_feature(features, f'state_{field}', state.get(field))
     _add_value_feature(features, 'round_bucket', _number_bucket(state.get('round_number'), size=2))
+    _add_value_feature(features, 'event_bucket', _number_bucket(state.get('event_count'), size=10))
+    _add_value_feature(features, 'transcript_bucket', _number_bucket(state.get('transcript_count'), size=5))
+    _add_value_feature(features, 'living_monsters', state.get('living_monster_count'))
+    _add_value_feature(features, 'living_party', state.get('living_party_count'))
     _add_value_feature(features, 'party_hp_bucket', _ratio_bucket(state.get('party_hp_current'), state.get('party_hp_max')))
     _add_value_feature(features, 'monster_hp_bucket', _ratio_bucket(state.get('monster_hp_current'), state.get('monster_hp_max')))
     available_actions = row.get('available_actions')
     if isinstance(available_actions, list):
         _add_value_feature(features, 'available_action_count', _number_bucket(len(available_actions), size=2))
-        for action in available_actions[:20]:
+        for action in available_actions[:40]:
             for token in _action_tokens(action):
                 features[f'available:{token}'] += 1.0
     observation = row.get('observation') if isinstance(row.get('observation'), dict) else {}
+    groups = observation.get('available_action_groups') if isinstance(observation.get('available_action_groups'), list) else []
+    for group in groups:
+        _add_value_feature(features, 'available_group', group)
+    choices = observation.get('available_choices') if isinstance(observation.get('available_choices'), dict) else {}
+    for group, choice_rows in sorted(choices.items()):
+        if isinstance(choice_rows, list):
+            for choice in choice_rows[:40]:
+                for token in _action_tokens(choice):
+                    features[f'choice:{group}:{token}'] += 1.0
     summary_lines = observation.get('summary_lines') if isinstance(observation.get('summary_lines'), list) else []
     token_count = 0
     for line in summary_lines:
@@ -381,6 +395,7 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
     if not rows:
         return _empty_metrics()
     correct = 0
+    family_correct = 0
     total_loss = 0.0
     for row in rows:
         expected = str(row.get('action') or '')
@@ -388,11 +403,15 @@ def _evaluate_rows(rows: list[dict[str, Any]], model: dict[str, Any]) -> dict[st
         predicted = _predict_action(features, model['weights'], model['actions'])
         if predicted == expected:
             correct += 1
+        if _action_family(predicted) == _action_family(expected):
+            family_correct += 1
         total_loss += -math.log(max(_action_probability(features, expected, model), 1e-12))
     return {
         'record_count': len(rows),
         'correct_count': correct,
         'accuracy': correct / len(rows),
+        'action_family_correct_count': family_correct,
+        'action_family_accuracy': family_correct / len(rows),
         'negative_log_likelihood': total_loss / len(rows),
     }
 
@@ -482,7 +501,7 @@ def _model_artifact(model: dict[str, Any]) -> dict[str, Any]:
     return {
         'schema_version': 'dnd-agents-sparse-linear-policy-v1',
         'kind': 'sparse_linear_action_policy',
-        'feature_template': 'state_summary_sparse_features_v1',
+        'feature_template': 'state_summary_sparse_features_v2',
         'epochs': model['epochs'],
         'learning_rate': model['learning_rate'],
         'action_vocab_size': len(model['actions']),
@@ -496,6 +515,8 @@ def _empty_metrics() -> dict[str, Any]:
         'record_count': 0,
         'correct_count': 0,
         'accuracy': None,
+        'action_family_correct_count': 0,
+        'action_family_accuracy': None,
         'negative_log_likelihood': None,
     }
 
@@ -541,6 +562,17 @@ def _group_label(value: Any) -> str:
     if value is None or str(value).strip() == '':
         return 'unknown'
     return str(value)
+
+
+def _action_family(action: str) -> str:
+    text = action.strip().lower()
+    if not text:
+        return 'unknown'
+    first = text.split()[0]
+    if first.startswith('/'):
+        return first
+    tokens = _text_tokens(text)
+    return f'natural:{tokens[0]}' if tokens else 'natural_language'
 
 
 def _safe_token(value: str) -> str:

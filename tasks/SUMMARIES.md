@@ -1,3 +1,11 @@
+## 2026-05-14 - Combat Policy Metrics
+- Request: continue after the first trainable policy preflight by improving combat diagnostics/features.
+- Solution: added action-family accuracy to trainable policy metrics and Markdown, plus non-leaky combat state and available-choice features for the sparse policy.
+- Why it matters: exact combat commands include actor, weapon, and target details, so action-family accuracy separates tactical command choice from brittle command argument prediction.
+- Tests: added focused coverage for action-family metric output, Markdown rendering, and feature growth from combat state/choice features.
+- Verification: compile checks and `tests.test_trainable_policy` passed; the real preflight kept aggregate eval at 0.6935, improved train accuracy to 0.6591, matched combat exact baseline at 0.3478, and reported `lmop_first_combat` family accuracy 0.3253.
+- Next step: use the action-family diagnostic to decide whether the next MosaicML trainer should predict full commands directly or split command family and arguments into separate heads.
+
 ## 2026-05-14 - Trainable Policy Preflight
 - Request: continue after the MosaicML handoff plan by adding the first trainable policy entrypoint.
 - Solution: added a dependency-free sparse linear action policy trainer plus the planned `user-test/train_policy_mosaicml.py` entrypoint, using the training recipe and supervised baseline report as inputs.
