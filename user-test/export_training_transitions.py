@@ -10,12 +10,14 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from training.transitions import build_training_transitions, write_training_transitions_jsonl
+from training.dataset_manifest import write_dataset_manifest
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Export RL-style per-player transitions from a trajectory JSONL file.')
     parser.add_argument('--trajectory', type=Path, required=True, help='Input trajectory.jsonl file.')
     parser.add_argument('--output', type=Path, required=True, help='Output training transitions JSONL file.')
+    parser.add_argument('--manifest-output', type=Path, help='Optional dataset manifest JSON path. Defaults to OUTPUT.manifest.json.')
     parser.add_argument('--include-dm', action='store_true', help='Also export DM turns. Defaults to player turns only.')
     parser.add_argument('--exclude-errors', action='store_true', help='Skip transitions whose action raised an error.')
     return parser.parse_args()
@@ -30,7 +32,24 @@ def main() -> int:
         include_errors=not args.exclude_errors,
     )
     path = write_training_transitions_jsonl(transitions, args.output)
-    print(json.dumps({'transition_count': len(transitions), 'output_path': str(path)}, ensure_ascii=False, indent=2))
+    manifest_path = write_dataset_manifest(
+        dataset_type='training_transitions',
+        dataset_path=path,
+        record_count=len(transitions),
+        source_paths=[args.trajectory],
+        manifest_path=args.manifest_output,
+        filters={
+            'include_roles': list(roles),
+            'include_sources': None,
+            'include_errors': not args.exclude_errors,
+        },
+        context={'trajectory_path': str(args.trajectory)},
+    )
+    print(json.dumps({
+        'transition_count': len(transitions),
+        'output_path': str(path),
+        'manifest_path': str(manifest_path),
+    }, ensure_ascii=False, indent=2))
     return 0
 
 

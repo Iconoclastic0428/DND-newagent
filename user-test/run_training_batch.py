@@ -23,6 +23,7 @@ from session_server.llm_player import LLMPlayerAgent
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.storytelling import RuntimeMode
 from story_demo_system_server import build_full_story_demo_manual_session
+from training.dataset_manifest import write_dataset_manifest
 from training.evaluation import summarize_policy_evaluation, write_policy_evaluation_report
 from training.preferences import build_preference_pairs, write_preference_pairs_jsonl
 from training.trajectory import TrajectoryRecorder
@@ -138,6 +139,29 @@ def run_batch(
     write_training_transitions_jsonl(transition_rows, transitions_path)
     report['transition_path'] = str(transitions_path)
     report['transition_count'] = len(transition_rows)
+    trajectory_paths = [
+        str(summary['trajectory_path'])
+        for summary in episode_summaries
+        if isinstance(summary.get('trajectory_path'), str)
+    ]
+    dataset_context = _batch_dataset_context(
+        report=report,
+        env_path=env_path,
+        character_load_path=character_load_path,
+    )
+    transition_manifest_path = write_dataset_manifest(
+        dataset_type='training_transitions',
+        dataset_path=transitions_path,
+        record_count=len(transition_rows),
+        source_paths=trajectory_paths,
+        filters={
+            'include_roles': ['player'],
+            'include_sources': None,
+            'include_errors': True,
+        },
+        context=dataset_context,
+    )
+    report['transition_manifest_path'] = str(transition_manifest_path)
     preference_pairs = build_preference_pairs(transition_rows)
     for pair in preference_pairs:
         pair['transition_path'] = str(transitions_path)
@@ -145,6 +169,19 @@ def run_batch(
     write_preference_pairs_jsonl(preference_pairs, preference_path)
     report['preference_path'] = str(preference_path)
     report['preference_pair_count'] = len(preference_pairs)
+    preference_manifest_path = write_dataset_manifest(
+        dataset_type='preference_pairs',
+        dataset_path=preference_path,
+        record_count=len(preference_pairs),
+        source_paths=[transitions_path],
+        filters={
+            'min_reward_gap': 0.05,
+            'max_pairs_per_context': 3,
+            'include_errors': True,
+        },
+        context={**dataset_context, 'transition_path': str(transitions_path)},
+    )
+    report['preference_manifest_path'] = str(preference_manifest_path)
     evaluation_report = summarize_policy_evaluation(transition_rows, episode_summaries=episode_summaries)
     evaluation_report['transition_path'] = str(transitions_path)
     evaluation_path = batch_dir / 'policy_evaluation.json'
@@ -155,6 +192,28 @@ def run_batch(
     report['report_path'] = str(report_path)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     return report
+
+
+def _batch_dataset_context(
+    *,
+    report: dict[str, Any],
+    env_path: str | Path,
+    character_load_path: str | Path | None,
+) -> dict[str, Any]:
+    return {
+        'batch_id': report.get('batch_id'),
+        'scenario_id': report.get('scenario_id'),
+        'policy': report.get('policy'),
+        'baseline_seed': report.get('baseline_seed'),
+        'episodes': report.get('episodes'),
+        'successes': report.get('successes'),
+        'success_rate': report.get('success_rate'),
+        'llm_player_controllers': report.get('llm_player_controllers') or [],
+        'llm_player_max_actions_per_pump': report.get('llm_player_max_actions_per_pump'),
+        'character_load_path': str(character_load_path) if character_load_path is not None else None,
+        'env_path': str(env_path),
+        'max_combat_turns': report.get('max_combat_turns'),
+    }
 
 
 def run_first_combat_episode(

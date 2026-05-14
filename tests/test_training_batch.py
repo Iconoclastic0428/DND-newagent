@@ -173,11 +173,23 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertEqual(saved['episode_summaries'][0]['final_runtime_mode'], 'demo-complete')
         self.assertGreater(saved['transition_count'], 0)
         self.assertTrue(Path(saved['transition_path']).exists())
+        self.assertTrue(Path(saved['transition_manifest_path']).exists())
         self.assertTrue(Path(saved['preference_path']).exists())
+        self.assertTrue(Path(saved['preference_manifest_path']).exists())
         self.assertGreaterEqual(saved['preference_pair_count'], 0)
         self.assertTrue(Path(saved['evaluation_path']).exists())
         self.assertEqual(saved['policy_evaluation']['transition_count'], saved['transition_count'])
         self.assertGreater(saved['policy_evaluation']['reward_by_channel']['offense'], 0.0)
+        transition_manifest = json.loads(Path(saved['transition_manifest_path']).read_text(encoding='utf-8'))
+        self.assertEqual(transition_manifest['dataset_type'], 'training_transitions')
+        self.assertEqual(transition_manifest['record_count'], saved['transition_count'])
+        self.assertEqual(transition_manifest['context']['policy'], 'scripted')
+        self.assertEqual(transition_manifest['filters']['include_roles'], ['player'])
+        self.assertIn('enemy_damage', transition_manifest['reward_schema']['component_to_channel'])
+        preference_manifest = json.loads(Path(saved['preference_manifest_path']).read_text(encoding='utf-8'))
+        self.assertEqual(preference_manifest['dataset_type'], 'preference_pairs')
+        self.assertEqual(preference_manifest['record_count'], saved['preference_pair_count'])
+        self.assertEqual(preference_manifest['source_paths'], [saved['transition_path']])
 
     def test_llm_party_first_combat_batch_uses_llm_player_actions(self) -> None:
         def build_fake_agents():
@@ -204,7 +216,9 @@ class TrainingBatchTests(unittest.TestCase):
         self.assertEqual(saved['avg_invalid_actions'], 0.0)
         self.assertGreater(saved['transition_count'], 0)
         self.assertTrue(Path(saved['transition_path']).exists())
+        self.assertTrue(Path(saved['transition_manifest_path']).exists())
         self.assertTrue(Path(saved['preference_path']).exists())
+        self.assertTrue(Path(saved['preference_manifest_path']).exists())
         self.assertGreaterEqual(saved['preference_pair_count'], 0)
         self.assertTrue(Path(saved['evaluation_path']).exists())
         summary = saved['episode_summaries'][0]

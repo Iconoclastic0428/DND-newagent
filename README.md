@@ -132,6 +132,8 @@ The output report contains per-policy rewards, invalid action rates, success rat
 
 Each run also appends a compact entry to `runs\benchmarks\benchmark_history.jsonl` and refreshes `runs\benchmarks\benchmark_history.md`, which gives a quick leaderboard across benchmark runs.
 
+Training datasets written by the batch runner also include sidecar manifests such as `training_transitions.jsonl.manifest.json` and `preference_pairs.jsonl.manifest.json`. These manifests record the source trajectories, policy, seed/loadout context, filters, record counts, file hash, and reward component-to-channel schema used to create the dataset.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:
