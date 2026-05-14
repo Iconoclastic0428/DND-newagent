@@ -175,6 +175,14 @@ python user-test\plan_training_recipe.py --smoke-report runs\training-smoke\<run
 
 The recipe records the selected objectives, dataset inputs, quality gate, and next commands without starting model training.
 
+To run the first no-op trainer accounting pass from a recipe, run:
+
+```powershell
+python user-test\run_training_noop.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --output-dir runs\training-runs
+```
+
+The no-op trainer reads each objective dataset, counts observed records, compares them with the recipe plan, and writes a dry-run training report without updating a model.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:

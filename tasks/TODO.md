@@ -1,3 +1,30 @@
+## 2026-05-14 - No-Op Trainer Accounting Pass
+
+### Scope
+- Add a no-op trainer backend shim that consumes `training_recipe.json`.
+- Count observed dataset rows per objective and compare them with planned recipe counts.
+- Write JSON/Markdown run reports without updating model weights.
+- Keep generated training run outputs out of git.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect the recipe schema and latest generated recipe output.
+- [x] Add a no-op trainer accounting module.
+- [x] Add a CLI wrapper under `user-test`.
+- [x] Add focused tests for accounting success and mismatch handling.
+- [x] Run the no-op trainer against the latest local recipe.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- `python -m py_compile training\training_noop.py user-test\run_training_noop.py tests\test_training_noop.py`
+- `python -m unittest tests.test_training_noop -v`
+- `python user-test\run_training_noop.py --recipe <latest training_recipe.json> --output-dir runs\training-runs`
+- `git diff --check -- README.md training\training_noop.py user-test\run_training_noop.py tests\test_training_noop.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Pending implementation.
+
 ## 2026-05-13 - Training Recipe Planner
 
 ### Scope

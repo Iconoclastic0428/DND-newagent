@@ -1,3 +1,11 @@
+## 2026-05-14 - No-Op Trainer Accounting Pass
+- Request: continue after the training recipe planner by adding the first trainer backend shim.
+- Solution: added a no-op trainer accounting backend plus `user-test/run_training_noop.py`, reading `training_recipe.json` and writing JSON/Markdown run reports without model updates.
+- Why it matters: the recipe now describes the intended training inputs, but a backend shim needs to prove that trainer orchestration can load the recipe, account for dataset rows, and produce run artifacts before real optimization is added.
+- Tests: added focused coverage for successful accounting, consumed-row caps, record mismatch rejection, and explicit mismatch report output.
+- Verification: compile checks and `tests.test_training_noop` passed; local no-op run from the latest recipe accounted for 1,286 planned/observed/consumed records with 0 failed objectives.
+- Next step: add a lightweight supervised baseline trainer that reads the same recipe and emits first loss/metric artifacts.
+
 ## 2026-05-13 - Training Recipe Planner
 - Request: continue after the smoke report by adding the first trainer-facing config stub.
 - Solution: added a dry-run training recipe planner plus `user-test/plan_training_recipe.py`, using the smoke report as a quality gate before writing recipe JSON/Markdown.
