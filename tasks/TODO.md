@@ -1,3 +1,30 @@
+## 2026-05-14 - MosaicML Training Plan
+
+### Scope
+- Add a deterministic MosaicML GPU training handoff plan.
+- Consume the existing `training_recipe.json` and supervised baseline report.
+- Record objectives, datasets, local preflight status, baseline targets, and weak eval slices.
+- Keep generated plan outputs out of git.
+- Preserve unrelated dirty campaign/runtime files.
+- Commit and push only code/docs/tests/task notes for this move.
+
+### Steps
+- [x] Inspect recipe, no-op, and supervised baseline report shapes.
+- [x] Add a MosaicML training plan module.
+- [x] Add a CLI wrapper under `user-test`.
+- [x] Add focused tests for plan output and invalid baseline handling.
+- [x] Run the MosaicML plan generator against the latest local recipe and baseline report.
+- [x] Commit and push to `origin/newdndagents`.
+
+### Verification
+- [x] `python -m py_compile training\mosaicml_plan.py user-test\plan_mosaicml_training.py tests\test_mosaicml_plan.py`
+- [x] `python -m unittest tests.test_mosaicml_plan -v`
+- [x] `python user-test\plan_mosaicml_training.py --recipe <latest training_recipe.json> --baseline-report <latest supervised_baseline_report.json> --output-dir runs\mosaicml-plans`
+- [x] `git diff --check -- README.md training\mosaicml_plan.py user-test\plan_mosaicml_training.py tests\test_mosaicml_plan.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Result: MosaicML handoff plan passed against the latest local recipe and baseline report. It recorded supervised and preference objectives, transition and preference datasets, aggregate eval target 0.6828 -> 0.7328, `lmop_first_combat` target 0.2892 -> 0.3892, and combat runtime target 0.3478 -> 0.4478.
+
 ## 2026-05-14 - Scenario-Aware Baseline Evaluation
 
 ### Scope

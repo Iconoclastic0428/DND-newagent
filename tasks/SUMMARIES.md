@@ -1,3 +1,11 @@
+## 2026-05-14 - MosaicML Training Plan
+- Request: continue toward GPU training using MosaicML.
+- Solution: added a deterministic MosaicML training plan artifact that consumes the training recipe plus supervised baseline report, records local preflight checks, and surfaces weak eval slices as targets for the first trainable policy run.
+- Why it matters: before launching remote GPU work, the trainer needs a stable handoff that says which datasets/objectives to use and what baseline metrics the MosaicML job should beat.
+- Tests: added focused coverage for GPU handoff fields, objective/dataset capture, weak-slice target ordering, Markdown rendering, and invalid baseline schema rejection.
+- Verification: compile checks and `tests.test_mosaicml_plan` passed; the real plan run used the latest recipe and baseline report, found 2 objectives, 2 datasets, and 5 improvement targets.
+- Next step: implement the first trainable policy entrypoint that can consume this plan/recipe locally, then wire it to the MosaicML launch flow.
+
 ## 2026-05-14 - Scenario-Aware Baseline Evaluation
 - Request: continue after hash-split baseline evaluation and account for the plan to run real GPU training on MosaicML.
 - Solution: added grouped supervised baseline metrics by scenario and runtime mode, surfaced held-out breakdowns in Markdown, and documented MosaicML as the expected real training environment.

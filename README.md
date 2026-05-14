@@ -193,6 +193,14 @@ The baseline learns deterministic action frequencies by runtime mode and agent, 
 
 Real GPU training is expected to run on MosaicML. Treat the local smoke, recipe, no-op, and supervised baseline reports as preflight artifacts before launching a MosaicML job.
 
+To create a MosaicML GPU training handoff plan from a recipe and baseline report, run:
+
+```powershell
+python user-test\plan_mosaicml_training.py --recipe runs\training-recipes\<recipe-id>\training_recipe.json --baseline-report runs\training-runs\<run-id>\supervised_baseline_report.json --output-dir runs\mosaicml-plans
+```
+
+The plan does not submit a remote job. It records the intended MosaicML GPU target, datasets, objectives, baseline metrics to beat, and weak evaluation slices for the first trainable policy run.
+
 ## 4. Open The Web UIs
 
 Open `http://127.0.0.1:8000` in a browser. The page lists quick portal links for each controller:
