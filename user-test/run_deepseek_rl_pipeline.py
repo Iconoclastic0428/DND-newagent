@@ -137,7 +137,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
             stderr_path=paths['logs'] / 'web-server.stderr.log',
         )
         _wait_for_server(
-            url=f'http://{args.host}:{args.http_port}/healthz',
+            url=f'http://{args.host}:{args.http_port}/automation/state?controller_id=dm',
             process=server_process,
             timeout_seconds=args.server_start_timeout_seconds,
             stderr_path=paths['logs'] / 'web-server.stderr.log',
