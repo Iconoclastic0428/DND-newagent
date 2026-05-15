@@ -303,6 +303,7 @@ class PlayerAgent:
                 + 'In combat, use slash commands only. Prefer legal commands grounded in the visible actor ids, action hints, spells, items, and current battlefield. '
                 + 'For weapon attacks, always use the full syntax /attack <active_actor_id> <attack option_id> <target_actor_id>. '
                 + 'The active_actor_id, legal attack option ids, and visible enemy target actor ids are listed in the combat context. '
+                + 'Do not choose /endturn while attacks, spells, or normal actions are still available. If enemies are out of melee range, prefer a thrown/ranged attack, a targeted spell, or /dodge <active_actor_id>. '
                 + 'In story mode, prefer natural declarations unless a visible slash command is clearly the better move. '
                 + 'Be creative with spell and item usage, but keep it legal and grounded in the current character card and visible scene. '
                 + 'Do not repeat the previous player\'s point. Either build on it from your own angle or introduce a different unresolved thread. '
@@ -579,12 +580,13 @@ class PartyConnector:
                 )
         if _string_or_none(view.get('runtime_mode')) == 'combat':
             active_actor_id = _string_or_none(view.get('active_actor_id')) or ''
+            fallback_text = _combat_fallback_command(view)
             return PartyActionDecision(
                 decision_type='command',
-                text=f'/endturn {active_actor_id}'.strip(),
+                text=fallback_text or f'/endturn {active_actor_id}'.strip(),
                 option_id=None,
                 option_ids=(),
-                topic_focus='safe combat pass',
+                topic_focus='safe combat fallback',
                 reason=f'Fallback after invalid LLM output: {reason}',
             )
         return PartyActionDecision(
@@ -672,6 +674,12 @@ class PartyConnector:
         elif parts[0] == '/endturn':
             if len(parts) != 2 or parts[1] != active_actor_id:
                 raise PartyConnectorError(f'End-turn command must use `/endturn {active_actor_id}`.')
+            if _has_available_combat_action(view):
+                fallback = _combat_fallback_command(view)
+                raise PartyConnectorError(
+                    f'Do not end the turn while actions, attacks, or spells are still available. '
+                    f'Use an available option first; safe fallback: {fallback or f"/dodge {active_actor_id}"}.'
+                )
 
     def _validate_distinct_story_turn(self, controller_id: str, view: dict[str, Any], decision: PartyActionDecision) -> None:
         scene_id = _string_or_none(view.get('current_scene_id'))
@@ -937,8 +945,12 @@ def _summarize_combat_view(view: dict[str, Any]) -> dict[str, Any] | None:
         'visible_tokens': tokens,
         'visible_enemy_target_ids': _visible_enemy_target_ids(view),
         'legal_attack_option_ids': _available_choice_ids(view, 'attacks'),
+        'legal_spell_option_ids': _available_choice_ids(view, 'magic'),
+        'safe_fallback_command': _combat_fallback_command(view),
         'command_templates': {
             'attack': f'/attack {view.get("active_actor_id") or "<active_actor_id>"} <attack option_id> <target actor id>',
+            'cast_targeted_spell': f'/cast {view.get("active_actor_id") or "<active_actor_id>"} <spell option_id> <target actor id>',
+            'dodge': f'/dodge {view.get("active_actor_id") or "<active_actor_id>"}',
             'end_turn': f'/endturn {view.get("active_actor_id") or "<active_actor_id>"}',
         },
     }
@@ -1004,6 +1016,61 @@ def _visible_enemy_target_ids(view: dict[str, Any]) -> tuple[str, ...]:
             continue
         targets.append(actor_id)
     return tuple(targets)
+
+
+def _has_available_combat_action(view: dict[str, Any]) -> bool:
+    for group_id in ('attacks', 'magic', 'actions'):
+        if _available_choice_ids(view, group_id):
+            return True
+    return False
+
+
+def _combat_fallback_command(view: dict[str, Any]) -> str | None:
+    active_actor_id = _string_or_none(view.get('active_actor_id'))
+    if not active_actor_id:
+        return None
+    target_ids = _visible_enemy_target_ids(view)
+    if target_ids:
+        attack_ids = _available_choice_ids(view, 'attacks')
+        preferred_attack = _preferred_ranged_attack_id(attack_ids)
+        if preferred_attack is not None:
+            return f'/attack {active_actor_id} {preferred_attack} {target_ids[0]}'
+        spell_ids = _available_choice_ids(view, 'magic')
+        preferred_spell = _preferred_targeted_spell_id(spell_ids)
+        if preferred_spell is not None:
+            return f'/cast {active_actor_id} {preferred_spell} {target_ids[0]}'
+    if 'dodge' in _available_choice_ids(view, 'actions'):
+        return f'/dodge {active_actor_id}'
+    if 'dash' in _available_choice_ids(view, 'actions'):
+        return f'/dash {active_actor_id}'
+    return f'/endturn {active_actor_id}'
+
+
+def _preferred_ranged_attack_id(attack_ids: tuple[str, ...]) -> str | None:
+    for marker in ('ranged', 'thrown'):
+        for attack_id in attack_ids:
+            if marker in attack_id:
+                return attack_id
+    return None
+
+
+def _preferred_targeted_spell_id(spell_ids: tuple[str, ...]) -> str | None:
+    priority = (
+        'magic-missile',
+        'fire-bolt',
+        'sacred-flame',
+        'guiding-bolt',
+        'ray-of-frost',
+        'vicious-mockery',
+        'witch-bolt',
+        'toll-the-dead',
+        'chill-touch',
+        'acid-splash',
+    )
+    for spell_id in priority:
+        if spell_id in spell_ids:
+            return spell_id
+    return None
 
 
 def _view_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:

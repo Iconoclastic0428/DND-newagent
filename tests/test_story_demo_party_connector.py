@@ -132,7 +132,10 @@ def _base_combat_view(*, controller_id: str, actor_id: str) -> dict[str, object]
                 {
                     'group_id': 'actions',
                     'label': 'Actions',
-                    'choices': [{'option_id': 'attack', 'label': 'Attack', 'detail': 'action'}],
+                    'choices': [
+                        {'option_id': 'attack', 'label': 'Attack', 'detail': 'action'},
+                        {'option_id': 'dodge', 'label': 'Dodge', 'detail': 'action'},
+                    ],
                 },
                 {
                     'group_id': 'attacks',
@@ -409,8 +412,10 @@ class PartyConnectorTests(unittest.TestCase):
         request_text = transport.requests[0]['payload']['input'][0]['content'][0]['text']
         context = json.loads(request_text)
         self.assertEqual(context['combat']['command_templates']['attack'], '/attack player-1 <attack option_id> <target actor id>')
+        self.assertEqual(context['combat']['command_templates']['dodge'], '/dodge player-1')
         self.assertEqual(context['combat']['legal_attack_option_ids'], ['flail-melee-str'])
         self.assertEqual(context['combat']['visible_enemy_target_ids'], ['monster-goblin-1', 'monster-goblin-2'])
+        self.assertEqual(context['combat']['safe_fallback_command'], '/dodge player-1')
 
     def test_party_connector_retries_attack_without_target_and_accepts_full_command(self) -> None:
         transport = QueueTransport(
@@ -456,6 +461,65 @@ class PartyConnectorTests(unittest.TestCase):
         retry_text = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
         self.assertIn('/attack player-1 <attack option_id> <target actor id>', retry_text)
         self.assertIn('monster-goblin-1', retry_text)
+
+    def test_party_connector_retries_endturn_when_action_is_available(self) -> None:
+        transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': '/endturn player-1',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'pass turn',
+                            'reason': 'This intentionally passes despite available actions.',
+                        }
+                    )
+                },
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': '/dodge player-1',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'defensive stance',
+                            'reason': 'The retry uses a real action instead of ending the turn.',
+                        }
+                    )
+                },
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._combat_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        result = connector.run()
+        self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/dodge player-1')])
+        self.assertEqual(result.invalid_action_retries, 1)
+        retry_text = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
+        self.assertIn('Do not end the turn while actions, attacks, or spells are still available', retry_text)
+
+    def test_party_connector_fallback_uses_dodge_instead_of_endturn_when_actions_remain(self) -> None:
+        transport = QueueTransport(
+            [
+                {'output_text': ''},
+                {'output_text': 'not json'},
+                {'output_text': '```json\n{}\n```'},
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._combat_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        result = connector.run()
+        self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/dodge player-1')])
+        self.assertEqual(result.invalid_action_retries, 3)
 
     def test_party_connector_falls_back_after_repeated_invalid_json(self) -> None:
         transport = QueueTransport(
