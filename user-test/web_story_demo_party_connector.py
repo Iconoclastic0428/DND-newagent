@@ -543,8 +543,11 @@ class PartyConnector:
         count_for_story_rotation: bool,
         reason: str,
     ) -> None:
-        decision = self._fallback_decision(snapshot, reason=reason)
-        self._validate_decision(controller_id, snapshot, decision, count_for_story_rotation=count_for_story_rotation)
+        decision = self._fallback_decision(controller_id, snapshot, reason=reason)
+        try:
+            self._validate_decision(controller_id, snapshot, decision, count_for_story_rotation=count_for_story_rotation)
+        except PartyConnectorError:
+            decision = self._last_resort_fallback_decision(controller_id, snapshot, reason=reason)
         self._apply_decision(controller_id, snapshot, decision)
         if self.transcript_logger is not None:
             self.transcript_logger.record_system_action(controller_id, f'fallback after invalid LLM output: {decision.text}')
@@ -554,7 +557,7 @@ class PartyConnector:
             self._story_turn_index = (PLAYER_CONTROLLER_IDS.index(controller_id) + 1) % len(PLAYER_CONTROLLER_IDS)
         self.turns_taken += 1
 
-    def _fallback_decision(self, snapshot: dict[str, Any], *, reason: str) -> PartyActionDecision:
+    def _fallback_decision(self, controller_id: str, snapshot: dict[str, Any], *, reason: str) -> PartyActionDecision:
         view = _view_from_snapshot(snapshot)
         prompt = snapshot.get('prompt')
         if isinstance(prompt, dict):
@@ -589,13 +592,60 @@ class PartyConnector:
                 topic_focus='safe combat fallback',
                 reason=f'Fallback after invalid LLM output: {reason}',
             )
+        return self._story_fallback_decision(controller_id, view, reason=reason)
+
+    def _story_fallback_decision(self, controller_id: str, view: dict[str, Any], *, reason: str) -> PartyActionDecision:
+        index = PLAYER_CONTROLLER_IDS.index(controller_id) if controller_id in PLAYER_CONTROLLER_IDS else 0
+        scene_id = _string_or_none(view.get('current_scene_id')) or 'current scene'
+        fallback_options = (
+            (
+                'trust terms',
+                'I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
+            ),
+            (
+                'organized threat pattern',
+                'I compare Gundren and Sildar\'s warnings and ask what sign would prove the road danger is organized rather than random.',
+            ),
+            (
+                'wagon readiness',
+                'I check the wagon harness, cargo tie-downs, and road supplies so we are ready to leave without delay.',
+            ),
+            (
+                'phandalin reaction watch',
+                'I casually watch nearby faces for any reaction when Phandalin, Gundren, or the wagon cargo are mentioned.',
+            ),
+        )
+        topic, text = fallback_options[index % len(fallback_options)]
         return PartyActionDecision(
             decision_type='command',
-            text='I stay alert, keep pace with the group, and watch for any detail the others may have missed.',
+            text=text,
             option_id=None,
             option_ids=(),
-            topic_focus='stay alert and observe',
+            topic_focus=f'{topic} {scene_id}',
             reason=f'Fallback after invalid LLM output: {reason}',
+        )
+
+    def _last_resort_fallback_decision(self, controller_id: str, snapshot: dict[str, Any], *, reason: str) -> PartyActionDecision:
+        view = _view_from_snapshot(snapshot)
+        if _string_or_none(view.get('runtime_mode')) == 'combat':
+            active_actor_id = _string_or_none(view.get('active_actor_id')) or ''
+            return PartyActionDecision(
+                decision_type='command',
+                text=_combat_fallback_command(view) or f'/endturn {active_actor_id}'.strip(),
+                option_id=None,
+                option_ids=(),
+                topic_focus='last resort combat fallback',
+                reason=f'Last-resort fallback after invalid LLM output: {reason}',
+            )
+        scene_id = _string_or_none(view.get('current_scene_id')) or 'current-scene'
+        safe_controller = controller_id.replace('-', ' ')
+        return PartyActionDecision(
+            decision_type='command',
+            text=f'I take a fresh angle in {scene_id}: {safe_controller} focuses on one practical detail the party has not acted on yet.',
+            option_id=None,
+            option_ids=(),
+            topic_focus=f'last resort {controller_id} {scene_id}',
+            reason=f'Last-resort fallback after invalid LLM output: {reason}',
         )
 
     def _validate_decision(

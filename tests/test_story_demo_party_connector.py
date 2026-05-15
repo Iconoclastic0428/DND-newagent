@@ -541,10 +541,40 @@ class PartyConnectorTests(unittest.TestCase):
             [
                 (
                     'player-1-controller',
-                    'I stay alert, keep pace with the group, and watch for any detail the others may have missed.',
+                    'I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
                 )
             ],
         )
+        self.assertEqual(result.invalid_action_retries, 3)
+
+    def test_story_fallback_uses_last_resort_when_default_fallback_repeats(self) -> None:
+        transport = QueueTransport(
+            [
+                {'output_text': ''},
+                {'output_text': 'not json'},
+                {'output_text': '```json\n{}\n```'},
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._story_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        connector._public_history.append(
+            PartyActionRecord(
+                controller_id='player-2-controller',
+                runtime_mode='storytelling',
+                scene_id='scene-waterdeep-gundren-briefing',
+                text='I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
+                topic_focus='trust terms scene-waterdeep-gundren-briefing',
+            )
+        )
+        result = connector.run()
+        self.assertEqual(len(connector.automation_client.submissions), 1)
+        controller_id, text = connector.automation_client.submissions[0]
+        self.assertEqual(controller_id, 'player-1-controller')
+        self.assertIn('I take a fresh angle in scene-waterdeep-gundren-briefing', text)
         self.assertEqual(result.invalid_action_retries, 3)
 
     def test_party_connector_uses_prompt_response_path_for_player_prompt(self) -> None:
