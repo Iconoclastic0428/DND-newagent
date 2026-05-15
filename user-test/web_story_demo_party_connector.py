@@ -73,6 +73,12 @@ class PartyConnectorError(RuntimeError):
     pass
 
 
+class PartyActionPlanningError(PartyConnectorError):
+    def __init__(self, message: str, *, raw_output: str) -> None:
+        super().__init__(message)
+        self.raw_output = raw_output
+
+
 @dataclass(frozen=True)
 class PlayerPersona:
     controller_id: str
@@ -230,7 +236,10 @@ class PlayerAgent:
         )
         response = self.client.create_response(request)
         output_text = response.output_text
-        return _parse_action_decision(output_text), output_text
+        try:
+            return _parse_action_decision(output_text), output_text
+        except PartyConnectorError as exc:
+            raise PartyActionPlanningError(str(exc), raw_output=output_text) from exc
 
     def _build_request(
         self,
@@ -487,14 +496,15 @@ class PartyConnector:
         error_message: str | None = None
         current_snapshot = snapshot
         for attempt in range(1, 4):
-            decision, raw_output = agent.plan_action(
-                current_snapshot,
-                public_party_memory=list(self._public_history),
-                previous_output=previous_output,
-                error_message=error_message,
-                attempt_number=attempt,
-            )
+            raw_output = ''
             try:
+                decision, raw_output = agent.plan_action(
+                    current_snapshot,
+                    public_party_memory=list(self._public_history),
+                    previous_output=previous_output,
+                    error_message=error_message,
+                    attempt_number=attempt,
+                )
                 self._validate_decision(controller_id, current_snapshot, decision, count_for_story_rotation=count_for_story_rotation)
                 self._apply_decision(controller_id, current_snapshot, decision)
                 if self.transcript_logger is not None:
@@ -506,13 +516,83 @@ class PartyConnector:
                 self.turns_taken += 1
                 return
             except (PartyConnectorError, LiveWebStoryDemoError) as exc:
+                if isinstance(exc, PartyActionPlanningError):
+                    raw_output = exc.raw_output
                 previous_output = raw_output
                 error_message = str(exc)
                 self.invalid_action_retries += 1
                 if attempt >= 3:
-                    raise
+                    self._execute_fallback_action(
+                        controller_id,
+                        current_snapshot,
+                        count_for_story_rotation=count_for_story_rotation,
+                        reason=error_message,
+                    )
+                    return
                 current_snapshot = self.automation_client.state(controller_id)
         raise PartyConnectorError(f'Unable to obtain a valid action for {controller_id}.')
+
+    def _execute_fallback_action(
+        self,
+        controller_id: str,
+        snapshot: dict[str, Any],
+        *,
+        count_for_story_rotation: bool,
+        reason: str,
+    ) -> None:
+        decision = self._fallback_decision(snapshot, reason=reason)
+        self._validate_decision(controller_id, snapshot, decision, count_for_story_rotation=count_for_story_rotation)
+        self._apply_decision(controller_id, snapshot, decision)
+        if self.transcript_logger is not None:
+            self.transcript_logger.record_system_action(controller_id, f'fallback after invalid LLM output: {decision.text}')
+            self.transcript_logger.record_snapshots(self._fetch_all_snapshots())
+        if count_for_story_rotation:
+            self._record_story_action(controller_id, snapshot, decision)
+            self._story_turn_index = (PLAYER_CONTROLLER_IDS.index(controller_id) + 1) % len(PLAYER_CONTROLLER_IDS)
+        self.turns_taken += 1
+
+    def _fallback_decision(self, snapshot: dict[str, Any], *, reason: str) -> PartyActionDecision:
+        view = _view_from_snapshot(snapshot)
+        prompt = snapshot.get('prompt')
+        if isinstance(prompt, dict):
+            prompt_kind = _string_or_none(prompt.get('prompt_kind'))
+            if prompt_kind == 'story-check':
+                return PartyActionDecision(
+                    decision_type='command',
+                    text='/check',
+                    option_id=None,
+                    option_ids=(),
+                    topic_focus='resolve requested check',
+                    reason=f'Fallback after invalid LLM output: {reason}',
+                )
+            if prompt_kind in {'reaction', 'timing-order'}:
+                option_id = _first_prompt_option_id(prompt)
+                return PartyActionDecision(
+                    decision_type='prompt_response',
+                    text='',
+                    option_id=option_id,
+                    option_ids=(),
+                    topic_focus='safe prompt response',
+                    reason=f'Fallback after invalid LLM output: {reason}',
+                )
+        if _string_or_none(view.get('runtime_mode')) == 'combat':
+            active_actor_id = _string_or_none(view.get('active_actor_id')) or ''
+            return PartyActionDecision(
+                decision_type='command',
+                text=f'/endturn {active_actor_id}'.strip(),
+                option_id=None,
+                option_ids=(),
+                topic_focus='safe combat pass',
+                reason=f'Fallback after invalid LLM output: {reason}',
+            )
+        return PartyActionDecision(
+            decision_type='command',
+            text='I stay alert, keep pace with the group, and watch for any detail the others may have missed.',
+            option_id=None,
+            option_ids=(),
+            topic_focus='stay alert and observe',
+            reason=f'Fallback after invalid LLM output: {reason}',
+        )
 
     def _validate_decision(
         self,
@@ -847,6 +927,16 @@ def _summarize_prompt(prompt: dict[str, Any] | None) -> dict[str, Any] | None:
             if isinstance(option, dict)
         ],
     }
+
+
+def _first_prompt_option_id(prompt: dict[str, Any]) -> str | None:
+    for option in prompt.get('options', []):
+        if not isinstance(option, dict):
+            continue
+        option_id = option.get('option_id')
+        if isinstance(option_id, str):
+            return option_id
+    return None
 
 
 def _view_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:

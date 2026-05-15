@@ -271,6 +271,66 @@ class PartyConnectorTests(unittest.TestCase):
         )
         self.assertEqual(result.invalid_action_retries, 1)
 
+    def test_party_connector_retries_invalid_json_and_accepts_revision(self) -> None:
+        transport = QueueTransport(
+            [
+                {'output_text': 'I should ask Gundren about the road.'},
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'I ask Gundren which road sign would make him turn the wagon around.',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'wagon turnaround warning',
+                            'reason': 'The retry returns strict JSON and chooses a distinct actionable question.',
+                        }
+                    )
+                },
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._story_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        result = connector.run()
+        self.assertEqual(
+            connector.automation_client.submissions,
+            [('player-1-controller', 'I ask Gundren which road sign would make him turn the wagon around.')],
+        )
+        self.assertEqual(result.invalid_action_retries, 1)
+        retry_text = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
+        self.assertIn('Player agent returned invalid JSON', retry_text)
+        self.assertIn('I should ask Gundren about the road.', retry_text)
+
+    def test_party_connector_falls_back_after_repeated_invalid_json(self) -> None:
+        transport = QueueTransport(
+            [
+                {'output_text': ''},
+                {'output_text': 'not json'},
+                {'output_text': '```json\n{}\n```'},
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._story_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        result = connector.run()
+        self.assertEqual(
+            connector.automation_client.submissions,
+            [
+                (
+                    'player-1-controller',
+                    'I stay alert, keep pace with the group, and watch for any detail the others may have missed.',
+                )
+            ],
+        )
+        self.assertEqual(result.invalid_action_retries, 3)
+
     def test_party_connector_uses_prompt_response_path_for_player_prompt(self) -> None:
         prompt = {
             'prompt_id': 'timing:test',
