@@ -301,6 +301,8 @@ class PlayerAgent:
                 + 'If a prompt is present and its prompt_kind is story-check, you should usually answer with decision_type=command and text=/check. '
                 + 'If a prompt is present and its prompt_kind is reaction or timing-order, answer with decision_type=prompt_response and choose only from the visible prompt option ids. '
                 + 'In combat, use slash commands only. Prefer legal commands grounded in the visible actor ids, action hints, spells, items, and current battlefield. '
+                + 'For weapon attacks, always use the full syntax /attack <active_actor_id> <attack option_id> <target_actor_id>. '
+                + 'The active_actor_id, legal attack option ids, and visible enemy target actor ids are listed in the combat context. '
                 + 'In story mode, prefer natural declarations unless a visible slash command is clearly the better move. '
                 + 'Be creative with spell and item usage, but keep it legal and grounded in the current character card and visible scene. '
                 + 'Do not repeat the previous player\'s point. Either build on it from your own angle or introduce a different unresolved thread. '
@@ -628,6 +630,7 @@ class PartyConnector:
             owned_actor_ids = tuple(view.get('owned_actor_ids', ()))
             if active_actor_id is None or active_actor_id not in owned_actor_ids:
                 raise PartyConnectorError('The connector asked a player to act outside that player\'s active combat turn.')
+            self._validate_combat_command(view, decision.text)
             return
         if runtime_mode == 'storytelling' and count_for_story_rotation:
             self._validate_distinct_story_turn(controller_id, view, decision)
@@ -644,6 +647,31 @@ class PartyConnector:
                 raise PartyConnectorError(f'Invalid prompt option ids: {", ".join(invalid)}')
             return
         return
+
+    def _validate_combat_command(self, view: dict[str, Any], text: str) -> None:
+        parts = text.strip().split()
+        if not parts:
+            raise PartyConnectorError('Combat command must not be empty.')
+        active_actor_id = _string_or_none(view.get('active_actor_id')) or ''
+        if parts[0] == '/attack':
+            attack_ids = _available_choice_ids(view, 'attacks')
+            target_ids = _visible_enemy_target_ids(view)
+            expected = f'/attack {active_actor_id} <attack option_id> <target actor id>'
+            if len(parts) != 4:
+                raise PartyConnectorError(
+                    f'Attack command must use `{expected}`. '
+                    f'Legal attack option ids: {", ".join(attack_ids) or "none"}. '
+                    f'Visible enemy target actor ids: {", ".join(target_ids) or "none"}.'
+                )
+            if parts[1] != active_actor_id:
+                raise PartyConnectorError(f'Attack command actor must be the active actor `{active_actor_id}`.')
+            if parts[2] not in attack_ids:
+                raise PartyConnectorError(f'Unknown attack option id `{parts[2]}`. Legal attack option ids: {", ".join(attack_ids) or "none"}.')
+            if parts[3] not in target_ids:
+                raise PartyConnectorError(f'Unknown attack target `{parts[3]}`. Visible enemy target actor ids: {", ".join(target_ids) or "none"}.')
+        elif parts[0] == '/endturn':
+            if len(parts) != 2 or parts[1] != active_actor_id:
+                raise PartyConnectorError(f'End-turn command must use `/endturn {active_actor_id}`.')
 
     def _validate_distinct_story_turn(self, controller_id: str, view: dict[str, Any], decision: PartyActionDecision) -> None:
         scene_id = _string_or_none(view.get('current_scene_id'))
@@ -907,6 +935,12 @@ def _summarize_combat_view(view: dict[str, Any]) -> dict[str, Any] | None:
         'round_number': view.get('round_number'),
         'initiative_order': list(view.get('initiative_order', [])),
         'visible_tokens': tokens,
+        'visible_enemy_target_ids': _visible_enemy_target_ids(view),
+        'legal_attack_option_ids': _available_choice_ids(view, 'attacks'),
+        'command_templates': {
+            'attack': f'/attack {view.get("active_actor_id") or "<active_actor_id>"} <attack option_id> <target actor id>',
+            'end_turn': f'/endturn {view.get("active_actor_id") or "<active_actor_id>"}',
+        },
     }
 
 
@@ -937,6 +971,39 @@ def _first_prompt_option_id(prompt: dict[str, Any]) -> str | None:
         if isinstance(option_id, str):
             return option_id
     return None
+
+
+def _available_choice_ids(view: dict[str, Any], group_id: str) -> tuple[str, ...]:
+    ids: list[str] = []
+    for group in view.get('action_groups', []):
+        if not isinstance(group, dict) or group.get('group_id') != group_id:
+            continue
+        for choice in group.get('choices', []):
+            if not isinstance(choice, dict):
+                continue
+            option_id = choice.get('option_id')
+            if isinstance(option_id, str) and option_id:
+                ids.append(option_id)
+    return tuple(ids)
+
+
+def _visible_enemy_target_ids(view: dict[str, Any]) -> tuple[str, ...]:
+    map_view = view.get('map')
+    if not isinstance(map_view, dict):
+        return ()
+    targets: list[str] = []
+    for token in map_view.get('tokens', []):
+        if not isinstance(token, dict):
+            continue
+        actor_id = token.get('actor_id')
+        if not isinstance(actor_id, str) or not actor_id:
+            continue
+        if token.get('side') != 'monster':
+            continue
+        if token.get('status') not in {None, 'active'}:
+            continue
+        targets.append(actor_id)
+    return tuple(targets)
 
 
 def _view_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
