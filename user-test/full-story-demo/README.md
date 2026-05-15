@@ -228,6 +228,34 @@ If you want the web server itself to own the four built-in `LLMPlayerAgent` cont
 
 Use either the external party connector or `-ServerSidePlayers` for a run, not both, unless you are deliberately testing duplicate player drivers. Both paths use DeepSeek-compatible chat completions through the local env files and write trajectory/transcript artifacts under `C:\tmp\dnd-web-deepseek-demo-20260514` by default.
 
+## One-Command DeepSeek RL Pipeline
+
+To run the real web all-LLM setup and immediately turn the LLM-produced trajectory into RL artifacts, run this from repo root:
+
+```powershell
+.\user-test\full-story-demo\scripts\run-deepseek-rl-pipeline.ps1
+```
+
+This starts the browser web server with DeepSeek as the DM, runs the four autonomous DeepSeek player agents, stops the server, then writes the same downstream artifacts used by the training pipeline:
+- `web-trajectories/**/trajectory.jsonl`: raw turn/event records from the web session
+- `deepseek-party-transcript.md`: readable public/player transcript
+- `batches/**/batch_report.json`: batch summary for the all-LLM run
+- `batches/**/training_transitions.jsonl`: player turns exported for supervised/RL training
+- `batches/**/preference_pairs.jsonl`: preference pairs derived from rewards
+- `datasets/`: combined dataset collection and quality reports
+- `readiness/training_readiness.md`: training readiness summary
+- `smoke/`, `recipes/`, `training-runs/`: local smoke, recipe, baseline, and command-head preflight outputs
+- `mosaicml-plans/**/mosaicml_training_plan.json`: GPU handoff plan for MosaicML
+
+Preview the exact commands and output folder without making model calls:
+
+```powershell
+.\user-test\full-story-demo\scripts\run-deepseek-rl-pipeline.ps1 -DryRun
+```
+
+The full run sends the current web demo campaign/runtime context to DeepSeek through `.env` for DM narration and through `user-test/llm-players/deepseek-v4-flash-player.env` for player actions. Increase `-MaxActions` for a longer data-producing run.
+When the command prints the web URL, open it to watch the DM and players live; the runner waits five seconds before starting the party connector by default. Use `-PreConnectorDelaySeconds 0` if you do not need that pause.
+
 ## Stop The Demo
 
 Close the controller terminals or type `exit`. Stop the system terminal with `Ctrl+C`.
