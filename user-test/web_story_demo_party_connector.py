@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
@@ -24,11 +25,21 @@ PLAYER_CONTROLLER_IDS = (
 _ACTION_DECISION_TEMPLATE = json.dumps(
     {
         'decision_type': 'command',
-        'text': 'I ask Gundren what signs of danger he expects on the road.',
+        'text': 'Gundren, what signs of danger should we watch for on the road?',
         'option_id': None,
         'option_ids': [],
         'topic_focus': 'road danger signs',
         'reason': 'Short explanation of why this fits the persona and current state.',
+    },
+    separators=(',', ':'),
+)
+
+_SPEAKER_VOTE_TEMPLATE = json.dumps(
+    {
+        'selected_controller_id': 'player-3-controller',
+        'reason': 'They have the strongest current fit for wagon logistics and supplies.',
+        'advantage_factors': ['relevant skills/status/resources from the candidate profile'],
+        'confidence': 0.8,
     },
     separators=(',', ':'),
 )
@@ -68,12 +79,26 @@ _STOPWORDS = {
     'your',
 }
 
+_NARRATED_SPEECH_RE = re.compile(
+    r'\b(?:i|we)\s+(?:[^.!?]{0,50}\s+)?(?:ask|asks|tell|tells|say|says|reassure|reassures|'
+    r'explain|explains|warn|warns|press|presses|question|questions|request|requests|inquire|inquires)\b',
+    re.IGNORECASE,
+)
+
+_DIRECT_ADDRESS_RE = re.compile(r'^[A-Z][A-Za-z\' -]{2,},\s+\S+')
+
 
 class PartyConnectorError(RuntimeError):
     pass
 
 
 class PartyActionPlanningError(PartyConnectorError):
+    def __init__(self, message: str, *, raw_output: str) -> None:
+        super().__init__(message)
+        self.raw_output = raw_output
+
+
+class PartySpeakerVotePlanningError(PartyConnectorError):
     def __init__(self, message: str, *, raw_output: str) -> None:
         super().__init__(message)
         self.raw_output = raw_output
@@ -97,6 +122,14 @@ class PartyActionDecision:
     option_ids: tuple[str, ...]
     topic_focus: str
     reason: str
+
+
+@dataclass(frozen=True)
+class PartySpeakerVote:
+    selected_controller_id: str
+    reason: str
+    advantage_factors: tuple[str, ...]
+    confidence: float
 
 
 @dataclass(frozen=True)
@@ -241,6 +274,31 @@ class PlayerAgent:
         except PartyConnectorError as exc:
             raise PartyActionPlanningError(str(exc), raw_output=output_text) from exc
 
+    def vote_speaker(
+        self,
+        snapshot: dict[str, Any],
+        *,
+        speaker_candidates: tuple[dict[str, Any], ...],
+        public_party_memory: list[PartyActionRecord],
+        previous_output: str | None = None,
+        error_message: str | None = None,
+        attempt_number: int = 1,
+    ) -> tuple[PartySpeakerVote, str]:
+        request = self._build_speaker_vote_request(
+            snapshot,
+            speaker_candidates=speaker_candidates,
+            public_party_memory=public_party_memory,
+            previous_output=previous_output,
+            error_message=error_message,
+            attempt_number=attempt_number,
+        )
+        response = self.client.create_response(request)
+        output_text = response.output_text
+        try:
+            return _parse_speaker_vote(output_text), output_text
+        except PartyConnectorError as exc:
+            raise PartySpeakerVotePlanningError(str(exc), raw_output=output_text) from exc
+
     def _build_request(
         self,
         snapshot: dict[str, Any],
@@ -305,6 +363,10 @@ class PlayerAgent:
                 + 'The active_actor_id, legal attack option ids, and visible enemy target actor ids are listed in the combat context. '
                 + 'Do not choose /endturn while attacks, spells, or normal actions are still available. If enemies are out of melee range, prefer a thrown/ranged attack, a targeted spell, or /dodge <active_actor_id>. '
                 + 'In story mode, prefer natural declarations unless a visible slash command is clearly the better move. '
+                + 'If you speak to an NPC in story mode, write the character\'s actual words as direct dialogue or quoted direct speech. '
+                + 'Do not write narrated speech such as "I ask Gundren..." or "I tell Sildar...". '
+                + 'Good style: "Gundren, do you think that is too little gold up front? We need equipment before the road." '
+                + 'If you are doing a nonverbal action, describe the action directly and only include spoken words as dialogue. '
                 + 'Be creative with spell and item usage, but keep it legal and grounded in the current character card and visible scene. '
                 + 'Do not repeat the previous player\'s point. Either build on it from your own angle or introduce a different unresolved thread. '
                 + 'topic_focus must be a short phrase describing the unique angle of your action.'
@@ -353,6 +415,102 @@ class PlayerAgent:
             response_format={'type': 'json_object'},
         )
 
+    def _build_speaker_vote_request(
+        self,
+        snapshot: dict[str, Any],
+        *,
+        speaker_candidates: tuple[dict[str, Any], ...],
+        public_party_memory: list[PartyActionRecord],
+        previous_output: str | None,
+        error_message: str | None,
+        attempt_number: int,
+    ):
+        view = _view_from_snapshot(snapshot)
+        candidate_ids = [candidate['controller_id'] for candidate in speaker_candidates]
+        context_payload = {
+            'voter_persona': {
+                'controller_id': self.persona.controller_id,
+                'codename': self.persona.codename,
+                'personality': self.persona.personality,
+                'story_focus': self.persona.story_focus,
+                'coordination_rule': self.persona.coordination_rule,
+            },
+            'runtime_mode': view.get('runtime_mode'),
+            'current_scene_id': view.get('current_scene_id'),
+            'summary_lines': list(view.get('summary_lines', [])[-24:]),
+            'recent_chat_entries': _recent_chat_entries(view),
+            'recent_visible_check_entries': _recent_check_entries(view),
+            'recent_party_actions': [
+                {
+                    'controller_id': record.controller_id,
+                    'scene_id': record.scene_id,
+                    'runtime_mode': record.runtime_mode,
+                    'text': record.text,
+                    'topic_focus': record.topic_focus,
+                }
+                for record in public_party_memory[-8:]
+            ],
+            'speaker_candidates': list(speaker_candidates),
+            'allowed_controller_ids': candidate_ids,
+        }
+        if error_message is None:
+            instructions = (
+                'You are voting for which one party member should speak next in the current D&D scene. '
+                + build_json_object_contract(template=_SPEAKER_VOTE_TEMPLATE)
+                + ' The root object must contain exactly these keys: selected_controller_id, reason, advantage_factors, confidence. '
+                + 'selected_controller_id must be one of the allowed_controller_ids from the input. '
+                + 'Choose the candidate with the best current advantage for this exact moment, using visible player data only: '
+                + 'current HP/status/conditions, relevant skill and ability bonuses, remaining resources, spell/item fit, persona focus, recent checks, and unresolved scene goals. '
+                + 'Do not vote merely by round-robin order. Do not vote for yourself unless your candidate profile is actually the best fit. '
+                + 'reason must briefly explain the concrete advantage, not generic preference. '
+                + 'advantage_factors must list one to four short evidence strings from the candidate profiles or visible scene. '
+                + 'confidence must be a number from 0 to 1.'
+            )
+            input_messages = (
+                {
+                    'role': 'user',
+                    'content': [{'type': 'input_text', 'text': json.dumps(context_payload, sort_keys=True)}],
+                },
+            )
+        else:
+            instructions = (
+                'You are retrying a speaker vote after deterministic validation failed. '
+                + build_json_retry_contract(template=_SPEAKER_VOTE_TEMPLATE, attempt_number=attempt_number)
+                + ' Fix the exact error and return one corrected speaker vote only.'
+            )
+            input_messages = (
+                {
+                    'role': 'user',
+                    'content': [{'type': 'input_text', 'text': json.dumps(context_payload, sort_keys=True)}],
+                },
+                {
+                    'role': 'user',
+                    'content': [
+                        {
+                            'type': 'input_text',
+                            'text': json.dumps(
+                                {
+                                    'retry_reason': error_message,
+                                    'allowed_controller_ids': candidate_ids,
+                                    'required_json_template': _SPEAKER_VOTE_TEMPLATE,
+                                    'previous_invalid_output': (previous_output or '')[:4000],
+                                    'task': 'Re-emit one corrected JSON speaker vote.',
+                                },
+                                sort_keys=True,
+                            ),
+                        }
+                    ],
+                },
+            )
+        return self.client.build_request(
+            instructions=instructions,
+            input_messages=input_messages,
+            metadata={'request_type': 'party_speaker_vote', 'controller_id': self.persona.controller_id},
+            temperature=0.2,
+            max_output_tokens=700,
+            response_format={'type': 'json_object'},
+        )
+
 
 class PartyConnector:
     def __init__(
@@ -364,6 +522,7 @@ class PartyConnector:
         max_actions: int = 60,
         auto_end_monster_turns: bool = True,
         monster_turn_delay_seconds: float = 0.2,
+        enable_speaker_voting: bool = True,
         transcript_logger: PartyTranscriptLogger | None = None,
         verbose: bool = False,
     ) -> None:
@@ -373,6 +532,7 @@ class PartyConnector:
         self.max_actions = max_actions
         self.auto_end_monster_turns = auto_end_monster_turns
         self.monster_turn_delay_seconds = monster_turn_delay_seconds
+        self.enable_speaker_voting = enable_speaker_voting
         self.transcript_logger = transcript_logger
         self.verbose = verbose
         self._public_history: list[PartyActionRecord] = []
@@ -405,7 +565,7 @@ class PartyConnector:
                 time.sleep(self.poll_interval_seconds)
                 continue
             if runtime_mode == 'storytelling':
-                controller_id = self._next_story_controller(snapshots)
+                controller_id = self._select_story_controller(snapshots)
                 self._execute_player_action(controller_id, snapshots[controller_id], count_for_story_rotation=True)
                 actions_processed += 1
                 continue
@@ -486,6 +646,83 @@ class PartyConnector:
             if view.get('runtime_mode') == 'storytelling':
                 return controller_id
         raise PartyConnectorError('No player controller is currently available for a storytelling turn.')
+
+    def _select_story_controller(self, snapshots: dict[str, dict[str, Any]]) -> str:
+        if not self.enable_speaker_voting:
+            return self._next_story_controller(snapshots)
+        return self._vote_for_story_controller(snapshots)
+
+    def _vote_for_story_controller(self, snapshots: dict[str, dict[str, Any]]) -> str:
+        candidates = _speaker_candidates_from_snapshots(snapshots, public_party_memory=tuple(self._public_history))
+        if not candidates:
+            raise PartyConnectorError('No player controller is currently available for a speaker vote.')
+        candidate_ids = tuple(candidate['controller_id'] for candidate in candidates)
+        votes: list[PartySpeakerVote] = []
+        for voter_controller_id in candidate_ids:
+            votes.append(
+                self._collect_speaker_vote(
+                    voter_controller_id,
+                    snapshots[voter_controller_id],
+                    candidates=candidates,
+                    candidate_ids=candidate_ids,
+                )
+            )
+        vote_counts = Counter(vote.selected_controller_id for vote in votes)
+        candidate_by_id = {candidate['controller_id']: candidate for candidate in candidates}
+        selected_controller_id = max(
+            candidate_ids,
+            key=lambda controller_id: (
+                vote_counts.get(controller_id, 0),
+                float(candidate_by_id[controller_id].get('advantage_score', 0.0)),
+                self._turns_since_story_action(controller_id),
+                -PLAYER_CONTROLLER_IDS.index(controller_id),
+            ),
+        )
+        self._log(f'[speaker-vote] {selected_controller_id} <- {dict(vote_counts)}')
+        return selected_controller_id
+
+    def _collect_speaker_vote(
+        self,
+        voter_controller_id: str,
+        snapshot: dict[str, Any],
+        *,
+        candidates: tuple[dict[str, Any], ...],
+        candidate_ids: tuple[str, ...],
+    ) -> PartySpeakerVote:
+        agent = self.player_agents[voter_controller_id]
+        previous_output: str | None = None
+        error_message: str | None = None
+        for attempt in range(1, 4):
+            raw_output = ''
+            try:
+                vote, raw_output = agent.vote_speaker(
+                    snapshot,
+                    speaker_candidates=candidates,
+                    public_party_memory=list(self._public_history),
+                    previous_output=previous_output,
+                    error_message=error_message,
+                    attempt_number=attempt,
+                )
+                if vote.selected_controller_id not in candidate_ids:
+                    raise PartyConnectorError(
+                        f'Speaker vote selected {vote.selected_controller_id!r}, expected one of {", ".join(candidate_ids)}.'
+                    )
+                return vote
+            except (PartyConnectorError, PartySpeakerVotePlanningError) as exc:
+                if isinstance(exc, PartySpeakerVotePlanningError):
+                    raw_output = exc.raw_output
+                previous_output = raw_output
+                error_message = str(exc)
+                self.invalid_action_retries += 1
+                if attempt >= 3:
+                    raise
+        raise PartyConnectorError(f'Unable to obtain a valid speaker vote from {voter_controller_id}.')
+
+    def _turns_since_story_action(self, controller_id: str) -> int:
+        for distance, record in enumerate(reversed(self._public_history), start=1):
+            if record.controller_id == controller_id:
+                return distance
+        return 999
 
     def _execute_player_action(
         self,
@@ -600,11 +837,11 @@ class PartyConnector:
         fallback_options = (
             (
                 'trust terms',
-                'I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
+                'Gundren, what promise would make you feel safer trusting us with the road ahead?',
             ),
             (
                 'organized threat pattern',
-                'I compare Gundren and Sildar\'s warnings and ask what sign would prove the road danger is organized rather than random.',
+                'Gundren, what sign would prove this road danger is organized rather than random?',
             ),
             (
                 'wagon readiness',
@@ -612,7 +849,7 @@ class PartyConnector:
             ),
             (
                 'phandalin reaction watch',
-                'I casually watch nearby faces for any reaction when Phandalin, Gundren, or the wagon cargo are mentioned.',
+                'I watch nearby faces for any reaction when Phandalin, Gundren, or the wagon cargo are mentioned.',
             ),
         )
         topic, text = fallback_options[index % len(fallback_options)]
@@ -685,7 +922,21 @@ class PartyConnector:
             self._validate_combat_command(view, decision.text)
             return
         if runtime_mode == 'storytelling' and count_for_story_rotation:
+            self._validate_direct_story_speech(decision)
             self._validate_distinct_story_turn(controller_id, view, decision)
+
+    def _validate_direct_story_speech(self, decision: PartyActionDecision) -> None:
+        text = decision.text.strip()
+        if not text or text.startswith('/'):
+            return
+        if _NARRATED_SPEECH_RE.search(text) is None:
+            return
+        if _has_direct_dialogue(text):
+            return
+        raise PartyConnectorError(
+            'Story speech must use direct in-character words instead of narrated speech. '
+            'Write text like "Gundren, do you think that is too little gold up front?" instead of "I ask Gundren...".'
+        )
 
     def _validate_prompt_option_selection(self, prompt: dict[str, Any], decision: PartyActionDecision) -> None:
         valid_option_ids = {option.get('option_id') for option in prompt.get('options', []) if isinstance(option.get('option_id'), str)}
@@ -809,6 +1060,7 @@ def run_party_connector(
     auto_end_monster_turns: bool = True,
     monster_turn_delay_seconds: float = 0.2,
     transcript_path: str | Path | None = None,
+    enable_speaker_voting: bool = True,
     llm_transport=None,
     verbose: bool = False,
 ) -> PartyConnectorResult:
@@ -821,6 +1073,7 @@ def run_party_connector(
         max_actions=max_actions,
         auto_end_monster_turns=auto_end_monster_turns,
         monster_turn_delay_seconds=monster_turn_delay_seconds,
+        enable_speaker_voting=enable_speaker_voting,
         transcript_logger=(PartyTranscriptLogger(Path(transcript_path)) if transcript_path is not None else None),
         verbose=verbose,
     )
@@ -864,6 +1117,235 @@ def _parse_action_decision(raw_text: str) -> PartyActionDecision:
         topic_focus=topic_focus.strip(),
         reason=reason.strip(),
     )
+
+
+def _parse_speaker_vote(raw_text: str) -> PartySpeakerVote:
+    try:
+        decoded = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise PartyConnectorError(f'Player agent returned invalid speaker-vote JSON: {exc}') from exc
+    if not isinstance(decoded, dict):
+        raise PartyConnectorError('Speaker vote reply must be a JSON object.')
+    allowed_keys = {'selected_controller_id', 'reason', 'advantage_factors', 'confidence'}
+    unexpected_keys = sorted(set(decoded) - allowed_keys)
+    if unexpected_keys:
+        raise PartyConnectorError(f'Speaker vote reply used unexpected keys: {", ".join(unexpected_keys)}.')
+    selected_controller_id = decoded.get('selected_controller_id')
+    reason = decoded.get('reason')
+    advantage_factors = decoded.get('advantage_factors')
+    confidence = decoded.get('confidence')
+    if not isinstance(selected_controller_id, str) or not selected_controller_id:
+        raise PartyConnectorError('selected_controller_id must be a non-empty string.')
+    if not isinstance(reason, str) or not reason.strip():
+        raise PartyConnectorError('reason must be a non-empty string.')
+    if (
+        not isinstance(advantage_factors, list)
+        or not advantage_factors
+        or not all(isinstance(item, str) and item.strip() for item in advantage_factors)
+    ):
+        raise PartyConnectorError('advantage_factors must be a non-empty array of strings.')
+    if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 1:
+        raise PartyConnectorError('confidence must be a number from 0 to 1.')
+    return PartySpeakerVote(
+        selected_controller_id=selected_controller_id,
+        reason=reason.strip(),
+        advantage_factors=tuple(item.strip() for item in advantage_factors),
+        confidence=float(confidence),
+    )
+
+
+def _speaker_candidates_from_snapshots(
+    snapshots: dict[str, dict[str, Any]],
+    *,
+    public_party_memory: tuple[PartyActionRecord, ...],
+) -> tuple[dict[str, Any], ...]:
+    candidates: list[dict[str, Any]] = []
+    for controller_id in PLAYER_CONTROLLER_IDS:
+        snapshot = snapshots.get(controller_id)
+        if not isinstance(snapshot, dict):
+            continue
+        view = _view_from_snapshot(snapshot)
+        if view.get('runtime_mode') != 'storytelling':
+            continue
+        candidates.append(
+            _speaker_candidate_from_view(
+                controller_id=controller_id,
+                view=view,
+                public_party_memory=public_party_memory,
+            )
+        )
+    return tuple(candidates)
+
+
+def _speaker_candidate_from_view(
+    *,
+    controller_id: str,
+    view: dict[str, Any],
+    public_party_memory: tuple[PartyActionRecord, ...],
+) -> dict[str, Any]:
+    card = _first_character_card(view)
+    persona = DEFAULT_PERSONAS[controller_id]
+    skill_bonuses = _skill_bonus_summary(card)
+    ability_modifiers = _ability_modifier_summary(card)
+    status = _candidate_status_summary(card)
+    advantage = _speaker_advantage(
+        controller_id=controller_id,
+        scene_text=_speaker_scene_text(view),
+        skill_bonuses=skill_bonuses,
+        ability_modifiers=ability_modifiers,
+        status=status,
+        public_party_memory=public_party_memory,
+    )
+    return {
+        'controller_id': controller_id,
+        'persona_codename': persona.codename,
+        'persona_story_focus': persona.story_focus,
+        'persona_coordination_rule': persona.coordination_rule,
+        'character': _summarize_character_card(view),
+        'skill_bonuses': skill_bonuses,
+        'ability_modifiers': ability_modifiers,
+        'status': status,
+        'advantage_score': advantage['score'],
+        'advantage_factors': advantage['factors'],
+        'recently_spoke_distance': _recent_speaker_distance(controller_id, public_party_memory),
+    }
+
+
+def _first_character_card(view: dict[str, Any]) -> dict[str, Any] | None:
+    cards = view.get('character_cards', [])
+    if not isinstance(cards, list) or not cards:
+        return None
+    card = cards[0]
+    return card if isinstance(card, dict) else None
+
+
+def _skill_bonus_summary(card: dict[str, Any] | None) -> dict[str, int]:
+    if card is None:
+        return {}
+    summary: dict[str, int] = {}
+    for skill in card.get('skills', []) or []:
+        if not isinstance(skill, dict):
+            continue
+        label = skill.get('label')
+        bonus = skill.get('bonus')
+        if isinstance(label, str) and isinstance(bonus, int):
+            summary[label.lower()] = bonus
+    return summary
+
+
+def _ability_modifier_summary(card: dict[str, Any] | None) -> dict[str, int]:
+    if card is None:
+        return {}
+    summary: dict[str, int] = {}
+    for ability in card.get('abilities', []) or []:
+        if not isinstance(ability, dict):
+            continue
+        ability_id = ability.get('ability_id')
+        modifier = ability.get('modifier')
+        if isinstance(ability_id, str) and isinstance(modifier, int):
+            summary[ability_id.upper()] = modifier
+    return summary
+
+
+def _candidate_status_summary(card: dict[str, Any] | None) -> dict[str, Any]:
+    if card is None:
+        return {}
+    current_hp = card.get('current_hit_points')
+    max_hp = card.get('max_hit_points')
+    resources = []
+    for resource in card.get('resources', []) or []:
+        if not isinstance(resource, dict):
+            continue
+        resources.append(
+            {
+                'label': resource.get('label'),
+                'remaining_uses': resource.get('remaining_uses'),
+                'detail': resource.get('detail'),
+            }
+        )
+    return {
+        'current_hit_points': current_hp,
+        'max_hit_points': max_hp,
+        'hit_point_ratio': (round(float(current_hp) / float(max_hp), 3) if isinstance(current_hp, int) and isinstance(max_hp, int) and max_hp > 0 else None),
+        'conditions': list(card.get('conditions', []) or []),
+        'resources': resources[:8],
+        'cantrips': [spell.get('name') for spell in list(card.get('cantrips', []))[:8] if isinstance(spell, dict)],
+        'spells': [spell.get('name') for spell in list(card.get('spells', []))[:10] if isinstance(spell, dict)],
+        'items': [item.get('label') or item.get('name') for item in list(card.get('items', []))[:12] if isinstance(item, dict)],
+    }
+
+
+def _speaker_scene_text(view: dict[str, Any]) -> str:
+    parts = []
+    parts.extend(line for line in view.get('summary_lines', []) if isinstance(line, str))
+    for entry in list(view.get('chat_entries', []))[-10:]:
+        if not isinstance(entry, dict):
+            continue
+        text = entry.get('text')
+        if isinstance(text, str):
+            parts.append(text)
+    return ' '.join(parts).lower()
+
+
+def _speaker_advantage(
+    *,
+    controller_id: str,
+    scene_text: str,
+    skill_bonuses: dict[str, int],
+    ability_modifiers: dict[str, int],
+    status: dict[str, Any],
+    public_party_memory: tuple[PartyActionRecord, ...],
+) -> dict[str, Any]:
+    score = 0.0
+    factors: list[str] = []
+    if any(term in scene_text for term in ('gundren', 'sildar', 'bargain', 'pay', 'gold', 'terms', 'persuasion')):
+        charisma = ability_modifiers.get('CHA', 0)
+        persuasion = skill_bonuses.get('persuasion', charisma)
+        social_score = max(charisma, persuasion)
+        score += social_score
+        factors.append(f'social check fit {social_score:+d}')
+    if any(term in scene_text for term in ('secret', 'holding back', 'hiding', 'truth', 'worry', 'afraid', 'insight')):
+        insight = skill_bonuses.get('insight', ability_modifiers.get('WIS', 0))
+        score += insight
+        factors.append(f'insight fit {insight:+d}')
+    if any(term in scene_text for term in ('magic', 'magical', 'arcana', 'undead', 'aberration', 'sigil')):
+        arcana = skill_bonuses.get('arcana', ability_modifiers.get('INT', 0))
+        score += arcana
+        factors.append(f'arcana fit {arcana:+d}')
+    if any(term in scene_text for term in ('wagon', 'supplies', 'ledger', 'route', 'road', 'trail', 'equipment')):
+        logistics = max(
+            skill_bonuses.get('investigation', ability_modifiers.get('INT', 0)),
+            skill_bonuses.get('survival', ability_modifiers.get('WIS', 0)),
+        )
+        score += logistics
+        factors.append(f'logistics fit {logistics:+d}')
+    hp_ratio = status.get('hit_point_ratio')
+    if isinstance(hp_ratio, float):
+        if hp_ratio >= 0.5:
+            score += 1.0
+            factors.append('healthy enough to lead')
+        else:
+            score -= 2.0
+            factors.append('low hit points')
+    conditions = status.get('conditions')
+    if isinstance(conditions, list) and conditions:
+        score -= 2.0
+        factors.append(f'conditions: {", ".join(str(item) for item in conditions[:3])}')
+    recent_distance = _recent_speaker_distance(controller_id, public_party_memory)
+    if recent_distance <= 2:
+        score -= 1.5
+        factors.append('spoke recently')
+    elif recent_distance >= 6:
+        score += 0.5
+        factors.append('has not spoken recently')
+    return {'score': round(score, 3), 'factors': factors[:6]}
+
+
+def _recent_speaker_distance(controller_id: str, public_party_memory: tuple[PartyActionRecord, ...]) -> int:
+    for distance, record in enumerate(reversed(public_party_memory), start=1):
+        if record.controller_id == controller_id:
+            return distance
+    return 999
 
 
 def _recent_chat_entries(view: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1140,6 +1622,15 @@ def _normalize_topic(text: str) -> str:
     return ' '.join(tokens[:6])
 
 
+def _has_direct_dialogue(text: str) -> bool:
+    stripped = text.strip()
+    if _DIRECT_ADDRESS_RE.search(stripped):
+        return True
+    if re.search(r'"[^"]{3,}"', stripped):
+        return True
+    return re.search(r"(?<!\w)'[^']{3,}'(?!\w)", stripped) is not None
+
+
 def _string_or_none(value: Any) -> str | None:
     return value if isinstance(value, str) else None
 
@@ -1157,6 +1648,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument('--poll-interval-seconds', type=float, default=0.5, help='Polling interval while waiting for the next actionable player turn.')
     parser.add_argument('--max-actions', type=int, default=60, help='Maximum number of connector-driven actions before exiting.')
     parser.add_argument('--disable-auto-end-monster-turns', action='store_true', help='Do not auto-pass DM-owned monster turns during combat.')
+    parser.add_argument('--disable-speaker-voting', action='store_true', help='Use legacy round-robin story speakers instead of party speaker votes.')
     parser.add_argument('--monster-turn-delay-seconds', type=float, default=0.2, help='Delay after auto-ending a monster turn.')
     parser.add_argument('--transcript-path', help='Optional path to a local transcript log file for player actions and visible DM/public outputs.')
     parser.add_argument('--verbose', action='store_true', help='Print each accepted connector action.')
@@ -1182,6 +1674,7 @@ def main() -> int:
         auto_end_monster_turns=not args.disable_auto_end_monster_turns,
         monster_turn_delay_seconds=args.monster_turn_delay_seconds,
         transcript_path=(Path(args.transcript_path) if args.transcript_path else None),
+        enable_speaker_voting=not args.disable_speaker_voting,
         verbose=args.verbose,
     )
     print(

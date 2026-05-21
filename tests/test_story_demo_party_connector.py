@@ -265,7 +265,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I ask Gundren what danger on the road would force him to split from the wagon.',
+                            'text': 'Gundren, what danger on the road would force you to split from the wagon?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'road danger contingencies',
@@ -283,7 +283,7 @@ class PartyConnectorTests(unittest.TestCase):
                     controller_id='player-4-controller',
                     runtime_mode='storytelling',
                     scene_id='scene-waterdeep-gundren-briefing',
-                    text='I ask whether the wagon is bait for thieves.',
+                    text='Gundren, is the wagon bait for thieves?',
                     topic_focus='wagon as bait',
                 )
             ],
@@ -303,7 +303,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I thank Gundren and ask what danger he expects on the road.',
+                            'text': 'Gundren, thank you. What danger do you expect on the road?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'road danger',
@@ -315,7 +315,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I also ask what danger he expects on the road.',
+                            'text': 'Gundren, what danger do you expect on the road?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'road danger',
@@ -327,7 +327,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I ask what clue, map detail, or magical anomaly makes Phandalin worth this secrecy.',
+                            'text': 'Gundren, what clue, map detail, or magical anomaly makes Phandalin worth this secrecy?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'phandalin clue and anomaly',
@@ -342,13 +342,14 @@ class PartyConnectorTests(unittest.TestCase):
             player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
             poll_interval_seconds=0.01,
             max_actions=2,
+            enable_speaker_voting=False,
         )
         result = connector.run()
         self.assertEqual(
             connector.automation_client.submissions,
             [
-                ('player-1-controller', 'I thank Gundren and ask what danger he expects on the road.'),
-                ('player-2-controller', 'I ask what clue, map detail, or magical anomaly makes Phandalin worth this secrecy.'),
+                ('player-1-controller', 'Gundren, thank you. What danger do you expect on the road?'),
+                ('player-2-controller', 'Gundren, what clue, map detail, or magical anomaly makes Phandalin worth this secrecy?'),
             ],
         )
         self.assertEqual(result.invalid_action_retries, 1)
@@ -361,7 +362,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I ask Gundren which road sign would make him turn the wagon around.',
+                            'text': 'Gundren, which road sign would make you turn the wagon around?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'wagon turnaround warning',
@@ -376,11 +377,12 @@ class PartyConnectorTests(unittest.TestCase):
             player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
             poll_interval_seconds=0.01,
             max_actions=1,
+            enable_speaker_voting=False,
         )
         result = connector.run()
         self.assertEqual(
             connector.automation_client.submissions,
-            [('player-1-controller', 'I ask Gundren which road sign would make him turn the wagon around.')],
+            [('player-1-controller', 'Gundren, which road sign would make you turn the wagon around?')],
         )
         self.assertEqual(result.invalid_action_retries, 1)
         retry_text = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
@@ -534,6 +536,7 @@ class PartyConnectorTests(unittest.TestCase):
             player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
             poll_interval_seconds=0.01,
             max_actions=1,
+            enable_speaker_voting=False,
         )
         result = connector.run()
         self.assertEqual(
@@ -541,7 +544,7 @@ class PartyConnectorTests(unittest.TestCase):
             [
                 (
                     'player-1-controller',
-                    'I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
+                    'Gundren, what promise would make you feel safer trusting us with the road ahead?',
                 )
             ],
         )
@@ -560,13 +563,14 @@ class PartyConnectorTests(unittest.TestCase):
             player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
             poll_interval_seconds=0.01,
             max_actions=1,
+            enable_speaker_voting=False,
         )
         connector._public_history.append(
             PartyActionRecord(
                 controller_id='player-2-controller',
                 runtime_mode='storytelling',
                 scene_id='scene-waterdeep-gundren-briefing',
-                text='I steady the conversation and ask what promise would make Gundren feel safer trusting us with the road ahead.',
+                text='Gundren, what promise would make you feel safer trusting us with the road ahead?',
                 topic_focus='trust terms scene-waterdeep-gundren-briefing',
             )
         )
@@ -622,7 +626,7 @@ class PartyConnectorTests(unittest.TestCase):
                     'output_text': json.dumps(
                         {
                             'decision_type': 'command',
-                            'text': 'I ask Gundren what warning he keeps softening.',
+                            'text': 'Gundren, what warning do you keep softening before we leave?',
                             'option_id': None,
                             'option_ids': [],
                             'topic_focus': 'softened warning',
@@ -643,6 +647,7 @@ class PartyConnectorTests(unittest.TestCase):
                 player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
                 poll_interval_seconds=0.01,
                 max_actions=1,
+                enable_speaker_voting=False,
                 transcript_logger=PartyTranscriptLogger(transcript_path),
             )
             connector.run()
@@ -651,8 +656,102 @@ class PartyConnectorTests(unittest.TestCase):
             if transcript_path.exists():
                 transcript_path.unlink()
         self.assertIn('# Live Party Transcript', transcript)
-        self.assertIn('[player-1-controller] I ask Gundren what warning he keeps softening.', transcript)
+        self.assertIn('[player-1-controller] Gundren, what warning do you keep softening before we leave?', transcript)
         self.assertIn('Gundren: Phandalin still has dangers worth naming carefully.', transcript)
+
+    def test_party_connector_votes_for_story_speaker_before_action(self) -> None:
+        vote_payload = {
+            'selected_controller_id': 'player-3-controller',
+            'reason': 'Mira has the best logistics fit for wagon supplies and route risk.',
+            'advantage_factors': ['logistics fit', 'healthy enough to lead'],
+            'confidence': 0.82,
+        }
+        transport = QueueTransport(
+            [
+                {'output_text': json.dumps(vote_payload)},
+                {'output_text': json.dumps(vote_payload)},
+                {'output_text': json.dumps(vote_payload)},
+                {'output_text': json.dumps(vote_payload)},
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, before we leave, I want to inspect the wagon supplies and mark what must be protected first.',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'wagon supply inspection',
+                            'reason': 'Mira was voted to lead the practical logistics beat.',
+                        }
+                    )
+                },
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._story_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+        )
+        connector.run()
+        self.assertEqual(
+            connector.automation_client.submissions,
+            [
+                (
+                    'player-3-controller',
+                    'Gundren, before we leave, I want to inspect the wagon supplies and mark what must be protected first.',
+                )
+            ],
+        )
+        self.assertEqual([request['payload'].get('metadata', {}).get('request_type') for request in transport.requests[:4]], ['party_speaker_vote'] * 4)
+        self.assertEqual(transport.requests[4]['payload'].get('metadata', {}).get('request_type'), 'party_player_turn')
+
+    def test_party_connector_retries_narrated_speech_as_direct_dialogue(self) -> None:
+        transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': "I ask Gundren if it's too little gold up front for equipment.",
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'advance equipment pay',
+                            'reason': 'This intentionally uses narrated speech and should be retried.',
+                        }
+                    )
+                },
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, do you think that is too little gold up front? We need equipment before the road.',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'advance equipment pay',
+                            'reason': 'The retry states the request in the character voice.',
+                        }
+                    )
+                },
+            ]
+        )
+        connector = PartyConnector(
+            automation_client=FakeAutomationClient(self._story_snapshots()),
+            player_agents=build_default_player_agents(config=self._config(), llm_transport=transport),
+            poll_interval_seconds=0.01,
+            max_actions=1,
+            enable_speaker_voting=False,
+        )
+        result = connector.run()
+        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(
+            connector.automation_client.submissions,
+            [
+                (
+                    'player-1-controller',
+                    'Gundren, do you think that is too little gold up front? We need equipment before the road.',
+                )
+            ],
+        )
 
 
 if __name__ == '__main__':
