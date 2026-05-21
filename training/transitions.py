@@ -14,6 +14,12 @@ REWARD_CHANNELS = {
     'story_progress': 'progress',
     'state_progress': 'progress',
     'mode_progress': 'progress',
+    'scene_goal_completed': 'progress',
+    'hidden_subgoal_completed': 'progress',
+    'discovery_made': 'progress',
+    'social_topic_revealed': 'progress',
+    'party_goal_resolved': 'progress',
+    'open_loop_resolved': 'progress',
     'combat_step_cost': 'efficiency',
     'enemy_damage': 'offense',
     'enemy_defeated': 'offense',
@@ -39,6 +45,9 @@ REWARD_CHANNELS = {
     'ally_defense_debuffed': 'penalty',
     'ally_mobility_debuffed': 'penalty',
     'ally_general_debuffed': 'penalty',
+    'repetitive_words': 'penalty',
+    'repetitive_action': 'penalty',
+    'stalled_scene_turn': 'penalty',
 }
 TERMINAL_REWARD_CHANNEL = 'terminal'
 

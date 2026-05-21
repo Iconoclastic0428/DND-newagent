@@ -14,6 +14,7 @@ def build_preference_pairs(
     min_reward_gap: float = 0.05,
     max_pairs_per_context: int = 3,
     include_errors: bool = True,
+    context_strategy: str = 'exact',
 ) -> list[dict[str, Any]]:
     if isinstance(transitions_or_path, (str, Path)):
         transitions = load_transition_records(transitions_or_path)
@@ -26,7 +27,7 @@ def build_preference_pairs(
     for transition in transitions:
         if not include_errors and transition.get('error'):
             continue
-        signature = context_signature(transition)
+        signature = _signature_for_strategy(transition, context_strategy=context_strategy)
         groups.setdefault(signature, []).append(transition)
 
     pairs: list[dict[str, Any]] = []
@@ -57,7 +58,15 @@ def build_preference_pairs(
                 if pair_key in seen:
                     continue
                 seen.add(pair_key)
-                pairs.append(_preference_pair(signature, chosen=chosen, rejected=rejected, transition_path=transition_path))
+                pairs.append(
+                    _preference_pair(
+                        signature,
+                        chosen=chosen,
+                        rejected=rejected,
+                        transition_path=transition_path,
+                        context_strategy=context_strategy,
+                    )
+                )
                 context_pair_count += 1
     return pairs
 
@@ -89,6 +98,12 @@ def load_preference_pairs(path: str | Path) -> list[dict[str, Any]]:
 
 def context_signature(transition: dict[str, Any]) -> str:
     payload = _context_payload(transition)
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return sha256(encoded).hexdigest()[:24]
+
+
+def scene_context_signature(transition: dict[str, Any]) -> str:
+    payload = _scene_context_payload(transition)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
     return sha256(encoded).hexdigest()[:24]
 
@@ -130,11 +145,13 @@ def _preference_pair(
     chosen: dict[str, Any],
     rejected: dict[str, Any],
     transition_path: str | None,
+    context_strategy: str,
 ) -> dict[str, Any]:
     reward_gap = _numeric(chosen.get('reward')) - _numeric(rejected.get('reward'))
     return {
         'pair_id': f'{signature}:{chosen.get("sample_id")}:{rejected.get("sample_id")}',
         'context_signature': signature,
+        'context_strategy': context_strategy,
         'transition_path': transition_path,
         'prompt': render_preference_prompt(chosen),
         'chosen': str(chosen.get('action') or ''),
@@ -161,6 +178,9 @@ def _pair_transition_metadata(transition: dict[str, Any]) -> dict[str, Any]:
         'terminal_reward': transition.get('terminal_reward'),
         'reward_channels': _dict_or_empty(transition.get('reward_channels')),
         'error': transition.get('error'),
+        'conversation_id': transition.get('conversation_id'),
+        'conversation_label': transition.get('conversation_label'),
+        'behavior_profile': transition.get('behavior_profile'),
     }
 
 
@@ -180,6 +200,29 @@ def _context_payload(transition: dict[str, Any]) -> dict[str, Any]:
         'prompt': _prompt_payload(observation.get('prompt')),
         'available_actions': _available_action_payload(transition.get('available_actions')),
     }
+
+
+def _scene_context_payload(transition: dict[str, Any]) -> dict[str, Any]:
+    observation = _dict_or_empty(transition.get('observation'))
+    state_before = _dict_or_empty(transition.get('state_before'))
+    return {
+        'scenario_id': transition.get('scenario_id'),
+        'runtime_mode': transition.get('runtime_mode') or state_before.get('runtime_mode'),
+        'scene_id': state_before.get('scene_id'),
+        'location_id': state_before.get('location_id'),
+        'agent_id': transition.get('agent_id'),
+        'acting_actor_id': transition.get('acting_actor_id') or state_before.get('active_actor_id'),
+        'prompt': _prompt_payload(observation.get('prompt')),
+        'available_actions': _available_action_payload(transition.get('available_actions')),
+    }
+
+
+def _signature_for_strategy(transition: dict[str, Any], *, context_strategy: str) -> str:
+    if context_strategy == 'exact':
+        return context_signature(transition)
+    if context_strategy == 'scene':
+        return scene_context_signature(transition)
+    raise ValueError(f'Unsupported preference context_strategy: {context_strategy}')
 
 
 def _prompt_payload(prompt: Any) -> dict[str, Any] | None:

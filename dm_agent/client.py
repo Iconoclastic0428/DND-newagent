@@ -110,6 +110,14 @@ class LLMTransport(Protocol):
 
 
 class LLMHttpTransport:
+    def __init__(self, *, timeout_seconds: float = 300.0, stream_timeout_seconds: float = 300.0) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError('timeout_seconds must be > 0.')
+        if stream_timeout_seconds <= 0:
+            raise ValueError('stream_timeout_seconds must be > 0.')
+        self.timeout_seconds = timeout_seconds
+        self.stream_timeout_seconds = stream_timeout_seconds
+
     def _http_error(self, exc: error.HTTPError) -> LLMResponseError:
         try:
             body = exc.read().decode('utf-8', errors='replace').strip()
@@ -122,7 +130,7 @@ class LLMHttpTransport:
         body = json.dumps(payload).encode('utf-8')
         req = request.Request(url, data=body, headers=headers, method='POST')
         try:
-            with request.urlopen(req, timeout=60) as response:
+            with request.urlopen(req, timeout=self.timeout_seconds) as response:
                 raw = response.read().decode('utf-8')
         except error.HTTPError as exc:
             raise self._http_error(exc) from exc
@@ -140,7 +148,7 @@ class LLMHttpTransport:
         req = request.Request(url, data=body, headers=request_headers, method='POST')
         events: list[dict[str, Any]] = []
         try:
-            with request.urlopen(req, timeout=120) as response:
+            with request.urlopen(req, timeout=self.stream_timeout_seconds) as response:
                 for raw_line in response:
                     line = raw_line.decode('utf-8', errors='replace').strip()
                     if not line or line.startswith(':'):

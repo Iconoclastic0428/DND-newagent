@@ -107,6 +107,90 @@ class RewardSignalTests(unittest.TestCase):
         self.assertEqual(rewards['enemy_help_provided'], -0.08)
         self.assertEqual(rewards['ally_control_debuffed'], -0.2)
 
+    def test_scene_goal_and_hidden_subgoal_completion_are_rewarded(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            state_before={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'party_goal_count': 2,
+                'open_loop_count': 3,
+                'scene_goal_completion_count': 1,
+                'hidden_subgoal_completion_count': 0,
+                'known_discovery_count': 0,
+                'social_revealed_topic_count': 0,
+            },
+            state_after={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'party_goal_count': 1,
+                'open_loop_count': 2,
+                'scene_goal_completion_count': 3,
+                'hidden_subgoal_completion_count': 1,
+                'known_discovery_count': 1,
+                'social_revealed_topic_count': 1,
+            },
+        )
+
+        self.assertEqual(rewards['party_goal_resolved'], 0.25)
+        self.assertEqual(rewards['open_loop_resolved'], 0.2)
+        self.assertEqual(rewards['scene_goal_completed'], 0.7)
+        self.assertEqual(rewards['hidden_subgoal_completed'], 0.35)
+        self.assertEqual(rewards['discovery_made'], 0.12)
+        self.assertEqual(rewards['social_topic_revealed'], 0.08)
+        self.assertNotIn('stalled_scene_turn', rewards)
+
+    def test_story_turn_without_scene_goal_or_hidden_subgoal_progress_is_penalized(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            raw_text='Gundren, can you repeat the plan again?',
+            state_before={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'transcript_count': 10,
+                'party_goal_count': 2,
+                'open_loop_count': 3,
+                'scene_goal_completion_count': 1,
+                'hidden_subgoal_completion_count': 1,
+                'known_discovery_count': 0,
+                'social_revealed_topic_count': 0,
+            },
+            state_after={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'transcript_count': 11,
+                'party_goal_count': 2,
+                'open_loop_count': 3,
+                'scene_goal_completion_count': 1,
+                'hidden_subgoal_completion_count': 1,
+                'known_discovery_count': 0,
+                'social_revealed_topic_count': 0,
+            },
+        )
+
+        self.assertEqual(rewards['story_progress'], 0.05)
+        self.assertLess(rewards['stalled_scene_turn'], 0.0)
+
+    def test_repetitive_words_and_repeated_actions_are_penalized(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            raw_text='Gundren danger danger danger danger road road road road?',
+            state_before={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'recent_player_input_texts': (
+                    'Gundren danger danger danger danger road road road road?',
+                ),
+            },
+            state_after={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+            },
+        )
+
+        self.assertLess(rewards['repetitive_words'], 0.0)
+        self.assertLess(rewards['repetitive_action'], 0.0)
+
 
 if __name__ == '__main__':
     unittest.main()

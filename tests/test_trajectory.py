@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from dataclasses import replace
 import shutil
 import sys
 import unittest
@@ -13,6 +14,7 @@ from session_server.llm_player import LLMPlayerAgent
 from shared_types.conditions import ConditionInstance, ConditionType
 from shared_types.encounter_models import ActorSide, EncounterPhase
 from shared_types.errors import EncounterPermissionError
+from shared_types.exploration import PuzzleStatus, TrapStatus
 from shared_types.storytelling import RuntimeMode
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
@@ -157,6 +159,21 @@ class TrajectoryRecorderTests(unittest.TestCase):
             precreate_characters=True,
         )
         assert session.story_session is not None
+        session.story_session.story_state.current_party_goals = ('Learn Gundren terms.', 'Reach Phandalin.')
+        session.story_session.story_state.open_loops = ('What is Gundren hiding?',)
+        assert session.story_session.story_state.exploration_state is not None
+        exploration_state = session.story_session.story_state.exploration_state
+        exploration_state.known_discoveries = ('The goblins left a trail north.',)
+        exploration_state.traps['triboar-snare-line'] = replace(
+            exploration_state.traps['triboar-snare-line'],
+            status=TrapStatus.DISARMED,
+        )
+        exploration_state.puzzles['trail-aftermath-clues'] = replace(
+            exploration_state.puzzles['trail-aftermath-clues'],
+            status=PuzzleStatus.SOLVED,
+        )
+        npc_state = exploration_state.npc_states['gundren-rockseeker']
+        exploration_state.npc_states['gundren-rockseeker'] = replace(npc_state, revealed_topics=('map secrecy', 'cragmaw risk'))
         player = session.story_session.state.actors['player-1']
         player.temp_hit_points = 5
         player.help_target_id = 'player-2'
@@ -176,6 +193,14 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertEqual(snapshot['monster_accuracy_debuff_count'], 1)
         self.assertEqual(snapshot['monster_action_debuff_count'], 1)
         self.assertEqual(snapshot['party_control_debuff_count'], 0)
+        self.assertEqual(snapshot['party_goal_count'], 2)
+        self.assertEqual(snapshot['open_loop_count'], 1)
+        self.assertEqual(snapshot['known_discovery_count'], 1)
+        self.assertEqual(snapshot['trap_resolution_count'], 1)
+        self.assertEqual(snapshot['puzzle_solved_count'], 1)
+        self.assertEqual(snapshot['social_revealed_topic_count'], 2)
+        self.assertGreaterEqual(snapshot['hidden_subgoal_completion_count'], 2)
+        self.assertGreaterEqual(snapshot['scene_goal_completion_count'], 5)
 
     def test_real_cure_wounds_action_records_ally_healing_reward(self) -> None:
         recorder = TrajectoryRecorder(
@@ -223,7 +248,9 @@ class TrajectoryRecorderTests(unittest.TestCase):
         state.phase = EncounterPhase.IN_PROGRESS
         state.active_actor_id = 'monster-goblin-1'
         state.initiative_order = ('monster-goblin-1', 'player-1')
+        state.random_counter = 5
         player = state.actors['player-1']
+        player.current_hit_points = 1
         player.armor_class = 1
         player.base_armor_class = 1
 

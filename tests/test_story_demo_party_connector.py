@@ -15,6 +15,8 @@ from dm_agent.config import LLMConfig
 from web_story_demo_party_connector import (
     PartyActionRecord,
     PartyConnector,
+    RawInteractionLogger,
+    RawInteractionLoggingTransport,
     PartyTranscriptLogger,
     build_default_player_agents,
 )
@@ -295,6 +297,151 @@ class PartyConnectorTests(unittest.TestCase):
         self.assertIn('Wisdom (Insight)', context['recent_visible_check_entries'][0])
         self.assertEqual(context['recent_party_actions'][0]['topic_focus'], 'wagon as bait')
         self.assertEqual(context['character']['spells'][0]['name'], 'Magic Missile')
+
+    def test_player_agent_positive_profile_prioritizes_scene_goal_completion(self) -> None:
+        transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, what would settle the last concern before we take the wagon east?',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'resolve final contract concern',
+                            'reason': 'The positive profile pushes toward scene-goal completion.',
+                        }
+                    )
+                }
+            ]
+        )
+        agents = build_default_player_agents(config=self._config(), llm_transport=transport, behavior_profile='positive')
+        agents['player-1-controller'].plan_action(
+            _base_story_view(controller_id='player-1-controller', actor_id='player-1'),
+            public_party_memory=[],
+        )
+
+        instructions = transport.requests[0]['payload']['instructions']
+        self.assertIn('finish visible scene goals', instructions)
+        self.assertIn('avoid repeated wording', instructions)
+
+    def test_player_agent_negative_profile_prompts_legal_stalling_examples(self) -> None:
+        transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, can you repeat the safest part again before we decide?',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'repeat safety concern',
+                            'reason': 'The negative profile creates a legal but lower-value stalled turn.',
+                        }
+                    )
+                }
+            ]
+        )
+        agents = build_default_player_agents(
+            config=self._config(),
+            llm_transport=transport,
+            behavior_profile='negative',
+            negative_intensity=0.75,
+        )
+        agents['player-1-controller'].plan_action(
+            _base_story_view(controller_id='player-1-controller', actor_id='player-1'),
+            public_party_memory=[],
+        )
+
+        instructions = transport.requests[0]['payload']['instructions']
+        self.assertIn('negative RL training examples', instructions)
+        self.assertIn('Keep the action legal and parseable', instructions)
+        self.assertIn('stalling', instructions)
+
+    def test_deepseek_json_requests_use_large_completion_budgets_for_reasoning_models(self) -> None:
+        vote_payload = {
+            'selected_controller_id': 'player-3-controller',
+            'reason': 'Mira has the best logistics fit for the wagon job.',
+            'advantage_factors': ['wagon logistics', 'travel supplies'],
+            'confidence': 0.8,
+        }
+        transport = QueueTransport(
+            [
+                {'output_text': json.dumps(vote_payload)},
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, what must be settled before the wagon leaves?',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'departure blocker',
+                            'reason': 'Ask a concrete scene-goal question.',
+                        }
+                    )
+                },
+            ]
+        )
+        agents = build_default_player_agents(
+            config=LLMConfig(
+                api_key='test-key',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            llm_transport=transport,
+        )
+        snapshot = _base_story_view(controller_id='player-1-controller', actor_id='player-1')
+
+        agents['player-1-controller'].vote_speaker(
+            snapshot,
+            speaker_candidates=({'controller_id': 'player-3-controller'},),
+            public_party_memory=[],
+        )
+        agents['player-1-controller'].plan_action(snapshot, public_party_memory=[])
+
+        self.assertGreaterEqual(transport.requests[0]['payload']['max_tokens'], 2200)
+        self.assertGreaterEqual(transport.requests[1]['payload']['max_tokens'], 3000)
+
+    def test_raw_interaction_logging_transport_writes_request_and_response_jsonl(self) -> None:
+        log_dir = REPO_ROOT / 'tmp' / 'test_party_connector'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / 'raw-llm-io.jsonl'
+        if log_path.exists():
+            log_path.unlink()
+        transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': 'Gundren, what matters most before we roll out?',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'departure priority',
+                            'reason': 'The logger should capture this raw model response.',
+                        }
+                    )
+                }
+            ]
+        )
+        try:
+            logging_transport = RawInteractionLoggingTransport(transport, RawInteractionLogger(log_path))
+            agents = build_default_player_agents(config=self._config(), llm_transport=logging_transport)
+            agents['player-1-controller'].plan_action(
+                _base_story_view(controller_id='player-1-controller', actor_id='player-1'),
+                public_party_memory=[],
+            )
+            rows = [json.loads(line) for line in log_path.read_text(encoding='utf-8').splitlines()]
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['transport_method'], 'post')
+        self.assertIn('request_payload', rows[0])
+        self.assertIn('response_payload', rows[0])
+        self.assertNotIn('Authorization', json.dumps(rows[0], sort_keys=True))
 
     def test_party_connector_retries_duplicate_story_topic_and_accepts_revision(self) -> None:
         transport = QueueTransport(

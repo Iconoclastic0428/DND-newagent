@@ -3,13 +3,14 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
 import time
 from typing import Any
 
-from dm_agent.client import LLMClient
+from dm_agent.client import LLMClient, LLMHttpTransport
 from dm_agent.config import LLMConfig, load_llm_config
 from dm_agent.json_contract import build_json_object_contract, build_json_retry_contract
 from web_story_demo_live_runner import AutomationHttpClient, LiveWebStoryDemoError
@@ -102,6 +103,62 @@ class PartySpeakerVotePlanningError(PartyConnectorError):
     def __init__(self, message: str, *, raw_output: str) -> None:
         super().__init__(message)
         self.raw_output = raw_output
+
+
+@dataclass(frozen=True)
+class RawInteractionLogger:
+    path: Path
+
+    def record(
+        self,
+        *,
+        transport_method: str,
+        url: str,
+        request_payload: dict[str, Any],
+        response_payload: dict[str, Any] | None = None,
+        error: str | None = None,
+    ) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        row = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'transport_method': transport_method,
+            'url': url,
+            'request_metadata': request_payload.get('metadata') if isinstance(request_payload.get('metadata'), dict) else None,
+            'request_payload': request_payload,
+            'response_payload': response_payload,
+            'error': error,
+        }
+        with self.path.open('a', encoding='utf-8') as handle:
+            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
+
+
+class RawInteractionLoggingTransport:
+    def __init__(self, inner_transport, logger: RawInteractionLogger) -> None:
+        self.inner_transport = inner_transport
+        self.logger = logger
+
+    def post(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = self.inner_transport.post(url=url, headers=headers, payload=payload)
+        except Exception as exc:
+            self.logger.record(transport_method='post', url=url, request_payload=payload, error=str(exc))
+            raise
+        self.logger.record(transport_method='post', url=url, request_payload=payload, response_payload=response)
+        return response
+
+    def stream(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> list[dict[str, Any]]:
+        try:
+            response = self.inner_transport.stream(url=url, headers=headers, payload=payload)
+        except Exception as exc:
+            self.logger.record(transport_method='stream', url=url, request_payload=payload, error=str(exc))
+            raise
+        self.logger.record(
+            transport_method='stream',
+            url=url,
+            request_payload=payload,
+            response_payload={'events': response},
+        )
+        return response
 
 
 @dataclass(frozen=True)
@@ -247,9 +304,18 @@ DEFAULT_PERSONAS: dict[str, PlayerPersona] = {
 
 
 class PlayerAgent:
-    def __init__(self, *, persona: PlayerPersona, client: LLMClient) -> None:
+    def __init__(
+        self,
+        *,
+        persona: PlayerPersona,
+        client: LLMClient,
+        behavior_profile: str = 'positive',
+        negative_intensity: float = 0.5,
+    ) -> None:
         self.persona = persona
         self.client = client
+        self.behavior_profile = behavior_profile
+        self.negative_intensity = max(0.0, min(1.0, float(negative_intensity)))
 
     def plan_action(
         self,
@@ -369,7 +435,8 @@ class PlayerAgent:
                 + 'If you are doing a nonverbal action, describe the action directly and only include spoken words as dialogue. '
                 + 'Be creative with spell and item usage, but keep it legal and grounded in the current character card and visible scene. '
                 + 'Do not repeat the previous player\'s point. Either build on it from your own angle or introduce a different unresolved thread. '
-                + 'topic_focus must be a short phrase describing the unique angle of your action.'
+                + 'topic_focus must be a short phrase describing the unique angle of your action. '
+                + self._behavior_profile_instruction()
             )
             input_messages = (
                 {
@@ -411,8 +478,26 @@ class PlayerAgent:
             input_messages=input_messages,
             metadata={'request_type': 'party_player_turn', 'controller_id': self.persona.controller_id},
             temperature=0.7,
-            max_output_tokens=900,
+            max_output_tokens=3000,
             response_format={'type': 'json_object'},
+        )
+
+    def _behavior_profile_instruction(self) -> str:
+        if self.behavior_profile == 'negative':
+            return (
+                'This episode is collecting negative RL training examples. '
+                f'Negative intensity is {self.negative_intensity:.2f}. '
+                'Keep the action legal and parseable so the conversation can continue, but deliberately include some lower-quality player behavior: '
+                'stalling, redundant concerns, repeated wording, over-cautious delay, or actions that fail to finish visible scene goals or hidden subgoals. '
+                'Do not make every turn bad; mix in enough useful actions that the run can still progress and produce both positive and negative reward signs.'
+            )
+        if self.behavior_profile != 'positive':
+            raise PartyConnectorError(f'Unknown behavior profile: {self.behavior_profile!r}.')
+        return (
+            'This episode is collecting positive RL training examples. '
+            'Act to finish visible scene goals and uncover or complete hidden subgoals. '
+            'Prefer concrete progress: resolve open loops, reveal useful discoveries, answer pending checks, improve social leverage, and move the scene forward. '
+            'You should avoid repeated wording, repeated questions, and stalling.'
         )
 
     def _build_speaker_vote_request(
@@ -507,7 +592,7 @@ class PlayerAgent:
             input_messages=input_messages,
             metadata={'request_type': 'party_speaker_vote', 'controller_id': self.persona.controller_id},
             temperature=0.2,
-            max_output_tokens=700,
+            max_output_tokens=2200,
             response_format={'type': 'json_object'},
         )
 
@@ -1040,11 +1125,17 @@ def build_default_player_agents(
     *,
     config: LLMConfig,
     llm_transport=None,
+    behavior_profile: str = 'positive',
+    negative_intensity: float = 0.5,
 ) -> dict[str, PlayerAgent]:
+    if behavior_profile not in {'positive', 'negative'}:
+        raise PartyConnectorError(f'Unknown behavior profile: {behavior_profile!r}.')
     return {
         controller_id: PlayerAgent(
             persona=persona,
             client=LLMClient(config, transport=llm_transport),
+            behavior_profile=behavior_profile,
+            negative_intensity=negative_intensity,
         )
         for controller_id, persona in DEFAULT_PERSONAS.items()
     }
@@ -1060,15 +1151,28 @@ def run_party_connector(
     auto_end_monster_turns: bool = True,
     monster_turn_delay_seconds: float = 0.2,
     transcript_path: str | Path | None = None,
+    interaction_log_path: str | Path | None = None,
+    behavior_profile: str = 'positive',
+    negative_intensity: float = 0.5,
     enable_speaker_voting: bool = True,
     llm_transport=None,
     verbose: bool = False,
 ) -> PartyConnectorResult:
     config = load_llm_config(env_path=env_path)
     automation_client = AutomationHttpClient(base_url, request_timeout_seconds=request_timeout_seconds)
+    if interaction_log_path is not None:
+        llm_transport = RawInteractionLoggingTransport(
+            llm_transport or LLMHttpTransport(),
+            RawInteractionLogger(Path(interaction_log_path)),
+        )
     connector = PartyConnector(
         automation_client=automation_client,
-        player_agents=build_default_player_agents(config=config, llm_transport=llm_transport),
+        player_agents=build_default_player_agents(
+            config=config,
+            llm_transport=llm_transport,
+            behavior_profile=behavior_profile,
+            negative_intensity=negative_intensity,
+        ),
         poll_interval_seconds=poll_interval_seconds,
         max_actions=max_actions,
         auto_end_monster_turns=auto_end_monster_turns,
@@ -1651,6 +1755,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument('--disable-speaker-voting', action='store_true', help='Use legacy round-robin story speakers instead of party speaker votes.')
     parser.add_argument('--monster-turn-delay-seconds', type=float, default=0.2, help='Delay after auto-ending a monster turn.')
     parser.add_argument('--transcript-path', help='Optional path to a local transcript log file for player actions and visible DM/public outputs.')
+    parser.add_argument('--interaction-log-path', help='Optional JSONL path for raw player-agent LLM request/response records.')
+    parser.add_argument('--behavior-profile', choices=('positive', 'negative'), default='positive', help='Prompt profile for positive or negative RL data collection.')
+    parser.add_argument('--negative-intensity', type=float, default=0.5, help='Negative-profile intensity from 0.0 to 1.0.')
     parser.add_argument('--verbose', action='store_true', help='Print each accepted connector action.')
     return parser.parse_args()
 
@@ -1665,6 +1772,8 @@ def main() -> int:
         raise SystemExit('ERROR: --max-actions must be > 0.')
     if args.monster_turn_delay_seconds < 0:
         raise SystemExit('ERROR: --monster-turn-delay-seconds must be >= 0.')
+    if args.negative_intensity < 0 or args.negative_intensity > 1:
+        raise SystemExit('ERROR: --negative-intensity must be between 0 and 1.')
     result = run_party_connector(
         base_url=args.base_url,
         env_path=Path(args.env_path),
@@ -1674,6 +1783,9 @@ def main() -> int:
         auto_end_monster_turns=not args.disable_auto_end_monster_turns,
         monster_turn_delay_seconds=args.monster_turn_delay_seconds,
         transcript_path=(Path(args.transcript_path) if args.transcript_path else None),
+        interaction_log_path=(Path(args.interaction_log_path) if args.interaction_log_path else None),
+        behavior_profile=args.behavior_profile,
+        negative_intensity=args.negative_intensity,
         enable_speaker_voting=not args.disable_speaker_voting,
         verbose=args.verbose,
     )

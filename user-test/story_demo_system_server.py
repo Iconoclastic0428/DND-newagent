@@ -20,6 +20,7 @@ from shared_types.conditions import ConditionType
 from shared_types.encounter_control import ControllerBinding, ControllerRole
 from shared_types.encounter_models import ActorSide, EncounterPhase, RuntimeActorState
 from shared_types.errors import CharacterCreationError, ContentLoadError, EncounterError, EncounterPermissionError, EncounterValidationError
+from shared_types.exploration import DowntimeProjectStatus, ProcedureStatus, PuzzleStatus, TrapStatus
 from shared_types.models import CharacterRecord, ChoiceView, CreationState
 from shared_types.storytelling import RuntimeMode
 from training.rewards import action_reward_components, reward_total, terminal_reward_components
@@ -76,6 +77,7 @@ class FullStoryDemoManualSession:
         self._llm_player_next_index = 0
         self._completion_state: _CompletionState | None = None
         self._completion_recorded = False
+        self._recent_player_inputs: list[str] = []
         self.trajectory_recorder = trajectory_recorder
         self._controllers = {
             'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
@@ -175,6 +177,7 @@ class FullStoryDemoManualSession:
                 after=self._trajectory_snapshot(controller_id),
                 error=str(exc),
             )
+            self._remember_player_input(role=role, raw_input=raw_input)
             raise
         self._record_trajectory_turn(
             controller_id=controller_id,
@@ -185,6 +188,7 @@ class FullStoryDemoManualSession:
             before=before,
             after=self._trajectory_snapshot(controller_id),
         )
+        self._remember_player_input(role=role, raw_input=raw_input)
         return result
 
     def pump_llm_players(self, *, max_actions: int | None = None) -> tuple[tuple[str, str], ...]:
@@ -396,6 +400,7 @@ class FullStoryDemoManualSession:
             error=error,
             state_before=before.get('state'),
             state_after=after.get('state'),
+            raw_text=raw_input,
         )
         self.trajectory_recorder.record_turn(
             agent_id=controller_id,
@@ -412,6 +417,12 @@ class FullStoryDemoManualSession:
             error=error,
             metadata={'reward_total': reward_total(reward_components)},
         )
+
+    def _remember_player_input(self, *, role: str, raw_input: str) -> None:
+        if role != ControllerRole.PLAYER.value:
+            return
+        self._recent_player_inputs.append(raw_input)
+        self._recent_player_inputs = self._recent_player_inputs[-12:]
 
     def _trajectory_snapshot(self, controller_id: str) -> dict:
         try:
@@ -461,6 +472,7 @@ class FullStoryDemoManualSession:
         story_state = self.story_session.story_state
         encounter_state = self.story_session.state
         combat_metrics = self._trajectory_combat_metrics()
+        scene_goal_metrics = self._trajectory_scene_goal_metrics()
         return {
             'runtime_mode': self._trajectory_runtime_mode(),
             'scene_id': story_state.current_scene_id,
@@ -471,8 +483,68 @@ class FullStoryDemoManualSession:
             'round_number': encounter_state.round_number,
             'active_actor_id': encounter_state.active_actor_id,
             'completion': self._completion_state.result_summary if self._completion_state is not None else None,
+            'recent_player_input_texts': tuple(self._recent_player_inputs[-8:]),
+            'recent_public_transcript_texts': tuple(
+                entry.text
+                for entry in story_state.transcript_entries[-8:]
+                if getattr(entry.visibility, 'value', entry.visibility) == 'public'
+            ),
+            'party_goals': tuple(story_state.current_party_goals),
+            'open_loops': tuple(story_state.open_loops),
+            **scene_goal_metrics,
             **combat_metrics,
         }
+
+    def _trajectory_scene_goal_metrics(self) -> dict:
+        if self.story_session is None:
+            return {}
+        story_state = self.story_session.story_state
+        exploration_state = story_state.exploration_state
+        metrics = {
+            'party_goal_count': len(story_state.current_party_goals),
+            'open_loop_count': len(story_state.open_loops),
+            'known_discovery_count': 0,
+            'completed_procedure_count': 0,
+            'trap_resolution_count': 0,
+            'puzzle_solved_count': 0,
+            'downtime_completed_count': 0,
+            'social_revealed_topic_count': 0,
+        }
+        if exploration_state is not None:
+            metrics['known_discovery_count'] = len(exploration_state.known_discoveries)
+            completed_procedure_ids: set[str] = set()
+            for trap in exploration_state.traps.values():
+                if trap.status in {TrapStatus.BYPASSED, TrapStatus.DISARMED, TrapStatus.RESOLVED}:
+                    metrics['trap_resolution_count'] += 1
+                for progress in (trap.detect_progress, trap.disarm_progress):
+                    if progress is not None and progress.status == ProcedureStatus.COMPLETED:
+                        completed_procedure_ids.add(progress.procedure_id)
+            for puzzle in exploration_state.puzzles.values():
+                if puzzle.status == PuzzleStatus.SOLVED:
+                    metrics['puzzle_solved_count'] += 1
+                for progress in (puzzle.study_progress, puzzle.solve_progress):
+                    if progress is not None and progress.status == ProcedureStatus.COMPLETED:
+                        completed_procedure_ids.add(progress.procedure_id)
+            for project in exploration_state.downtime_projects.values():
+                if project.status == DowntimeProjectStatus.COMPLETED:
+                    metrics['downtime_completed_count'] += 1
+                if project.progress_state is not None and project.progress_state.status == ProcedureStatus.COMPLETED:
+                    completed_procedure_ids.add(project.progress_state.procedure_id)
+            metrics['completed_procedure_count'] = len(completed_procedure_ids)
+            metrics['social_revealed_topic_count'] = sum(len(state.revealed_topics) for state in exploration_state.npc_states.values())
+        hidden_subgoal_count = (
+            metrics['completed_procedure_count']
+            + metrics['trap_resolution_count']
+            + metrics['puzzle_solved_count']
+            + metrics['downtime_completed_count']
+        )
+        metrics['hidden_subgoal_completion_count'] = hidden_subgoal_count
+        metrics['scene_goal_completion_count'] = (
+            hidden_subgoal_count
+            + metrics['known_discovery_count']
+            + metrics['social_revealed_topic_count']
+        )
+        return metrics
 
     def _trajectory_combat_metrics(self) -> dict:
         if self.story_session is None:

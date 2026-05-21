@@ -6,7 +6,13 @@ import shutil
 import unittest
 from uuid import uuid4
 
-from training.preferences import build_preference_pairs, context_signature, load_preference_pairs, write_preference_pairs_jsonl
+from training.preferences import (
+    build_preference_pairs,
+    context_signature,
+    load_preference_pairs,
+    scene_context_signature,
+    write_preference_pairs_jsonl,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +91,19 @@ class PreferencePairTests(unittest.TestCase):
         self.assertEqual(len(included), 1)
         self.assertEqual(included[0]['rejected'], '/dance player-1')
         self.assertEqual(excluded, [])
+
+    def test_scene_context_strategy_pairs_same_scene_different_transcript(self) -> None:
+        chosen = _transition(sample_id='episode-1:5', action='/cast player-1 magic-missile monster-goblin-1', reward=0.31)
+        rejected = _transition(sample_id='episode-2:5', action='/endturn player-1', reward=0.01)
+        rejected['observation']['summary_lines'] = ['Runtime mode: combat', 'Different narration text.']
+
+        exact_pairs = build_preference_pairs([chosen, rejected], min_reward_gap=0.05, context_strategy='exact')
+        scene_pairs = build_preference_pairs([chosen, rejected], min_reward_gap=0.05, context_strategy='scene')
+
+        self.assertEqual(exact_pairs, [])
+        self.assertEqual(len(scene_pairs), 1)
+        self.assertEqual(scene_pairs[0]['context_strategy'], 'scene')
+        self.assertEqual(scene_pairs[0]['context_signature'], scene_context_signature(chosen))
 
     def test_write_and_load_preference_pairs_jsonl(self) -> None:
         output_path = self._tempdir / 'preference_pairs.jsonl'

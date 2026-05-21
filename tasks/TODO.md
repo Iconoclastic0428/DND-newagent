@@ -2109,3 +2109,46 @@
   - elevated `codex --version` returned `codex-cli 0.128.0`
   - Cursor's configured `chatgpt.cliExecutable` path returned `codex-cli 0.128.0`
   - elevated `codex features list` showed `goals` as `true`
+
+## 2026-05-21 - DeepSeek 100 Conversation RL Dataset
+
+### Scope
+- Generate a 100-conversation DeepSeek DM plus DeepSeek player dataset for RL training.
+- Run each conversation until `demo-complete`, timeout, connector failure, or the configured action cap makes further processing impossible.
+- Enforce a 50 positive / 50 negative label split by player prompt profile, with pilot-batch monitoring before the full run.
+- Preserve raw request/response I/O, transcripts, server/connector logs, trajectories, rewards, manifests, and quality reports as repo-local artifacts.
+- Keep orchestration isolated on the `newdndagents` branch worktree and do not disturb unrelated dirty files in the main checkout.
+
+### Steps
+- [x] Add focused tests for dataset split planning, pilot control, manifest writing, and episode summarization.
+- [x] Implement a resumable multi-worker DeepSeek conversation dataset runner.
+- [x] Extend the party connector with explicit positive/negative behavior profiles and raw LLM interaction logging.
+- [x] Add scene-goal completion rewards plus penalties for repeated wording and stalled same-scene turns.
+- [x] Add quality gates for 100 conversations, 50/50 label counts, raw artifact existence, terminal reason coverage, reward summary, and transition/preference dataset validation.
+- [x] Run dry-run/unit verification, then a small pilot batch against real DeepSeek if local runtime inputs are available.
+- [ ] Run or start the full 100-conversation generation and record the resulting artifact paths, counts, reward metrics, and quality status.
+
+### Verification Plan
+- `python -m py_compile dm_agent\client.py training\preferences.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_llm_client.py tests\test_deepseek_100_dataset_runner.py tests\test_preferences.py`
+- `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_preferences tests.test_rewards tests.test_trajectory -v`
+- `python user-test\run_deepseek_100_conversation_dataset.py --dry-run --episodes 4 --positive-count 2 --pilot-size 2 --workers 2 --run-id dry-run-verify --output-root runs\deepseek-100-conversation-dataset`
+- `python user-test\run_deepseek_100_conversation_dataset.py --episodes 2 --positive-count 1 --pilot-size 2 --workers 2 --env-path D:\DND-newagent\.env --base-url file:///D:/5etools-mirror-2.github.io/ --max-actions 6 --connector-timeout-seconds 2400 --server-start-timeout-seconds 120 --pre-connector-delay-seconds 0.5 --output-root runs\deepseek-100-conversation-dataset --run-id live-smoke-2c`
+
+### Review
+- Added reward components for `scene_goal_completed`, `hidden_subgoal_completed`, `party_goal_resolved`, `open_loop_resolved`, `discovery_made`, and `social_topic_revealed`.
+- Added penalties for `repetitive_words`, `repetitive_action`, and `stalled_scene_turn`.
+- Exposed scene-goal, hidden-subgoal, discovery, social-topic, and recent player input counters in trajectory state snapshots.
+- Added DeepSeek player behavior profiles: positive players are prompted to finish scene goals and hidden subgoals; negative players are prompted to generate legal, processable stalling/repetition examples.
+- Added raw DeepSeek request/response JSONL logging without Authorization headers.
+- Increased DeepSeek JSON completion budgets and made HTTP read timeouts configurable/long enough for reasoning-heavy DeepSeek calls.
+- Added scene-level combined preference pair generation so short cross-conversation runs can still produce preference data when exact transcript contexts differ.
+- Tightened quality gates so missing raw artifacts, missing trajectory/transcript data, failed unprocessed episodes, and failed combined transition/preference quality reports fail the run.
+- Live smoke `runs\deepseek-100-conversation-dataset\live-smoke-2c` completed 2/2 conversations with a 1/1 positive-negative split, 12 combined transitions, 1 combined preference pair, and quality status `pass`.
+- Live smoke reward totals: progress `0.99`, penalty `-0.82`, validity `0.12`, average total reward `0.145`.
+- Pilot control increased negative intensity from `0.5` to `0.7` because the negative pilot reward was not lower than the positive pilot reward.
+- Verification:
+  - compile command passed with no output.
+  - focused unit suite passed 45 tests.
+  - dry-run wrote a balanced 4-episode plan.
+  - live-smoke-2c wrote transcripts, raw interaction logs, trajectories, transitions, preferences, and quality reports for both conversations.
+- Remaining gap: the full 100-conversation DeepSeek dataset has not been generated yet. The verified 2-conversation smoke took about 26.6 minutes at only 6 player actions per conversation, so a true 100-conversation run to completion would require a long unattended run and likely significant API cost.
