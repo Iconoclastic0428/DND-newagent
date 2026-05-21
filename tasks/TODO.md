@@ -2146,9 +2146,21 @@
 - Live smoke `runs\deepseek-100-conversation-dataset\live-smoke-2c` completed 2/2 conversations with a 1/1 positive-negative split, 12 combined transitions, 1 combined preference pair, and quality status `pass`.
 - Live smoke reward totals: progress `0.99`, penalty `-0.82`, validity `0.12`, average total reward `0.145`.
 - Pilot control increased negative intensity from `0.5` to `0.7` because the negative pilot reward was not lower than the positive pilot reward.
+- First full 100-conversation generation attempt was launched, then intentionally stopped after monitoring found shared campaign-state writes:
+  - Run ID: `full-100-20260521`
+  - Runner PID: `26004`
+  - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521`
+  - Command record: `runs\deepseek-100-conversation-dataset\full-100-20260521\launcher-command.txt`
+  - Process record: `runs\deepseek-100-conversation-dataset\full-100-20260521\runner-process.json`
+  - Early monitor result at `2026-05-20T22:45:28-07:00`: runner active, 4 pilot episode dirs active, raw records increasing, transcript lines increasing, 0 connector stderr bytes, and 0 completed episode results so far.
+- Root cause: each episode server used the shared worktree campaign root by default, so parallel DeepSeek conversations wrote generated DM memory into the same `campaigns/lmop/dm/**` files.
+- Fix: the dataset runner now copies the campaign root into each episode directory and passes that isolated copy to `web_story_demo_server.py --campaign-root`.
 - Verification:
   - compile command passed with no output.
   - focused unit suite passed 45 tests.
   - dry-run wrote a balanced 4-episode plan.
   - live-smoke-2c wrote transcripts, raw interaction logs, trajectories, transitions, preferences, and quality reports for both conversations.
-- Remaining gap: the full 100-conversation DeepSeek dataset has not been generated yet. The verified 2-conversation smoke took about 26.6 minutes at only 6 player actions per conversation, so a true 100-conversation run to completion would require a long unattended run and likely significant API cost.
+  - isolation regression `test_server_command_uses_isolated_episode_campaign_copy` failed before the fix and passed after it.
+  - `python -m py_compile user-test\run_deepseek_100_conversation_dataset.py tests\test_deepseek_100_dataset_runner.py` passed.
+  - `python -m unittest tests.test_deepseek_100_dataset_runner -v` passed 7 tests.
+- Remaining gap: the full 100-conversation DeepSeek dataset is in progress, not complete. The final `conversations.jsonl`, combined datasets, and quality report must be inspected after the background run finishes before this goal can be marked complete.

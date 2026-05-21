@@ -15,6 +15,8 @@ if str(USER_TEST_ROOT) not in sys.path:
 
 from run_deepseek_100_conversation_dataset import (
     _add_combined_dataset_quality_issues,
+    _episode_paths,
+    _server_command,
     _write_combined_datasets,
     build_dataset_quality_report,
     build_episode_plan,
@@ -150,6 +152,41 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         self.assertEqual(combined['preference_quality']['status'], 'pass')
         self.assertEqual(len(preference_rows), 1)
         self.assertEqual(preference_rows[0]['context_strategy'], 'scene')
+
+    def test_server_command_uses_isolated_episode_campaign_copy(self) -> None:
+        source_campaign_root = self._tempdir / 'source-campaigns'
+        source_lmop = source_campaign_root / 'lmop'
+        source_lmop.mkdir(parents=True)
+        (source_lmop / 'marker.md').write_text('source campaign\n', encoding='utf-8')
+        episode_dir = self._tempdir / 'episode'
+        paths = _episode_paths(episode_dir)
+        args = SimpleNamespace(
+            host='127.0.0.1',
+            campaign_root=source_campaign_root,
+        )
+        spec = build_episode_plan(
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+            http_port_base=9300,
+            ws_port_base=9400,
+            negative_intensity=0.5,
+        )[0]
+
+        command = _server_command(
+            args,
+            spec,
+            paths,
+            self._tempdir / 'dm.env',
+            character_load_path=None,
+            base_url='file:///mirror/',
+        )
+
+        campaign_arg_index = command.index('--campaign-root') + 1
+        campaign_arg = Path(command[campaign_arg_index])
+        self.assertNotEqual(campaign_arg, source_campaign_root.resolve())
+        self.assertTrue(campaign_arg.is_relative_to(episode_dir.resolve()))
+        self.assertEqual((campaign_arg / 'lmop' / 'marker.md').read_text(encoding='utf-8'), 'source campaign\n')
 
     def test_dry_run_writes_plan_and_report_without_episode_execution(self) -> None:
         args = SimpleNamespace(

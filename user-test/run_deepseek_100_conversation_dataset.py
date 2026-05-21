@@ -403,6 +403,7 @@ def run_episode(
         'artifact_paths': {
             'transcript': str(paths['transcript']),
             'raw_interactions': str(paths['raw_interactions']),
+            'campaign_root': str(paths['campaign_root']),
         },
         'server_command': _printable_command(server_command),
         'connector_command': _printable_command(connector_command),
@@ -572,6 +573,7 @@ def _server_command(
     character_load_path: Path | None,
     base_url: str | None,
 ) -> list[str]:
+    campaign_root = _prepare_episode_campaign_root(args.campaign_root, paths['campaign_root'])
     command = [
         sys.executable,
         'user-test/web_story_demo_server.py',
@@ -590,8 +592,7 @@ def _server_command(
         command.extend(['--load-characters', str(character_load_path)])
     if base_url is not None:
         command.extend(['--base-url', base_url])
-    if args.campaign_root is not None:
-        command.extend(['--campaign-root', str(_resolve_path(args.campaign_root))])
+    command.extend(['--campaign-root', str(campaign_root)])
     return command
 
 
@@ -628,9 +629,34 @@ def _episode_paths(episode_dir: Path) -> dict[str, Path]:
         'episode_dir': episode_dir,
         'logs': episode_dir / 'logs',
         'web_trajectories': episode_dir / 'web-trajectories',
+        'campaign_root': episode_dir / 'campaign-root',
         'transcript': episode_dir / 'deepseek-party-transcript.md',
         'raw_interactions': episode_dir / 'raw-llm-interactions.jsonl',
     }
+
+
+def _prepare_episode_campaign_root(source_root: Path | None, target_root: Path) -> Path:
+    resolved_source = _resolve_path(source_root) if source_root is not None else (REPO_ROOT / 'campaigns').resolve()
+    if not resolved_source.exists():
+        raise DeepSeekDatasetRunnerError(f'campaign root not found: {resolved_source}')
+    resolved_target = target_root.resolve()
+    if resolved_source == resolved_target:
+        return resolved_target
+    episode_dir = target_root.parent.resolve()
+    if not _path_is_relative_to(resolved_target, episode_dir):
+        raise DeepSeekDatasetRunnerError(f'episode campaign root escapes episode directory: {resolved_target}')
+    if resolved_target.exists():
+        shutil.rmtree(resolved_target)
+    shutil.copytree(resolved_source, resolved_target)
+    return resolved_target
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
 
 
 def _terminal_reason(summary: dict[str, Any]) -> str:
