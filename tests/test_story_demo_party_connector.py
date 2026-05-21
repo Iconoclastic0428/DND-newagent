@@ -18,6 +18,7 @@ from web_story_demo_party_connector import (
     RawInteractionLogger,
     RawInteractionLoggingTransport,
     PartyTranscriptLogger,
+    _build_llm_transport,
     build_default_player_agents,
 )
 
@@ -442,6 +443,19 @@ class PartyConnectorTests(unittest.TestCase):
         self.assertIn('request_payload', rows[0])
         self.assertIn('response_payload', rows[0])
         self.assertNotIn('Authorization', json.dumps(rows[0], sort_keys=True))
+
+    def test_build_llm_transport_applies_timeout_before_raw_logging_wrapper(self) -> None:
+        log_path = REPO_ROOT / 'tmp' / 'test_party_connector' / 'raw-timeout.jsonl'
+
+        transport = _build_llm_transport(
+            llm_transport=None,
+            interaction_log_path=log_path,
+            llm_timeout_seconds=42.0,
+        )
+
+        self.assertIsInstance(transport, RawInteractionLoggingTransport)
+        self.assertEqual(transport.inner_transport.timeout_seconds, 42.0)
+        self.assertEqual(transport.inner_transport.stream_timeout_seconds, 42.0)
 
     def test_party_connector_retries_duplicate_story_topic_and_accepts_revision(self) -> None:
         transport = QueueTransport(

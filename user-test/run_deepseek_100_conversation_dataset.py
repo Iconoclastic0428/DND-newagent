@@ -73,6 +73,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--poll-interval-seconds', type=float, default=0.5)
     parser.add_argument('--monster-turn-delay-seconds', type=float, default=0.1)
     parser.add_argument('--request-timeout-seconds', type=float, default=0.0)
+    parser.add_argument('--llm-timeout-seconds', type=float, default=300.0)
     parser.add_argument('--server-start-timeout-seconds', type=float, default=90.0)
     parser.add_argument('--pre-connector-delay-seconds', type=float, default=0.5)
     parser.add_argument('--connector-timeout-seconds', type=float, default=5400.0)
@@ -612,6 +613,8 @@ def _connector_command(args: argparse.Namespace, spec: EpisodeSpec, paths: dict[
         str(args.monster_turn_delay_seconds),
         '--request-timeout-seconds',
         str(args.request_timeout_seconds),
+        '--llm-timeout-seconds',
+        str(args.llm_timeout_seconds),
         '--transcript-path',
         str(paths['transcript']),
         '--interaction-log-path',
@@ -672,6 +675,8 @@ def _validate_basic_args(args: argparse.Namespace) -> None:
         raise DeepSeekDatasetRunnerError('--workers must be > 0.')
     if hasattr(args, 'max_actions') and args.max_actions <= 0:
         raise DeepSeekDatasetRunnerError('--max-actions must be > 0.')
+    if hasattr(args, 'llm_timeout_seconds') and args.llm_timeout_seconds <= 0:
+        raise DeepSeekDatasetRunnerError('--llm-timeout-seconds must be > 0.')
 
 
 def _resolve_output_root(path: Path) -> Path:

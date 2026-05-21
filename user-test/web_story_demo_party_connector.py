@@ -1146,6 +1146,7 @@ def run_party_connector(
     base_url: str,
     env_path: str | Path = '.env',
     request_timeout_seconds: float | None = 300.0,
+    llm_timeout_seconds: float = 300.0,
     poll_interval_seconds: float = 0.5,
     max_actions: int = 60,
     auto_end_monster_turns: bool = True,
@@ -1160,11 +1161,11 @@ def run_party_connector(
 ) -> PartyConnectorResult:
     config = load_llm_config(env_path=env_path)
     automation_client = AutomationHttpClient(base_url, request_timeout_seconds=request_timeout_seconds)
-    if interaction_log_path is not None:
-        llm_transport = RawInteractionLoggingTransport(
-            llm_transport or LLMHttpTransport(),
-            RawInteractionLogger(Path(interaction_log_path)),
-        )
+    llm_transport = _build_llm_transport(
+        llm_transport=llm_transport,
+        interaction_log_path=(Path(interaction_log_path) if interaction_log_path is not None else None),
+        llm_timeout_seconds=llm_timeout_seconds,
+    )
     connector = PartyConnector(
         automation_client=automation_client,
         player_agents=build_default_player_agents(
@@ -1182,6 +1183,24 @@ def run_party_connector(
         verbose=verbose,
     )
     return connector.run()
+
+
+def _build_llm_transport(
+    *,
+    llm_transport=None,
+    interaction_log_path: Path | None = None,
+    llm_timeout_seconds: float = 300.0,
+):
+    transport = llm_transport or LLMHttpTransport(
+        timeout_seconds=llm_timeout_seconds,
+        stream_timeout_seconds=llm_timeout_seconds,
+    )
+    if interaction_log_path is None:
+        return transport
+    return RawInteractionLoggingTransport(
+        transport,
+        RawInteractionLogger(interaction_log_path),
+    )
 
 
 def _parse_action_decision(raw_text: str) -> PartyActionDecision:
@@ -1749,6 +1768,12 @@ def _parse_args() -> argparse.Namespace:
         default=300.0,
         help='HTTP request timeout for automation API calls. Use 0 to disable the timeout.',
     )
+    parser.add_argument(
+        '--llm-timeout-seconds',
+        type=float,
+        default=300.0,
+        help='HTTP request timeout for player-agent LLM calls.',
+    )
     parser.add_argument('--poll-interval-seconds', type=float, default=0.5, help='Polling interval while waiting for the next actionable player turn.')
     parser.add_argument('--max-actions', type=int, default=60, help='Maximum number of connector-driven actions before exiting.')
     parser.add_argument('--disable-auto-end-monster-turns', action='store_true', help='Do not auto-pass DM-owned monster turns during combat.')
@@ -1766,6 +1791,8 @@ def main() -> int:
     args = _parse_args()
     if args.request_timeout_seconds < 0:
         raise SystemExit('ERROR: --request-timeout-seconds must be >= 0.')
+    if args.llm_timeout_seconds <= 0:
+        raise SystemExit('ERROR: --llm-timeout-seconds must be > 0.')
     if args.poll_interval_seconds <= 0:
         raise SystemExit('ERROR: --poll-interval-seconds must be > 0.')
     if args.max_actions <= 0:
@@ -1778,6 +1805,7 @@ def main() -> int:
         base_url=args.base_url,
         env_path=Path(args.env_path),
         request_timeout_seconds=(None if args.request_timeout_seconds == 0 else args.request_timeout_seconds),
+        llm_timeout_seconds=args.llm_timeout_seconds,
         poll_interval_seconds=args.poll_interval_seconds,
         max_actions=args.max_actions,
         auto_end_monster_turns=not args.disable_auto_end_monster_turns,

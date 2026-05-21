@@ -188,6 +188,32 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         self.assertTrue(campaign_arg.is_relative_to(episode_dir.resolve()))
         self.assertEqual((campaign_arg / 'maps' / 'marker.md').read_text(encoding='utf-8'), 'source campaign\n')
 
+    def test_connector_command_passes_llm_timeout(self) -> None:
+        from run_deepseek_100_conversation_dataset import _connector_command
+
+        paths = _episode_paths(self._tempdir / 'episode')
+        args = SimpleNamespace(
+            host='127.0.0.1',
+            max_actions=90,
+            poll_interval_seconds=0.5,
+            monster_turn_delay_seconds=0.1,
+            request_timeout_seconds=0.0,
+            llm_timeout_seconds=180.0,
+        )
+        spec = build_episode_plan(
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+            http_port_base=9300,
+            ws_port_base=9400,
+            negative_intensity=0.5,
+        )[0]
+
+        command = _connector_command(args, spec, paths, self._tempdir / 'player.env')
+
+        timeout_index = command.index('--llm-timeout-seconds') + 1
+        self.assertEqual(command[timeout_index], '180.0')
+
     def test_dry_run_writes_plan_and_report_without_episode_execution(self) -> None:
         args = SimpleNamespace(
             output_root=self._tempdir / 'runs',
