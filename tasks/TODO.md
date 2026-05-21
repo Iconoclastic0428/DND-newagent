@@ -2161,6 +2161,15 @@
   - Runner PID: `1304`
   - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521-isolated-2`
   - Early monitor result at `2026-05-20T23:11:39-07:00`: runner active, 4 pilot episode dirs active, all episode-local campaign copies include `maps/high-road-region-hex.json` and DM memory files, worktree `git status` clean, 0 connector/server stderr bytes, and the first DeepSeek calls still pending with 0 raw interaction records.
+- Provider finding: the 4-worker run later returned DeepSeek provider payloads saying the request could not start processing within the 900-second timeout. It was stopped to avoid low-quality failed episodes.
+- Mitigation: added `--llm-timeout-seconds` to the party connector and dataset runner so player-agent DeepSeek requests can be bounded independently from local automation requests.
+- Live provider probe `live-provider-probe-1w-timeout180` completed 1/1 positive conversation with `--workers 1`, `--max-actions 1`, and `--llm-timeout-seconds 180`; it wrote 5 raw DeepSeek rows, 1 transition, and 0 stderr. Its top-level quality status was `fail` only because a single short conversation cannot produce combined preference pairs.
+- Current active full-run attempt:
+  - Run ID: `full-100-20260521-w2-timeout180`
+  - Runner PID: `47292`
+  - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521-w2-timeout180`
+  - Command record: `runs\deepseek-100-conversation-dataset\full-100-20260521-w2-timeout180\launcher-command.txt`
+  - Early monitor result at `2026-05-20T23:47:37-07:00`: runner active, 2 pilot episode dirs active, `conversation-001-positive` had 18 raw rows, `conversation-002-negative` had 17 raw rows, worktree `git status` clean, and 0 connector/server stderr bytes.
 - Verification:
   - compile command passed with no output.
   - focused unit suite passed 45 tests.
@@ -2169,5 +2178,9 @@
   - isolation regression `test_server_command_uses_isolated_episode_campaign_copy` failed before the fix and passed after it.
   - `python -m py_compile user-test\run_deepseek_100_conversation_dataset.py tests\test_deepseek_100_dataset_runner.py` passed.
   - `python -m unittest tests.test_deepseek_100_dataset_runner -v` passed 7 tests.
+  - `test_build_llm_transport_applies_timeout_before_raw_logging_wrapper` and `test_connector_command_passes_llm_timeout` failed before the timeout plumbing and passed after.
+  - `python -m py_compile user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py` passed.
+  - `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner -v` passed 26 tests.
   - remote `elijah/newdndagents` contains the isolation fixes through commit `65a2993`.
+  - remote `elijah/newdndagents` contains the timeout-control fix through commit `a7647de`.
 - Remaining gap: the full 100-conversation DeepSeek dataset is in progress, not complete. The final `conversations.jsonl`, combined datasets, and quality report must be inspected after the background run finishes before this goal can be marked complete.
