@@ -155,9 +155,9 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
 
     def test_server_command_uses_isolated_episode_campaign_copy(self) -> None:
         source_campaign_root = self._tempdir / 'source-campaigns'
-        source_lmop = source_campaign_root / 'lmop'
-        source_lmop.mkdir(parents=True)
-        (source_lmop / 'marker.md').write_text('source campaign\n', encoding='utf-8')
+        source_maps = source_campaign_root / 'maps'
+        source_maps.mkdir(parents=True)
+        (source_maps / 'marker.md').write_text('source campaign\n', encoding='utf-8')
         episode_dir = self._tempdir / 'episode'
         paths = _episode_paths(episode_dir)
         args = SimpleNamespace(
@@ -186,7 +186,7 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         campaign_arg = Path(command[campaign_arg_index])
         self.assertNotEqual(campaign_arg, source_campaign_root.resolve())
         self.assertTrue(campaign_arg.is_relative_to(episode_dir.resolve()))
-        self.assertEqual((campaign_arg / 'lmop' / 'marker.md').read_text(encoding='utf-8'), 'source campaign\n')
+        self.assertEqual((campaign_arg / 'maps' / 'marker.md').read_text(encoding='utf-8'), 'source campaign\n')
 
     def test_dry_run_writes_plan_and_report_without_episode_execution(self) -> None:
         args = SimpleNamespace(

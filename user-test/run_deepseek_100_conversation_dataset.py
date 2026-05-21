@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='DeepSeek env file for the DM runtime.')
     parser.add_argument('--player-env-path', type=Path, help='DeepSeek env file for player agents. Defaults to --env-path.')
     parser.add_argument('--character-load-path', type=Path, help='Optional prebuilt four-character party JSON file.')
-    parser.add_argument('--campaign-root', type=Path, help='Optional campaign markdown root override.')
+    parser.add_argument('--campaign-root', type=Path, help='Optional LMOP campaign root override.')
     parser.add_argument('--mirror-root', type=Path, default=Path('5etools-mirror-2.github.io'))
     parser.add_argument('--base-url', help='Optional 5etools base URL. Defaults to file:///<mirror-root>/ when present.')
     parser.add_argument('--host', default='127.0.0.1')
@@ -636,7 +636,7 @@ def _episode_paths(episode_dir: Path) -> dict[str, Path]:
 
 
 def _prepare_episode_campaign_root(source_root: Path | None, target_root: Path) -> Path:
-    resolved_source = _resolve_path(source_root) if source_root is not None else (REPO_ROOT / 'campaigns').resolve()
+    resolved_source = _resolve_path(source_root) if source_root is not None else (REPO_ROOT / 'campaigns' / 'lmop').resolve()
     if not resolved_source.exists():
         raise DeepSeekDatasetRunnerError(f'campaign root not found: {resolved_source}')
     resolved_target = target_root.resolve()
