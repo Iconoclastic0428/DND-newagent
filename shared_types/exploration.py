@@ -396,6 +396,7 @@ class TriggerTrapIntent:
     controller_id: str
     trap_id: str
     actor_id: str | None = None
+    safe: bool = False
 
 
 @dataclass(frozen=True)
@@ -403,6 +404,7 @@ class BypassTrapIntent:
     controller_id: str
     actor_id: str
     trap_id: str
+    party_wide: bool = False
 
 
 @dataclass(frozen=True)

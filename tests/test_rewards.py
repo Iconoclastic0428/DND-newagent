@@ -191,6 +191,42 @@ class RewardSignalTests(unittest.TestCase):
         self.assertLess(rewards['repetitive_words'], 0.0)
         self.assertLess(rewards['repetitive_action'], 0.0)
 
+    def test_required_story_check_response_is_not_repetition_or_stalling(self) -> None:
+        rewards = action_reward_components(
+            error=None,
+            raw_text='/check',
+            state_before={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'event_count': 20,
+                'transcript_count': 10,
+                'recent_player_input_texts': (
+                    '/check',
+                    'Gundren, can you tell us more about the job?',
+                ),
+                'party_goal_count': 1,
+                'open_loop_count': 3,
+                'scene_goal_completion_count': 0,
+                'hidden_subgoal_completion_count': 0,
+            },
+            state_after={
+                'runtime_mode': 'storytelling',
+                'scene_id': 'scene-waterdeep-gundren-briefing',
+                'event_count': 21,
+                'transcript_count': 11,
+                'party_goal_count': 1,
+                'open_loop_count': 3,
+                'scene_goal_completion_count': 0,
+                'hidden_subgoal_completion_count': 0,
+            },
+        )
+
+        self.assertEqual(rewards['valid_action'], 0.01)
+        self.assertEqual(rewards['state_progress'], 0.02)
+        self.assertEqual(rewards['story_progress'], 0.05)
+        self.assertNotIn('repetitive_action', rewards)
+        self.assertNotIn('stalled_scene_turn', rewards)
+
 
 if __name__ == '__main__':
     unittest.main()

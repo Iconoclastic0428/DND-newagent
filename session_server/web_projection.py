@@ -1723,13 +1723,16 @@ def _project_story_chat_entries(session, controller_id: str) -> tuple[WebChatEnt
 def _project_encounter_chat_entries(session, controller_id: str) -> tuple[WebChatEntryView, ...]:
     view = session.view_for_controller(controller_id)
     recent_event_lines = view.projection.recent_events if view.projection is not None else ()
+    recent_event_ids = view.projection.recent_event_ids if view.projection is not None else ()
+    if len(recent_event_ids) != len(recent_event_lines):
+        raise EncounterValidationError('Encounter projection recent event ids do not match recent event lines.')
     binding = session.control_runtime.validate_controller(controller_id)
     owned_actor_ids = set(_owned_actor_ids(session, controller_id))
     entries: list[WebChatEntryView] = []
     for index, text in enumerate(recent_event_lines):
         entries.append(
             WebChatEntryView(
-                entry_id=f'encounter:{index}',
+                entry_id=recent_event_ids[index],
                 speaker='System',
                 text=text,
                 category='combat',

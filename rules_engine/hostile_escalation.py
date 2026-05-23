@@ -28,16 +28,57 @@ from shared_types.hostile_escalation import (
 from shared_types.storytelling import EnterCombatPlan, StoryModeCastContext, WitnessObservationPacket
 
 
+_ATTACK_ACTION_PATTERN = re.compile(r'\battack\b(?!\s+(?:patterns?|plans?|routes?|sites?|signs?|methods?|tactics?|numbers?)\b)')
 _HOSTILE_ACTION_PATTERNS = (
-    re.compile(r'\b(attack|stab|slash|strike|shoot|punch|kick|smash|tackle)\b'),
+    re.compile(r'\b(stab|slash|strike|shoot|punch|kick|smash|tackle)\b'),
     re.compile(r'\b(grapple|grab|seize|wrestle|shove)\b'),
     re.compile(r'\b(block|bar)\b.*\b(door|exit|path|way)\b'),
 )
+_DIRECT_ATTACK_PREFIX_RE = re.compile(
+    r"(?:^|[\s,;])(?:i|we|lets|let's|i'll|ill|we'll|well|i will|we will|i try to|we try to|i want to|we want to|i'm going to|im going to|we're going to|were going to)\s+(?:\w+\s+){0,3}$"
+)
+_QUESTION_ATTACK_PREFIX_RE = re.compile(r'\b(?:do|does|did|can|could|would|will|should|might|may)\b[^.?!]{0,80}$')
+_NONPLAYER_ATTACK_SUBJECT_RE = re.compile(r'\b(?:goblins?|bandits?|creatures?|monsters?|orcs?|wolves|they|enemies|raiders?)\b[^.?!]{0,40}$')
 _THREAT_ONLY_PATTERNS = (
     re.compile(r'\b(threaten|warn|promise|tell)\b'),
     re.compile(r'\bkill you\b'),
     re.compile(r'\bwe should fight\b'),
 )
+
+
+def _has_overt_hostile_action(lowered: str) -> bool:
+    if _has_overt_attack_declaration(lowered):
+        return True
+    return any(pattern.search(lowered) for pattern in _HOSTILE_ACTION_PATTERNS)
+
+
+def _has_overt_attack_declaration(lowered: str) -> bool:
+    return any(not _attack_match_is_contextual_reference(lowered, match) for match in _ATTACK_ACTION_PATTERN.finditer(lowered))
+
+
+def _attack_match_is_contextual_reference(lowered: str, match: re.Match[str]) -> bool:
+    sentence_start = max(lowered.rfind('.', 0, match.start()), lowered.rfind('?', 0, match.start()), lowered.rfind('!', 0, match.start())) + 1
+    sentence_end_candidates = [
+        index for index in (
+            lowered.find('.', match.end()),
+            lowered.find('?', match.end()),
+            lowered.find('!', match.end()),
+        )
+        if index != -1
+    ]
+    sentence_end = min(sentence_end_candidates) if sentence_end_candidates else len(lowered)
+    sentence = lowered[sentence_start:sentence_end]
+    attack_offset = match.start() - sentence_start
+    prefix = sentence[:attack_offset]
+    if _DIRECT_ATTACK_PREFIX_RE.search(prefix):
+        return False
+    if re.search(r'\b(?:about|after|before|during|following|from|of|since)\s+(?:the\s+)?$', prefix):
+        return True
+    if _QUESTION_ATTACK_PREFIX_RE.search(prefix):
+        return True
+    if _NONPLAYER_ATTACK_SUBJECT_RE.search(prefix):
+        return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -98,7 +139,7 @@ class HostileEscalationEngine:
                 reason='Empty declaration.',
                 hostile_actor_id=actor_id,
             )
-        overt_hostile = any(pattern.search(lowered) for pattern in _HOSTILE_ACTION_PATTERNS)
+        overt_hostile = _has_overt_hostile_action(lowered)
         threat_only = any(pattern.search(lowered) for pattern in _THREAT_ONLY_PATTERNS) and not overt_hostile
         if threat_only or not overt_hostile:
             return HostileEscalationDecision(

@@ -237,7 +237,7 @@ def build_goblin_ambush_storytelling_session(
     social_engine = SocialConsequenceEngine(campaign_id='lmop')
     story_state.social_state = social_engine.initial_state(exploration_state=exploration_state, current_location_id=story_state.canonical_location_id)
     dm_runtime = DMStorytellingRuntime.from_env(env_path=env_path, client_transport=client_transport)
-    memory_writer = DmMemoryWriter(campaign_path.parent, campaign_id='lmop')
+    memory_writer = DmMemoryWriter(campaign_path.parent, campaign_id='lmop', campaign_root=campaign_path)
     return StorytellingSession(
         encounter_session=encounter_session,
         story_state=story_state,
@@ -307,7 +307,7 @@ def build_lmop_story_demo_session_from_records(
     social_engine = SocialConsequenceEngine(campaign_id='lmop')
     story_state.social_state = social_engine.initial_state(exploration_state=exploration_state, current_location_id=story_state.canonical_location_id)
     dm_runtime = DMStorytellingRuntime.from_env(env_path=env_path, client_transport=client_transport)
-    memory_writer = DmMemoryWriter(campaign_path.parent, campaign_id='lmop')
+    memory_writer = DmMemoryWriter(campaign_path.parent, campaign_id='lmop', campaign_root=campaign_path)
     return StorytellingSession(
         encounter_session=encounter_session,
         story_state=story_state,

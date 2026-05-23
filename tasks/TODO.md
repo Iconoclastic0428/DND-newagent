@@ -2118,6 +2118,7 @@
 - Enforce a 50 positive / 50 negative label split by player prompt profile, with pilot-batch monitoring before the full run.
 - Preserve raw request/response I/O, transcripts, server/connector logs, trajectories, rewards, manifests, and quality reports as repo-local artifacts.
 - Keep orchestration isolated on the `newdndagents` branch worktree and do not disturb unrelated dirty files in the main checkout.
+- While a dataset runner is active, do not commit or push, and do not contact GitHub; keep generated dataset artifacts on local disk.
 
 ### Steps
 - [x] Add focused tests for dataset split planning, pilot control, manifest writing, and episode summarization.
@@ -2126,6 +2127,26 @@
 - [x] Add scene-goal completion rewards plus penalties for repeated wording and stalled same-scene turns.
 - [x] Add quality gates for 100 conversations, 50/50 label counts, raw artifact existence, terminal reason coverage, reward summary, and transition/preference dataset validation.
 - [x] Run dry-run/unit verification, then a small pilot batch against real DeepSeek if local runtime inputs are available.
+- [x] Re-verify reward shaping after the explicit user reminder: goal/subgoal completion rewards, repetitive wording/action penalties, and same-scene stalling penalties when no goal or hidden subgoal finishes.
+- [x] Restart the full 100-conversation local run only after reward verification passes, with no commit/push while it is active.
+- [x] Stop and root-cause the local-rewardshape run after it revealed memory writes escaping the episode override.
+- [x] Fix campaign-memory writes so an explicit campaign root is both the read root and write root.
+- [x] Stop `full-100-20260521-memoryfix2-local-w2-timeout180` after pilot transcript inspection found quoted dialogue followed by third-person self narration.
+- [x] Add a regression test proving mixed quoted dialogue plus third-person self narration is rejected and retried.
+- [x] Tighten story-speech validation and prompt wording so player speech stays in the acting character's own words.
+- [x] Add a trajectory-fixture guard so verification tests cannot dirty shared `campaigns/lmop/dm/**` memory files.
+- [x] Add a short trajectory episode id for dataset-launched web servers to avoid Windows path-length failures.
+- [x] Restart the full local-only 100-conversation run after focused tests pass and record the fresh run id.
+- [x] Stop `f100-gdf-w2` after transcript inspection found rejected natural-language declarations leaking into public chat.
+- [x] Add a regression test proving invalid story declarations do not append public `StoryActionDeclaredEvent` entries.
+- [x] Fix story action commit ordering so validation/clarification failures leave the authoritative event log unchanged.
+- [x] Re-run focused tests and restart the full local-only 100-conversation run only after the regression passes.
+- [x] Stop `f100-eventfix-w2` after transcript inspection found short-name third-person self narration (`Iri flicks...`) missed by the validator.
+- [x] Add a regression test for quoted dialogue followed by short persona-name action narration.
+- [x] Extend the self-narration action verb validator and rerun the focused suite.
+- [x] Stop `f100-actionverb-w2` after transcript inspection found third-person scouting narration with an embedded `/check Perception` accepted as public player chat before fallback.
+- [x] Add a regression test for third-person self narration plus an embedded slash command inside a natural-language story action.
+- [x] Reject embedded slash commands in natural story declarations and rerun the focused suite.
 - [ ] Run or start the full 100-conversation generation and record the resulting artifact paths, counts, reward metrics, and quality status.
 
 ### Verification Plan
@@ -2170,6 +2191,88 @@
   - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521-w2-timeout180`
   - Command record: `runs\deepseek-100-conversation-dataset\full-100-20260521-w2-timeout180\launcher-command.txt`
   - Early monitor result at `2026-05-20T23:47:37-07:00`: runner active, 2 pilot episode dirs active, `conversation-001-positive` had 18 raw rows, `conversation-002-negative` had 17 raw rows, worktree `git status` clean, and 0 connector/server stderr bytes.
+- User reminder: keep full-run artifacts local and avoid commits/GitHub while the dataset runner is active.
+- The `full-100-20260521-w2-timeout180` runner was stopped before restarting because the user explicitly asked to ensure reward shaping and avoid branch/GitHub activity while running.
+- Fresh local full-run attempt:
+  - Run ID: `full-100-20260521-local-rewardshape-w2-timeout180`
+  - Runner PID: `60120`
+  - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521-local-rewardshape-w2-timeout180`
+  - Command record: `runs\deepseek-100-conversation-dataset\full-100-20260521-local-rewardshape-w2-timeout180\launcher-command.txt`
+  - Process record: `runs\deepseek-100-conversation-dataset\full-100-20260521-local-rewardshape-w2-timeout180\runner-process.json`
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+  - Status: stopped after the initial health check found shared campaign markdown dirtied by memory-sync behavior.
+- Root cause: `StorytellingSession` read from the episode `--campaign-root`, but `DmMemoryWriter(campaign_path.parent, campaign_id='lmop')` wrote to `campaign_path.parent\lmop`, which is incorrect for override roots not literally named `lmop`.
+- Fix: `DmMemoryWriter` now accepts an explicit `campaign_root`; LMOP bootstrap passes the resolved campaign path so memory writes stay inside the same root used for retrieval and maps.
+- Current active local full-run attempt:
+  - Run ID: `full-100-20260521-memoryfix2-local-w2-timeout180`
+  - Runner PID: `58808`
+  - Run directory: `runs\deepseek-100-conversation-dataset\full-100-20260521-memoryfix2-local-w2-timeout180`
+  - Initial health check: 2 pilot episode dirs active, no final report, 0 connector/server stderr bytes, no shared `campaigns/lmop/dm/**` git changes.
+  - Monitor at `2026-05-21T00:12:47-07:00`: runner active, no final report, no pilot decision yet, 2 pilot episode dirs active, `conversation-001-positive` had 13 raw rows and 4 connector output lines, `conversation-002-negative` had 16 raw rows and 6 connector output lines, 0 connector/server stderr bytes, and no shared `campaigns/lmop/dm/**` git changes.
+  - Monitor at `2026-05-21T00:24:42-07:00`: runner active, no final report, no pilot decision yet, 2 pilot episode dirs active, no completed episode results, `conversation-001-positive` had 26 raw rows, 9 connector output lines, and 5 trajectory turn records; `conversation-002-negative` had 25 raw rows, 9 connector output lines, and 5 trajectory turn records; 0 connector/server stderr bytes; no shared `campaigns/lmop/dm/**` git changes.
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+- The `full-100-20260521-memoryfix2-local-w2-timeout180` runner was stopped after transcript inspection found a player action that mixed quoted direct dialogue with third-person self narration.
+- Fix: story-speech validation now rejects direct-dialogue turns that append the acting persona in third person, and the prompt explicitly forbids third-person self narration after quoted dialogue.
+- Verification fixture finding: `tests.test_trajectory` itself wrote shared campaign DM memory when it built full story sessions without a campaign-root override; the tests now use temp LMOP campaign copies and guard against shared DM file mutation.
+- The `full-100-20260521-guarded-dialoguefix-local-w2-timeout180` runner was stopped after early results failed before LLM calls due Windows path-length failures in nested trajectory paths.
+- Fix: dataset-launched web servers now pass `--trajectory-episode-id web`, keeping trajectory paths short and deterministic under each episode directory.
+- Current active local full-run attempt:
+  - Run ID: `f100-gdf-w2`
+  - Runner PID: `41152`
+  - Run directory: `runs\deepseek-100-conversation-dataset\f100-gdf-w2`
+  - Initial health check: 2 pilot episode dirs active, both web servers and connectors running, trajectory records present, 0 connector/server stderr bytes, and shared `campaigns/lmop/dm/**` clean.
+  - Monitor at `2026-05-21T00:41:15-07:00`: runner active, no final report, no pilot decision yet, `conversation-001-positive` had 2 raw DeepSeek rows and `conversation-002-negative` had 1 raw DeepSeek row; both had 0 stderr bytes and shared campaign DM files remained clean.
+  - Monitor at `2026-05-21T00:46:30-07:00`: runner active, no completed results yet, `conversation-001-positive` had 11 raw rows, 18 transcript lines, 5 trajectory records, and clean direct-dialogue player actions; `conversation-002-negative` had 10 raw rows, 8 transcript lines, and 3 trajectory records; both had 0 stderr bytes and shared campaign DM files remained clean.
+  - Monitor at `2026-05-21T01:03:00-07:00`: runner active, no completed results yet, `conversation-001-positive` had 24 raw rows, 23 transcript lines, 7 trajectory records, and 0 stderr bytes; `conversation-002-negative` had 25 raw rows, 22 transcript lines, 7 trajectory records, and 0 stderr bytes; shared campaign DM files remained clean.
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+- `f100-gdf-w2` was intentionally stopped before pilot expansion:
+  - Stop reason: `conversation-002-negative` showed an invalid player declaration in the public chat transcript even though the connector retried and accepted a later corrected action.
+  - Root cause: `StorytellingSession.submit_story_action()` appended `StoryActionDeclaredEvent` before exploration declaration validation, so rejected declarations could remain in the authoritative event log.
+  - Runner PID `41152` and its children were stopped successfully with no remaining child processes.
+- Fix: invalid story declarations now validate exploration interpretation and hostile-clarification decisions before appending public `StoryActionDeclaredEvent` entries. Accepted exploration-prompt declarations still append the public action before opening the pending check.
+- Fixture guard: `tests.test_storytelling_session` now uses a temp LMOP campaign root and fails if it writes shared `campaigns/lmop/dm/**` files.
+- Current active local full-run attempt:
+  - Run ID: `f100-eventfix-w2`
+  - Runner PID: `26792`
+  - Run directory: `runs\deepseek-100-conversation-dataset\f100-eventfix-w2`
+  - Command record: `runs\deepseek-100-conversation-dataset\f100-eventfix-w2\launcher-command.txt`
+  - Process record: `runs\deepseek-100-conversation-dataset\f100-eventfix-w2\runner-process.json`
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+  - Initial health check: runner active with 2 pilot episode dirs, both episodes have raw DeepSeek rows and trajectory rows, 0 connector/server stderr bytes, and shared `campaigns/lmop/dm/**` clean.
+  - Monitor after first player actions: `conversation-001-positive` had 6 raw rows, 7 transcript lines, 3 trajectory records, and direct player dialogue; `conversation-002-negative` had 7 raw rows, 8 transcript lines, 3 trajectory records, and direct negative-profile stalling dialogue. Both had 0 stderr bytes and shared campaign DM files remained clean.
+- `f100-eventfix-w2` was intentionally stopped before pilot expansion:
+  - Stop reason: `conversation-001-positive` included `"Trust?..." Iri flicks her fingers...`, a mixed direct-dialogue plus third-person self-narration action.
+  - Root cause: the existing connector validator recognized fixed self-narration verbs such as `produces`, but did not include short-name action verbs such as `flicks`, so the player-4 action passed validation.
+  - Runner PID `26792` and its children were stopped successfully with no remaining child processes, and shared campaign DM files stayed clean.
+- Fix: the connector validator now treats additional common short action verbs (`flicks`, `lifts`, `sets`, `slides`, `smiles`, `waves`, etc.) as third-person self narration when they follow quoted dialogue and a player persona name.
+- Current active local full-run attempt:
+  - Run ID: `f100-actionverb-w2`
+  - Runner PID: `13384`
+  - Run directory: `runs\deepseek-100-conversation-dataset\f100-actionverb-w2`
+  - Command record: `runs\deepseek-100-conversation-dataset\f100-actionverb-w2\launcher-command.txt`
+  - Process record: `runs\deepseek-100-conversation-dataset\f100-actionverb-w2\runner-process.json`
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+  - Initial health check at `2026-05-21T02:02:54-07:00`: runner active with 2 pilot episode dirs, raw DeepSeek rows and trajectory rows present, 0 connector/server stderr bytes, and shared `campaigns/lmop/dm/**` clean.
+  - First-action monitor at `2026-05-21T02:09:30-07:00`: both pilots had clean direct-dialogue first actions and 0 connector/server stderr bytes.
+  - Monitor at `2026-05-21T02:25:25-07:00`: runner active, no completed results yet, no final report, no pilot decision yet. `conversation-001-positive` had 24 raw rows, 28 transcript lines, 8 trajectory records, and job-acceptance/wagon-prep progress. `conversation-002-negative` had 27 raw rows, 30 transcript lines, 8 trajectory records, repeated suspicion/failed checks, and 0 connector/server stderr bytes. Shared campaign DM files remained clean.
+  - Reward check after the `02:25` monitor: `conversation-001-positive` had 6 turn records, total reward `0.11`, including `party_goal_resolved=0.25`, `repetitive_action=-0.22`, and `stalled_scene_turn=-0.30`; `conversation-002-negative` had 6 turn records, total reward `-0.15`, including `repetitive_action=-0.22` and `stalled_scene_turn=-0.36`. No errored raw action text appeared in either transcript.
+- `f100-actionverb-w2` was intentionally stopped before pilot expansion:
+  - Stop reason: `conversation-001-positive` accepted `From her spot ahead of the wagon, Seraphine keeps... /check Perception` as public player chat, then fell back to `/check`.
+  - Root cause: the connector did not reject slash commands embedded inside natural-language story declarations, and the self-narration verb list did not include `keeps`, `murmurs`, or `whispers`.
+  - Runner PID `13384` and its children were stopped successfully with no remaining child processes, and shared campaign DM files stayed clean.
+- Fix: natural-language story declarations now reject embedded slash commands such as `/check`, and the self-narration detector catches persona-name action verbs including `keeps`, `murmurs`, and `whispers`.
+- Current active local full-run attempt:
+  - Run ID: `f100-embeddedcheck-w2`
+  - Runner PID: `40616`
+  - Run directory: `runs\deepseek-100-conversation-dataset\f100-embeddedcheck-w2`
+  - Command record: `runs\deepseek-100-conversation-dataset\f100-embeddedcheck-w2\launcher-command.txt`
+  - Process record: `runs\deepseek-100-conversation-dataset\f100-embeddedcheck-w2\runner-process.json`
+  - Launch policy: local disk artifacts only; no commit/push/GitHub operations while this runner is active.
+  - Initial health check at `2026-05-21T02:57:45-07:00`: runner active with 2 pilot episode dirs, both episodes have raw DeepSeek rows and trajectory rows, 0 connector/server stderr bytes, and shared `campaigns/lmop/dm/**` clean.
+  - First-action monitor at `2026-05-21T03:02:02-07:00`: both pilots had clean direct-dialogue first actions, 0 connector/server stderr bytes, and shared campaign DM files remained clean.
+  - Monitor at `2026-05-21T03:12:40-07:00`: runner active, no completed results yet, no final report, no pilot decision yet. `conversation-001-positive` had 18 raw rows, 24 transcript lines, 6 trajectory records, a failed persuasion check, and no suspicious player lines. `conversation-002-negative` had 21 raw rows, 17 transcript lines, 6 trajectory records, risk/payment bargaining with a failed check, and no suspicious player lines. Both had 0 connector/server stderr bytes and shared campaign DM files stayed clean.
+  - Reward check after the `03:12` monitor: `conversation-001-positive` had 4 turn records, total reward `0.39`, including `party_goal_resolved=0.25` and `stalled_scene_turn=-0.18`; `conversation-002-negative` had 5 turn records, total reward `0.05`, including `stalled_scene_turn=-0.30` and one negative reward turn. No errored raw action text appeared in either transcript.
+  - Current user constraint: while this runner is active, do not commit, push, fetch, inspect remote GitHub state, or use GitHub connector tools. Keep dataset artifacts on local disk or in process memory only.
 - Verification:
   - compile command passed with no output.
   - focused unit suite passed 45 tests.
@@ -2181,6 +2284,1866 @@
   - `test_build_llm_transport_applies_timeout_before_raw_logging_wrapper` and `test_connector_command_passes_llm_timeout` failed before the timeout plumbing and passed after.
   - `python -m py_compile user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py` passed.
   - `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner -v` passed 26 tests.
+  - `python -m unittest tests.test_rewards -v` passed 8 tests, including scene/hidden subgoal rewards and repetitive/stalled penalties.
+  - `python -m unittest tests.test_trajectory.TrajectoryRecorderTests.test_trajectory_snapshot_exposes_support_and_debuff_metrics tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_quality_report_checks_split_terminals_rewards_and_artifacts -v` passed 2 tests.
+  - `test_campaign_root_override_keeps_memory_writes_inside_override` failed before the memory-writer fix and passed after it.
+  - `python -m unittest tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 25 tests.
+  - `python -m py_compile dm_agent\memory.py session_server\bootstrap.py user-test\run_deepseek_100_conversation_dataset.py tests\test_trajectory.py tests\test_deepseek_100_dataset_runner.py` passed after rerunning outside the parallel test import.
+  - `test_party_connector_retries_quoted_dialogue_with_third_person_self_narration` failed before the validator fix and passed after it.
+  - `test_full_story_demo_records_story_turn_jsonl` failed under the shared-DM guard before the trajectory fixture isolation fix and passed after it.
+  - `test_server_command_uses_short_trajectory_episode_id` failed before the short trajectory id was passed and passed after it.
+  - `python -m unittest tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 45 tests after the dialogue, fixture-isolation, and path-length fixes.
+  - `python -m py_compile dm_agent\memory.py session_server\bootstrap.py user-test\web_story_demo_server.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_story_demo_party_connector.py tests\test_trajectory.py tests\test_deepseek_100_dataset_runner.py` passed.
+  - `git status --short -- campaigns/lmop/dm` stayed clean after the relevant suite and after the current run's initial health checks.
+  - `test_invalid_story_declaration_does_not_append_public_action_event` failed before the story-action commit ordering fix and passed after it.
+  - `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 61 tests.
+  - `python -m py_compile session_server\storytelling_session.py tests\test_storytelling_session.py dm_agent\memory.py session_server\bootstrap.py user-test\web_story_demo_server.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_story_demo_party_connector.py tests\test_trajectory.py tests\test_deepseek_100_dataset_runner.py` passed.
+  - `git status --short -- campaigns/lmop/dm` stayed clean after the isolated storytelling-session suite and the 61-test focused suite.
+  - `test_party_connector_retries_quoted_dialogue_with_short_name_action_verb` failed before the short-name action-verb fix and passed after it.
+  - `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 62 tests.
+  - The focused py_compile command passed again after the short-name action-verb fix.
+  - `test_party_connector_retries_third_person_scouting_with_embedded_check` failed before the embedded slash/self-narration fix and passed after it.
+  - `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 63 tests.
+  - The focused py_compile command passed again after the embedded slash/self-narration fix.
   - remote `elijah/newdndagents` contains the isolation fixes through commit `65a2993`.
   - remote `elijah/newdndagents` contains the timeout-control fix through commit `a7647de`.
 - Remaining gap: the full 100-conversation DeepSeek dataset is in progress, not complete. The final `conversations.jsonl`, combined datasets, and quality report must be inspected after the background run finishes before this goal can be marked complete.
+
+## 2026-05-21 - DeepSeek Dataset Check-Reward Fix And Fresh Local Relaunch
+
+### Scope
+- Keep the 100-conversation DeepSeek dataset run local-only, with no commit/push/fetch/GitHub work while running.
+- Stop the active run before pilot expansion if monitoring finds reward or transcript quality issues.
+- Fix reward shaping so required `/check` prompt responses are not mislabeled as repetitive/stalling player declarations.
+- Relaunch a fresh 100-conversation run with the same 50/50 split, 10-episode pilot, 2 workers, raw DeepSeek logs, transcripts, and isolated episode campaign roots.
+
+### Steps
+- [x] Monitor `f100-embeddedcheck-w2` and inspect raw rows, transcripts, trajectory rewards, stderr, and shared campaign dirtiness.
+- [x] Stop `f100-embeddedcheck-w2` before pilot expansion after the reward scan found required `/check` prompt responses getting `repetitive_action` and `stalled_scene_turn` penalties.
+- [x] Add a failing regression for required story-check responses in `tests/test_rewards.py`.
+- [x] Fix `training/rewards.py` so exact `/check` story-check responses keep progress rewards but skip repetition and stalled-scene penalties.
+- [x] Verify the fix with focused and broader suites.
+- [x] Relaunch a fresh local run as `f100-checkrewardfix-w2`.
+- [x] Run initial health checks for `f100-checkrewardfix-w2`.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+- [ ] Audit the final 100-conversation artifacts after completion: `conversations.jsonl`, combined transitions/preferences, quality report, reward split, and raw transcript retention.
+
+### Verification
+- [x] `python -m unittest tests.test_rewards.RewardSignalTests.test_required_story_check_response_is_not_repetition_or_stalling -v` failed before the reward fix with `repetitive_action` and `stalled_scene_turn` present.
+- [x] The same regression passed after the fix.
+- [x] `python -m py_compile training\rewards.py tests\test_rewards.py`
+- [x] `python -m unittest tests.test_rewards -v` passed 9 tests.
+- [x] `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 64 tests.
+- [x] Focused compile for the dataset/story/reward touched modules passed.
+- [x] Recomputed old `f100-embeddedcheck-w2` pilot rewards in memory only: positive sample changed from `-0.02` to `0.60` by removing `/check`-specific penalties while preserving real story-declaration stalled penalties.
+- [x] Fresh run `f100-checkrewardfix-w2` launched locally as PID `60640`; initial health checks show runner active, 2 pilot episodes, zero runner/episode stderr bytes, and clean shared `campaigns/lmop/dm/**`.
+
+### Review
+- Current active local run: `runs\deepseek-100-conversation-dataset\f100-checkrewardfix-w2`, PID `60640`.
+- Launch policy: local disk artifacts only; no commit, push, fetch, remote inspection, or GitHub connector use while active.
+- Latest monitor at `2026-05-21T03:33:45-07:00`: `conversation-001-positive` had 12 raw rows, 18 transcript lines, 3 turn rows, reward total `0.12`; `conversation-002-negative` had 14 raw rows, 14 transcript lines, 3 turn rows, reward total `0.07`; both had zero stderr bytes.
+- Monitor at `2026-05-21T03:47:57-07:00`: runner active, 2 pilot episode dirs, no completed results, no pilot control file, 0 runner/episode stderr bytes. `conversation-001-positive` had 30 raw rows, 28 transcript lines, 6 turn rows, reward total `0.19`; `conversation-002-negative` had 29 raw rows, 27 transcript lines, 6 turn rows, reward total `0.59` due one `open_loop_resolved=0.4`.
+- Monitor at `2026-05-21T03:52:54-07:00`: runner active, 0 stderr, no shared campaign DM dirtiness, both pilots at 7 turn rows. Positive sample had begun concrete wagon preparation and departure-time planning; negative sample was still legal/processable but over-cautious and repetitive about road hazards and magic.
+- Monitor at `2026-05-21T03:58:12-07:00`: positive pilot advanced to `scene-00-high-road-journey`; negative pilot remained in the briefing but had resolved a party goal/open loop. Both still had 0 stderr and 0 trajectory errors.
+- Monitor at `2026-05-21T04:08:15-07:00`: positive pilot had 12 turn rows and reward total `1.51`, including `scene_goal_completed=0.7`, `hidden_subgoal_completed=0.35`, and `discovery_made=0.12`; negative pilot had 9 turn rows and reward total `0.96`, still lower than positive after positive scene progress. Both remained active with no episode results yet.
+- Live reward check: a fresh `/check` turn now records only `valid_action`, `state_progress`, and `story_progress`, with no `repetitive_action` or `stalled_scene_turn`.
+- Remaining gap: this run was stopped before completion because `conversation-001-positive` duplicated player quoted speech as a public story transcript entry. The requested full 100-conversation dataset is still unverified; do not mark the goal complete until final artifacts prove all requirements.
+
+## 2026-05-21 - DeepSeek Dataset Quoted-Speech Echo Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion after finding duplicated player speech in public story transcript entries.
+- Fix the story-turn echo filter so DM transcript entries that repeat only the quoted speech subset of a longer player declaration are dropped.
+- Verify the fix with a red/green regression, focused story/reward/dataset tests, compile checks, and a fresh local relaunch.
+
+### Steps
+- [x] Stop `f100-checkrewardfix-w2` and confirm no runner or child processes remain.
+- [x] Add a failing regression for quoted direct-dialogue subsets echoed as public story transcript entries.
+- [x] Fix the transcript echo filter at the story-turn boundary.
+- [x] Run focused and broader verification.
+- [x] Relaunch a fresh local 100-conversation run with the same split and worker settings.
+- [x] Monitor the new pilot for transcript echoes, stderr, rewards, and shared campaign dirtiness.
+- [x] Add a failing regression for DM-authored public transcript entries that use a `Player N` speaker.
+- [x] Fix story-turn transcript filtering so player-speaker transcript entries from DM decisions are dropped even when paraphrased.
+- [x] Verify again and relaunch a fresh local run.
+- [x] Add a failing regression for transient incomplete HTTP reads from the DeepSeek transport.
+- [x] Retry transient HTTP read failures in `LLMHttpTransport.post()` without hiding HTTP status errors.
+- [x] Verify transport and focused suites after the retry fix.
+- [x] Relaunch a fresh local run after the HTTP retry fix.
+
+### Verification
+- [x] Regression fails before the fix and passes after it.
+- [x] Focused compile and unit suites pass.
+- [x] Fresh run health check shows local artifacts, raw logs, 0 stderr, and clean shared `campaigns/lmop/dm/**`.
+
+### Review
+- Root-cause evidence: `conversation-001-positive` in `f100-checkrewardfix-w2` appended `[chat:public:story] Player 4: Stand back...` after the same quoted speech already appeared in `[chat:public:player]`.
+- Current status: runner PID `60640` and its children were stopped at `2026-05-21T04:20:05-07:00`; the full dataset is not complete.
+- Verification so far: the new regression failed before the filter change and passed after it; the two echo-filter tests passed; `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 65 tests; focused compile passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-quotedechofix-w2` launched locally as PID `28000` at `2026-05-21T04:23:10-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Monitor through roughly 12 pilot turns: runner active, 2 episode dirs, no result files yet, no pilot-control file, 0 runner/web/connector stderr bytes, no shared campaign DM dirtiness, no public story entries with `Player` speakers, and no suspicious sampled player action lines. Positive reached `scene-00-high-road-journey`; negative remained more cautious in the Waterdeep briefing. Some DeepSeek speaker-vote calls ended with `finish_reason=length`, but the connector continued without trajectory errors.
+- Stop reason for `f100-quotedechofix-w2`: at roughly 17 positive turns, `conversation-001-positive` appended `[chat:public:story] Player 4: Stay back...` after the public player action line. This was a DM-authored player-speaker paraphrase rather than an exact/subset echo, so the first echo filter fix was too narrow. Runner PID `28000` and its children were stopped at `2026-05-21T05:40:14-07:00`.
+- Second fix: story-turn decision application now drops public transcript entries whose `speaker` matches a player actor id or player actor name, while keeping the existing exact/subset echo filter for NPC echoes. The new regression failed before the fix and passed after it.
+- Verification after second fix: focused compile passed; the three echo-filter tests passed; `python -m unittest tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 66 tests; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Stop reason for `f100-playerspeakerfix-w2`: `conversation-001-positive` failed when the DeepSeek HTTP response closed mid chunk, causing `http.client.IncompleteRead` inside `LLMHttpTransport.post()` and connector exit code 1. The runner recorded `episode_result.json` with `status: failed`; PID `27304` and its children were stopped at `2026-05-21T05:56:17-07:00`.
+- Transport retry fix: `test_post_retries_incomplete_chunked_response_read` failed before the fix with `http.client.IncompleteRead` and passed after `LLMHttpTransport.post()` added bounded retry on incomplete response reads.
+- Verification after transport retry fix: focused transport tests passed; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 69 tests; focused compile passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-httpretry-w2` launched locally as PID `57484` at `2026-05-21T06:00:42-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Initial health check for `f100-httpretry-w2`: runner active, 2 pilot episode dirs, 0 result files, no pilot-control file, 0 runner/web/connector stderr bytes, no public story entries with `Player` speakers, no suspicious player action lines, and shared `campaigns/lmop/dm/**` stayed clean.
+- Stop reason for `f100-httpretry-w2`: first-turn monitoring showed the speaker-vote implementation was collecting four independent DeepSeek votes sequentially before each player action, making the 100-conversation job impractically slow. Runner PID `57484` and 5 children were stopped at `2026-05-21T06:13:02-07:00`.
+
+## 2026-05-21 - DeepSeek Dataset Parallel Speaker Votes
+
+### Scope
+- Keep the same player-voting behavior and deterministic vote tally semantics.
+- Reduce per-turn latency by collecting independent speaker votes concurrently inside the connector.
+- Keep all artifacts local-only and do not commit/push/fetch/GitHub while dataset runs are active.
+
+### Steps
+- [x] Add a failing regression proving all speaker-vote LLM requests are issued before waiting on slow vote responses.
+- [x] Parallelize speaker-vote collection without changing action submission, validation retries, or vote tie-break behavior.
+- [x] Verify focused connector tests, broader dataset/reward/story tests, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local run after the parallel-vote fix.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+
+### Verification
+- [x] Regression fails before the parallel-vote fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Design: preserve the existing four-voter model, but use bounded thread parallelism to collect independent votes concurrently, then tally exactly as before.
+- Regression evidence: `test_party_connector_collects_speaker_votes_concurrently` failed before the fix with `AssertionError: speaker votes were collected sequentially instead of concurrently` and passed after the fix.
+- Implementation: `_vote_for_story_controller()` now submits one vote task per candidate with `ThreadPoolExecutor`, collects results, and runs the existing deterministic tally/tie-break logic; retry-count increments are guarded with a small lock.
+- Verification after parallel-vote fix: adjacent vote tests passed; `python -m py_compile user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py` passed; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 70 tests; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-parallelvote-w2` launched locally as PID `34480` at `2026-05-21T06:16:43-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Initial health check for `f100-parallelvote-w2`: runner active, 2 pilot episode dirs, 0 result files, no pilot-control file, 0 runner/web/connector stderr bytes, no public story entries with `Player` speakers, no suspicious player action lines, and shared `campaigns/lmop/dm/**` stayed clean.
+- First-turn monitor: both pilots committed direct in-character dialogue, with no `I ask`/`I tell` phrasing and no public story entries with `Player` speakers. The positive pilot recovered from one DeepSeek `finish_reason=length` speaker vote through the existing retry path.
+- Mid-pilot monitor: `conversation-002-negative` produced one intended invalid-action trajectory row with `invalid_action=-1.0`, no connector crash, and no public transcript append for the rejected action.
+- Latest monitor: runner active, 0 result files, no pilot-control file, 0 runner/web/connector stderr bytes. `conversation-001-positive` had 41 raw rows, 38 transcript lines, 9 turn rows, reward total `0.20`, 0 invalid/system-error rows; `conversation-002-negative` had 37 raw rows, 33 transcript lines, 8 turn rows, reward total `0.18`, 1 invalid-action row, 0 system-error rows. Both had 0 public story player-speaker echoes, 0 suspicious action lines, remained in `scene-waterdeep-gundren-briefing`, and shared `campaigns/lmop/dm/**` stayed clean.
+- Stop reason for `f100-parallelvote-w2`: `conversation-001-positive` accepted `Iri rolls her eyes... She pulls out... She casts Detect Magic...` as public player chat. Root cause: the third-person self-narration detector was verb-list based and did not include `rolls`, so a persona-name action sentence could bypass the validator. Runner PID `34480` and 5 children were stopped at `2026-05-21T06:39:59-07:00`.
+
+## 2026-05-21 - DeepSeek Dataset Leading Third-Person Action Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Reject player story actions that begin with the acting persona's name plus third-person action narration, including the live `Iri rolls...` pattern.
+- Verify with a red/green regression, focused connector tests, broader suite, compile checks, and a fresh local relaunch.
+
+### Steps
+- [x] Add a failing regression for leading persona-name third-person narration in player story actions.
+- [x] Fix the validator so the live `Iri rolls...` pattern retries into first-person/direct player wording.
+- [x] Verify focused connector tests, broader dataset/reward/story tests, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local run after the validator fix.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+
+### Verification
+- [x] Regression fails before the fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Regression evidence: `test_party_connector_retries_leading_third_person_persona_action` failed before the fix with `invalid_action_retries` equal to 0 and passed after the fix.
+- Implementation: `_SELF_NARRATION_VERBS_RE` now includes `rolls?`, so `Iri rolls...` is rejected at the same validator boundary as other persona-name third-person action narration.
+- Verification after fix: the targeted validator tests passed; `python -m py_compile user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py` passed; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 71 tests; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-leadingthirdfix-w2` launched locally as PID `58180` at `2026-05-21T06:43:23-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Initial health check for `f100-leadingthirdfix-w2`: runner active, 2 pilot episode dirs, 0 result files, no pilot-control file, 0 runner/web/connector stderr bytes, no public story entries with `Player` speakers, no suspicious player action lines, and shared `campaigns/lmop/dm/**` stayed clean.
+- Monitor after first few turns: runner active, 0 result files, no pilot-control file, 0 runner/web/connector stderr bytes. `conversation-001-positive` had 20 raw rows, 29 transcript lines, 5 turn rows, reward total `0.53`, 0 invalid/system-error rows; `conversation-002-negative` had 19 raw rows, 27 transcript lines, 5 turn rows, reward total `0.63`, 0 invalid/system-error rows. Both had 0 public story player-speaker echoes, 0 suspicious player action lines, remained in `scene-waterdeep-gundren-briefing`, and shared `campaigns/lmop/dm/**` stayed clean.
+- Quality note: sampled player actions were direct in-character speech and `/check` responses. Negative reward was slightly higher at this early point due an `open_loop_resolved=0.4` cargo question; leave pilot control to adjust once completed pilot episodes exist unless transcript/system quality regresses first.
+
+## 2026-05-21 - DeepSeek Dataset Attack-Pattern Hostility Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Fix the false hostile-escalation classification where an information request about goblin "attack patterns" is treated as an attack declaration.
+- Verify with a red/green regression before relaunching the 100-conversation DeepSeek dataset run.
+
+### Steps
+- [x] Stop `f100-leadingthirdfix-w2` before pilot expansion after monitoring found a valid information request recorded as an invalid hostile action.
+- [x] Trace the classifier path to `rules_engine/hostile_escalation.py` and identify the broad `attack` regex as the root cause.
+- [x] Add a failing regression for information requests about "attack patterns" remaining in story mode.
+- [x] Fix hostile-declaration detection without weakening real attack/stab/grapple/block escalation.
+- [x] Add a failing fixture regression proving hostile-escalation tests use an isolated campaign root.
+- [x] Fix the hostile-escalation test fixture so DM memory writes stay inside the test temp copy.
+- [x] Verify focused hostile-escalation tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+
+### Verification
+- [x] Targeted regression fails before the fix for the expected `CLARIFICATION_REQUIRED` outcome.
+- [x] Targeted regression passes after the fix.
+- [x] Fixture isolation regression fails before the test-helper fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-leadingthirdfix-w2`: the player asked Gundren about goblin "numbers or attack patterns" and the trajectory recorded `invalid_action=-1.0` with clarification text `Who are you trying to attack or physically force into the fight?`.
+- Regression evidence: `test_information_request_about_attack_patterns_remains_story_mode` failed before the fix with `CLARIFICATION_REQUIRED` and now passes; `test_direct_attack_declaration_still_escalates` confirms `I attack Gundren Rockseeker.` still escalates.
+- Fixture isolation evidence: `test_test_fixture_uses_isolated_campaign_root` failed before passing a temp campaign root and now passes; `test_verbal_threat_alone_can_remain_in_story_mode` no longer dirties `campaigns/lmop/dm/**`.
+- Verification after fix: `python -m unittest tests.test_hostile_escalation -v` passed 12 tests; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation -v` passed 83 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-attackpatternfix-w2` launched locally as PID `27112` at `2026-05-21T07:13:28-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-attackpatternfix-w2`: `conversation-001-positive` accepted quoted direct speech followed by third-person pronoun narration (`She turns to Gundren...`). Runner PID `27112` and five children were stopped at `2026-05-21T07:24:45-07:00`.
+- Current status: the full 100-conversation dataset is still incomplete; do not mark the goal complete until final local artifacts pass quality review.
+
+## 2026-05-21 - DeepSeek Dataset Pronoun Narration Validator Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Reject story-mode player speech that mixes quoted dialogue with third-person pronoun self narration such as `She turns...`.
+- Verify with a red/green regression, focused connector tests, broader suite, compile checks, diff checks, and clean shared campaign DM files.
+
+### Steps
+- [x] Stop `f100-attackpatternfix-w2` before pilot expansion after detecting third-person pronoun narration in a player action.
+- [x] Add a failing regression for quoted dialogue followed by `She turns...` narration.
+- [x] Fix the direct-story-speech validator and retry prompt guidance.
+- [x] Verify focused connector tests, broader dataset/story/reward/hostile suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+
+### Verification
+- [x] Targeted regression fails before the validator fix.
+- [x] Targeted regression passes after the validator fix.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence: `_third_person_self_narration_match()` strips quoted dialogue and checks persona names, but not pronoun subjects, so `"Before..." She turns ... "I know..."` passed validation.
+- Regression evidence: `test_party_connector_retries_quoted_dialogue_with_pronoun_self_narration` failed before the fix with `invalid_action_retries` equal to 0 and passes after adding a sentence-boundary pronoun self-narration check.
+- Verification after fix: adjacent direct-speech validator tests passed; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation -v` passed 84 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-pronounfix-w2` launched locally as PID `50080` at `2026-05-21T07:28:11-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-pronounfix-w2`: by 11 positive turns and 11 negative turns, both pilots were still in `scene-waterdeep-gundren-briefing`; positive had no scene-goal or hidden-subgoal completion and reward total `0.30`, while negative had a higher reward total `0.61`. Runner PID `50080` and five children were stopped at `2026-05-21T07:54:59-07:00`.
+
+## 2026-05-21 - DeepSeek Dataset Positive Scene-Closure Pressure
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Add explicit stale-scene pressure to positive player-agent context and instructions so the party closes the briefing and moves to the road instead of accumulating low-value questions.
+- Preserve negative-profile ability to produce legal lower-quality stalling examples, while still allowing the run to progress later.
+
+### Steps
+- [x] Stop `f100-pronounfix-w2` before pilot expansion after monitoring showed positive progression was worse than negative and neither sample left the briefing.
+- [x] Add a failing regression proving the connector sends stale-scene pressure to the player agent after repeated same-scene story turns.
+- [x] Fix player-agent context and positive-profile prompt guidance to close stale scenes.
+- [x] Verify focused connector tests, broader dataset/story/reward/hostile suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Continue pilot monitoring through first completed episodes and inspect the pilot control decision.
+
+### Verification
+- [x] Targeted stale-scene pressure regression fails before the prompt/context fix.
+- [x] Targeted stale-scene pressure regression passes after the prompt/context fix.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence: positive-profile instructions say to finish goals, but the request context does not expose accumulated same-scene turn pressure or tell the model to stop asking preparatory questions after the scene has become stale.
+- Regression evidence: `test_party_connector_sends_scene_closure_pressure_to_positive_player` failed before the fix with missing `current_scene_story_turn_count` and now passes with `scene_progress_pressure=close_scene_now`.
+- Verification after fix: focused connector pressure tests passed; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation -v` passed 85 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-sceneclosure-w2` launched locally as PID `31464` at `2026-05-21T07:59:59-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Monitoring result: positive stale-scene pressure reached DeepSeek at `scene_progress_pressure=close_scene_now`; `conversation-001-positive` accepted the job, moved to `scene-00-high-road-journey`, and later found a hidden snare in narration. `conversation-002-negative` remained lower-reward and more repetitive in the briefing.
+- Stop reason for `f100-sceneclosure-w2`: the hidden snare discovery stayed narrative-only in the trajectory snapshot: `hidden_subgoal_completion_count=0`, `trap_resolution_count=0`, and no hidden/scene goal reward fired after the Perception success. Runner PID `31464` and five children were stopped at `2026-05-21T08:37:00-07:00` before pilot expansion.
+- Current status: the full 100-conversation dataset is still incomplete; next step is a deterministic trap/progress-state regression and fix so discovered/resolved hidden scene goals affect reward through canonical state, not text alone.
+
+## 2026-05-21 - DeepSeek Dataset Hidden Trap Reward State Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Fix the gap where a narrated High Road snare discovery does not update canonical hidden subgoal/trap progress counts and therefore does not earn hidden/scene goal reward.
+- Preserve the DM-vs-rules authority boundary: reward must come from typed/canonical state transitions, not from raw LLM narration matching.
+
+### Steps
+- [x] Trace the High Road trap discovery path from player declaration/check result into exploration state and trajectory snapshot fields.
+- [x] Add a failing regression that reproduces the live successful snare discovery without changing canonical trap state.
+- [x] Implement the smallest deterministic state update at the proper authority boundary.
+- [x] Verify focused exploration/storytelling/trajectory/reward tests and broader dataset suites.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted trap-progress regression fails before the fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence: the live positive pilot received a generic DM-issued Perception story check, not an exploration pending check, so the check-resolution path let the DM narrate a snare without applying `TrapDetectedEvent` or detect-procedure progress to canonical exploration state.
+- Regression evidence: `test_story_perception_check_can_detect_active_hidden_trap` failed before the fix with `TrapStatus.HIDDEN` and passes after the fix.
+- Reward-boundary evidence: `test_story_check_trap_detection_records_hidden_subgoal_reward` verifies the resulting `/check` turn increases `hidden_subgoal_completion_count` and records positive `hidden_subgoal_completed` plus `discovery_made` reward components.
+- Fixture isolation fix: `tests/test_exploration_procedures.py` now runs against a temp copied `campaign_root`, after parallel verification showed it could dirty shared `campaigns/lmop/dm/**` while trajectory tests were asserting memory isolation.
+- Verification after fix: `python -m unittest tests.test_exploration_procedures tests.test_trajectory tests.test_rewards -v` passed 30 tests; `python -m unittest tests.test_llm_client tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures -v` passed 97 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean after restoring test-run memory writes.
+- Fresh run: `f100-traprewardfix-w2` launched locally as PID `59264` at `2026-05-21T08:44:37-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm the first positive High Road trap discovery now records hidden-subgoal/discovery reward instead of narrative-only progress, then continue to first completed pilot episodes and inspect the pilot control decision.
+- Stop reason for `f100-traprewardfix-w2`: the positive close-pressure action `"Gundren, we accept..."` was interpreted as a social influence attempt because `_match_social_declaration()` treats `accept`/`agree` as influence keywords when an NPC name is present. That opened another Persuasion check and kept the positive pilot in the briefing at 10 turns with reward `0.28`, while the negative pilot was higher at `0.68`. Runner PID `59264` and five children were stopped at `2026-05-21T09:08:00-07:00`.
+
+## 2026-05-21 - DeepSeek Dataset Acceptance Social-Matcher Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Prevent plain job acceptance such as `Gundren, we accept...` from being treated as a social influence check.
+- Preserve real bargaining, persuasion, deception, intimidation, and favor requests.
+
+### Steps
+- [x] Add a failing regression for direct job acceptance not opening a pending social check.
+- [x] Fix social declaration matching at the smallest safe boundary.
+- [x] Verify focused exploration/storytelling/reward/dataset suites and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted acceptance regression fails before the fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence: direct job acceptance included both an NPC name and `accept`, so the exploration social matcher selected `SocialApproachType.PERSUADE` and opened another social check.
+- Regression evidence: `test_plain_job_acceptance_does_not_open_social_check` failed before the fix with an `ExplorationDeclarationPrompt(... kind=SOCIAL, approach=PERSUADE ...)` and passes after removing bare `accept`/`agree` from the automatic persuade term set.
+- Preservation check: the same regression verifies real bargaining still produces a social prompt.
+- Verification after fix: `python -m unittest tests.test_exploration_procedures tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation -v` passed 95 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-acceptancefix-w2` launched locally as PID `49476` at `2026-05-21T09:11:59-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: verify positive `close_scene_now` acceptance advances out of the briefing without opening another social check, then verify High Road trap discovery reward.
+- Monitoring result: positive close-pressure acceptance advanced to `scene-00-high-road-journey`, and a later successful Investigation check recorded `hidden_subgoal_completed`, `scene_goal_completed`, and `discovery_made` reward.
+- Stop reason for `f100-acceptancefix-w2`: after the snare was detected, reasonable trap-handling declarations such as using Mage Hand to spring the line and marking the trap to steer clear were rejected as invalid disarm attempts lacking `Thieves' Tools`. Runner PID `49476` and children were stopped before pilot expansion.
+
+## 2026-05-21 - DeepSeek Dataset Detected Trap Safe-Resolution Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Fix detected-trap declarations that safely spring, mark, avoid, or steer around the snare so they resolve through typed exploration state instead of being misrouted to the thieves-tools disarm check.
+- Preserve the existing explicit disarm path for real `Thieves' Tools` disarm declarations.
+
+### Steps
+- [x] Add failing regressions for safe Mage Hand trap triggering and party-wide trap bypass from natural storytelling declarations.
+- [x] Implement the smallest typed exploration-engine change for safe trigger and party-wide bypass.
+- [x] Verify focused exploration/storytelling/trajectory/reward/dataset suites and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted safe-trigger and bypass regressions fail before the fix and pass after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-acceptancefix-w2`: after detecting the High Road snare, the positive pilot tried to spring it with Mage Hand and later mark/steer clear, but both were routed to the disarm procedure and failed with `Disarm Goblin Snare Line requires an explicit tool choice for disarm. Valid tools: Thieves' Tools.`
+- Regression evidence: `test_detected_trap_can_be_safely_sprung_from_range` and `test_detected_trap_can_be_marked_and_bypassed_by_party` failed before the fix, then passed after routing those natural declarations through typed safe-trigger and party-wide bypass intents.
+- Verification after fix: `python -m unittest tests.test_exploration_procedures tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation -v` passed 97 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-safetrapfix-w2` launched locally as PID `49476` at `2026-05-21T09:53:01-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm detected-trap handling no longer records invalid actions, then continue to first completed pilot episodes and inspect the pilot control decision.
+- Stop reason for `f100-safetrapfix-w2`: `conversation-002-negative` asked whether goblins attack in the dark and the hostile-escalation detector treated the contextual question as an attack declaration, producing `Who are you trying to attack or physically force into the fight?`. Runner PID `49476` and children were stopped before pilot expansion.
+
+## 2026-05-21 - DeepSeek Dataset Contextual Attack Question Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Prevent questions about whether goblins/bandits/monsters attack from being treated as player attack declarations.
+- Preserve direct hostile declarations such as `I attack Gundren Rockseeker.`
+
+### Steps
+- [x] Add a failing regression for a contextual question about goblins attacking at night.
+- [x] Fix hostile action detection at the `attack` word classification boundary.
+- [x] Verify focused hostile-escalation tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted contextual-attack regression fails before the fix and passes after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-safetrapfix-w2`: the live negative pilot asked `do goblins attack in the dark?` and the hostile-escalation detector treated the contextual question as an overt attack because `attack` matched as a bare hostile verb.
+- Regression evidence: `test_question_about_goblins_attacking_remains_story_mode` failed before the fix with `CLARIFICATION_REQUIRED` and now passes.
+- Preservation check: `test_direct_attack_declaration_still_escalates` and `test_information_request_about_attack_patterns_remains_story_mode` both pass.
+- Verification after fix: `python -m unittest tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_story_demo_party_connector tests.test_rewards tests.test_trajectory tests.test_deepseek_100_dataset_runner -v` passed 98 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-attackquestionfix-w2` launched locally as PID `61120` at `2026-05-21T10:10:43-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm contextual attack questions no longer record invalid actions, then continue to trap handling and pilot-control completion.
+- Monitoring result: positive trap discovery worked and no trap invalid was recorded; the episode reached combat.
+- Stop reason for `f100-attackquestionfix-w2`: after Player 1 cast Magic Missile and spent its action, the connector still treated stale action groups as available, asked Player 1 to cast/attack again, then fallback also attempted an action. The episode failed with `The actor has already used its action this turn.`
+
+## 2026-05-21 - DeepSeek Dataset Combat Action-Spent Fallback Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Prevent the player connector from choosing attack/cast/dodge actions after the active actor's action is already spent.
+- End the active actor's turn when the view indicates `Action no`, even if projected action groups still contain stale action choices.
+
+### Steps
+- [x] Add failing connector regressions for action-spent combat retry and fallback behavior.
+- [x] Fix combat action availability detection and validation from the active actor action-economy summary.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted action-spent connector regressions fail before the fix and pass after it.
+- [x] Focused and broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-attackquestionfix-w2`: after `/cast player-1 magic-missile monster-goblin-1`, the view summary showed `player-1 ... Action no`, but action groups still exposed attacks and magic. The connector trusted the stale action groups, submitted more action-cost commands, and fallback chose `/dodge` instead of `/endturn`.
+- Regression evidence: `test_party_connector_retries_attack_when_active_actor_action_spent` and `test_party_connector_fallback_ends_turn_when_active_actor_action_spent` failed before the fix and now pass.
+- Preservation check: `test_party_connector_retries_endturn_when_action_is_available` and `test_party_connector_fallback_uses_dodge_instead_of_endturn_when_actions_remain` still pass, so the connector only ends turns when the active actor has actually spent its action.
+- Verification after fix: `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 100 tests; focused `py_compile` passed; `git diff --check` reported only CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-combatspentfix-w2` launched locally as PID `56768` at `2026-05-21T10:49:24-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 2 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm combat turns now end cleanly after action spend, then continue to pilot-control completion.
+- Monitoring result: `f100-combatspentfix-w2` produced one completed positive pilot episode with total reward `5.995`, 0 invalid actions, hidden/snare rewards, trap resolution, terminal success, and action-spent `/endturn` behavior working in combat.
+- Stop reason for `f100-combatspentfix-w2`: the run was correctness-clean but slow because every spent player action still required a DeepSeek request to choose `/endturn`. Runner PID `56768` and children were stopped before pilot completion so the connector could fast-path deterministic spent-action end turns.
+- Fast-path optimization: added a combat loop shortcut that submits `/endturn <active_actor_id>` without an LLM call when the active player-owned actor has `Action no`, while preserving validator coverage for illegal action-cost commands after action spend.
+- Regression evidence: `test_party_connector_fast_paths_endturn_when_active_actor_action_spent` failed before the fix because the connector called the LLM transport, then passed after the fast path. Existing spent-action retry/fallback tests were updated to preserve validator coverage and assert no invalid-output fallback is needed on the fast path.
+- Verification after fast path: targeted spent-action tests passed; `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 101 tests; focused `py_compile` passed.
+- Fresh run: `f100-fastendturn-w4` launched locally as PID `12580` at `2026-05-21T11:48:57-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-fastendturn-w4`: initial health was clean with 4 active pilot episodes and 0 invalid actions, but early briefing turns were still spending too many DeepSeek calls before close-scene pressure activated. Runner PID `12580` and children were stopped before pilot completion to tighten stale-scene pressure.
+- Prompt-control optimization: changed stale-scene pressure from 6 same-scene story actions to 4, and added stale-scene guidance for negative examples so they keep lower-quality flavor while still moving the scene forward with a concrete imperfect action.
+- Regression evidence: `test_party_connector_sends_scene_closure_pressure_to_positive_player` failed at 4 turns before the threshold change and passed after it. `test_player_agent_negative_profile_prompts_legal_stalling_examples` failed before the negative stale-scene instruction and passed after it.
+- Verification after prompt-control fix: targeted prompt-control tests passed; `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 101 tests; focused `py_compile` passed.
+- Fresh run: `f100-fastpressure-w4` launched locally as PID `27700` at `2026-05-21T11:59:56-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-fastpressure-w4`: the runner was stopped after `conversation-003-positive` submitted invalid `/travel start`, producing an `invalid_action` row before the retry could recover. Root cause: story-mode slash commands bypassed local connector validation, so the authoritative session rejected an unsupported travel subcommand after the reward trajectory had already recorded it.
+- Local-only re-plan: add a failing regression that `/travel start` is rejected and retried before submission, implement minimal story `/travel` subcommand validation in the connector, re-run focused and broad verification, then launch a fresh local dataset run without commit or GitHub operations.
+- Slash preflight fix: added connector-side story `/travel` subcommand validation that mirrors the authoritative session's allowed `status|pace|route|advance|resume|engage` surface and retries unsupported travel commands before submission.
+- Regression evidence: `test_party_connector_retries_unknown_story_travel_command_before_submit` failed before the fix with `invalid_action_retries` equal to 0, then passed after the connector preflight.
+- Verification after slash preflight: `python -m unittest tests.test_story_demo_party_connector -v` passed 29 tests; `python -m unittest tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 102 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-storyslashfix-w4` launched locally as PID `52788` at `2026-05-21T12:46:41-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-storyslashfix-w4`: the runner was stopped after `conversation-003-positive` failed with connector exit code 1. Root cause: a transient DeepSeek `URLError` / connection reset during a concurrent speaker-vote request was logged in raw interactions and then propagated out of `LLMHttpTransport.post` without retrying.
+- Transport resilience fix: extended the existing bounded HTTP POST retry loop from incomplete reads to transient `URLError` failures. Exhausted retries still raise `LLMResponseError`; no synthetic action or fallback content is generated.
+- Regression evidence: `test_post_retries_transient_url_error` failed before the fix with immediate `LLMResponseError`, then passed after the transport retried and consumed the successful second response.
+- Verification after transport fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 106 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-transportretry-w4` launched locally as PID `39088` at `2026-05-21T12:59:27-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-transportretry-w4`: the run stayed technically clean through early pilot monitoring, with 0 invalid rows, 0 raw transport errors, and 0 stderr, but stale briefing scenes were still too slow. Positive stale-scene actions sometimes accepted while adding a new demand such as a ledger request, causing another check instead of cleanly closing the briefing.
+- Stale-closure prompt fix: strengthened positive close-scene guidance so the Gundren briefing uses plain acceptance/departure and explicitly avoids new demands, ledger requests, bargaining terms, or fresh checks.
+- Regression evidence: `test_party_connector_sends_scene_closure_pressure_to_positive_player` failed before the fix because the stale-scene instructions did not include the no-new-demands rule or a plain acceptance example, then passed after the prompt change.
+- Verification after stale-closure prompt fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 106 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-staleclosure-w4` launched locally as PID `53176` at `2026-05-21T13:13:26-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-staleclosure-w4`: one positive pilot reached good reward shape (`3.42` reward, 2 hidden subgoals, 2 scene goals, 1 party goal, 0 invalids) but then failed after three empty speaker-vote outputs. Root cause: DeepSeek returned `finish_reason=length` with `reasoning_content` but empty `message.content`; the 2200-token speaker-vote completion budget was too small for late-scene vote context.
+- Speaker-vote budget fix: increased `party_speaker_vote` max output tokens from 2200 to 6000 for DeepSeek reasoning models, leaving player action decisions at 3000.
+- Regression evidence: `test_deepseek_json_requests_use_large_completion_budgets_for_reasoning_models` failed before the fix with `2200 not greater than or equal to 6000`, then passed after the budget increase.
+- Verification after speaker-vote budget fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 106 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-votebudget-w4` launched locally as PID `12244` at `2026-05-21T13:53:49-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-votebudget-w4`: early pilot was technically clean with 0 invalid rows, 0 stderr, 0 raw errors, and no length-capped speaker votes, but a positive briefing still accepted extra ledger/inspection demands before close-scene pressure activated. Root cause: `/check` responses are excluded from story-rotation counts, so the threshold of 4 counted story actions was still too late for real briefing trajectories.
+- Scene-pressure threshold fix: changed `close_scene_now` activation from 4 counted story actions to 3, so checks and prompt turns do not delay stale-scene pressure too far into the briefing.
+- Regression evidence: `test_party_connector_sends_scene_closure_pressure_to_positive_player` failed before the fix at 3 counted story actions with `scene_progress_pressure=normal`, then passed after the threshold change.
+- Verification after pressure-threshold fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 106 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-pressure3-w4` launched locally as PID `26700` at `2026-05-21T14:07:17-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-pressure3-w4`: early pilot remained technically clean with 0 invalid rows, 0 stderr, 0 raw errors, and 0 length-capped votes, but a positive stale acceptance phrased as `"Gundren, you've got a deal..."` still opened a Charisma check instead of closing the briefing. Root cause: prompt-only closure guidance is not strict enough; the connector needs to reject stale Gundren-briefing outputs that add negotiation/check triggers or omit explicit accept-and-depart wording.
+- Stale-briefing validator fix: added connector validation under `close_scene_now` for `scene-waterdeep-gundren-briefing`, requiring explicit accept-and-depart wording and rejecting deal/ledger/bargain/pay/gold/potion/secret/found/magic/spell/inspect/copy/question triggers before submission.
+- Regression evidence: `test_party_connector_retries_stale_briefing_closure_that_can_trigger_checks` failed before the validator with 0 invalid retries, then passed by retrying to plain `"Gundren, we accept the job..."` wording before any submission.
+- Verification after stale-briefing validator fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 107 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-stalevalidate-w4` launched locally as PID `60208` at `2026-05-21T14:21:30-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-stalevalidate-w4`: stale validation improved one positive episode, but exact generated wording `"Gundren, we accept the job. Let us finish loading..."` still opened a Charisma request/favor check in other episodes. Root cause: the validator's canonical example used phrasing that the exploration interpreter can read as a request; the safe phrase already covered by `test_plain_job_acceptance_does_not_open_social_check` is `"Gundren, we accept the job. We will take the wagon to Phandalin."`
+- Safe-acceptance wording fix: changed the stale-briefing canonical phrase to `"Gundren, we accept the job. We will take the wagon to Phandalin."` and reject `let us` phrasing under stale Gundren-briefing closure.
+- Regression evidence: `test_party_connector_retries_stale_briefing_closure_that_can_trigger_checks` failed before the fix when the bad first output used `Let us...`, then passed after retrying to the safe no-check phrase. `test_plain_job_acceptance_does_not_open_social_check` also passed against the same safe phrase.
+- Verification after safe-acceptance wording fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 107 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-safeaccept-w4` launched locally as PID `36940` at `2026-05-21T14:35:55-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-safeaccept-w4`: the run reached combat in `conversation-003-positive` with no transport errors or stderr, but the connector submitted invalid `/cast player-1 magic-missile monster-goblin-4 monster-goblin-2`; the server rejected the extra target token (`Expected an integer token, got 'monster-goblin-4'`) and recorded an invalid reward row. Root cause: connector combat validation did not reject malformed multi-target spell commands before submission.
+- Cast-shape validator fix: added connector-side `/cast` command shape validation so the local retry loop rejects multi-target spell commands and visible-enemy target mismatches before the server records an invalid action.
+- Regression evidence: `test_party_connector_retries_cast_with_multiple_targets` failed before the fix by submitting `/cast player-1 magic-missile monster-goblin-4 monster-goblin-2`, then passed after the connector retried to a single-target spell command before submission.
+- Verification after cast-shape fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 108 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-castshape-w4` launched locally as PID `51680` at `2026-05-21T15:14:58-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm malformed multi-target `/cast` commands are retried before submission, then inspect pilot-control completion and reward/data artifacts.
+- Monitoring result: `f100-castshape-w4` stayed technically clean with 0 invalid rows, 0 raw transport errors, and 0 stderr; the stale Gundren briefing closure worked, with positive and negative pilot episodes moving to `scene-00-high-road-journey`.
+- Stop reason for `f100-castshape-w4`: the run was stopped before pilot completion because High Road scenes were still spending many valid low-progress prep/check turns instead of using the travel route/advance path to reach the ambush. Root cause under investigation: stale-scene pressure is generic after the briefing and does not force High Road actions toward authoritative `/travel` advancement.
+- Local-only re-plan: add a failing regression for stale High Road closure, implement minimal scene-specific stale guidance/validation that drives travel to the ambush path without bypassing typed intents, re-run verification, then launch a fresh local run without GitHub operations.
+- High Road travel-closure fix: under stale-scene pressure, `scene-00-high-road-journey` now rejects more natural prep/check declarations and forces the authoritative travel path: `/travel route phandalin` while travel status is idle, then `/travel advance 5` once a route is planned.
+- Regression evidence: `test_party_connector_retries_stale_high_road_idle_scene_to_travel_route` failed before the fix with 0 invalid retries, then passed after retrying to `/travel route phandalin`; `test_party_connector_retries_stale_high_road_planned_route_to_travel_advance` failed before the route-planned branch with 0 invalid retries, then passed after retrying to `/travel advance 5`.
+- Verification after High Road fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 33 tests; `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 110 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-highroadtravel-w4` launched locally as PID `32952` at `2026-05-21T15:36:42-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm High Road stale scenes route and advance through `/travel` commands, then inspect pilot-control completion and reward/data artifacts.
+- Monitoring result: `f100-highroadtravel-w4` confirmed the High Road fix live: pilot episodes emitted `/travel route phandalin` followed by `/travel advance 5`, reached `scene-triboar-goblin-ambush`, and entered combat.
+- Stop reason for `f100-highroadtravel-w4`: the run was stopped after 4 completed pilot results because combat preflight still allowed invalid range actions. The invalid rows were `/cast player-4 charm-person monster-goblin-2` (`Target is out of capability range`) and `/attack player-2 unarmed-strike monster-goblin-1` (`Target is out of melee range`). Root cause: connector validation checked option ids and visible targets but not map distance or spell range before submission.
+- Combat distance validator fix: added map-position distance checks for melee attack option ids and range-limited targeted spells, while preserving the rules engine as final authority. Distant melee attacks now retry toward ranged/thrown options or dodge, and `charm-person` beyond 30 feet retries before the server records an invalid action.
+- Regression evidence: `test_party_connector_retries_melee_attack_against_distant_target` and `test_party_connector_retries_range_limited_spell_against_distant_target` failed before the fix by submitting the invalid commands, then passed after retrying to legal thrown/ranged commands. The older syntax-repair attack test was adjusted to use an adjacent target so it still isolates missing-argument repair.
+- Verification after combat distance fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 35 tests; `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 112 tests; focused `py_compile` passed; `git diff --check` reported only existing CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Fresh run: `f100-combatrange-w4` launched locally as PID `51928` at `2026-05-21T16:16:38-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm distant melee and short-range spell outputs are retried before submission, then inspect pilot-control completion and reward/data artifacts.
+- Monitoring result: `f100-combatrange-w4` is no longer running. It created 5 pilot episode directories, 4 raw LLM logs/transcript markdown files, and 1 `episode_result.json`, but that result is failed (`conversation-003-positive`, connector exit `4294967295`). No completed/accepted dataset episode from this run is ready.
+- Current stage: debug/re-plan before relaunch. Evidence to address next includes generic last-resort fallback text in `conversation-003-positive` and a `ConnectionResetError` in `conversation-004-negative` connector stderr.
+
+## 2026-05-21 - DeepSeek Dataset Last-Resort Fallback Quality Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Remove generic meta fallback player text from positive and negative training transcripts.
+- Preserve deterministic typed travel closure for stale High Road scenes.
+- Treat the observed connection reset as secondary shutdown evidence unless reproduction shows it is the primary failure.
+
+### Steps
+- [x] Add failing regressions for last-resort fallback in stale Gundren briefing, High Road idle travel, and High Road route-planned travel.
+- [x] Replace generic story last-resort text with scene-specific safe actions that move the current scene forward.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted last-resort fallback regressions fail before the fix and pass after it.
+- [x] Focused connector suite passes.
+- [x] Broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-combatrange-w4`: `conversation-003-positive` submitted generic meta fallback text twice: `I take a fresh angle in scene-waterdeep-gundren-briefing...`, which bypassed the intended direct-speech and stale-scene quality guards because `_execute_fallback_action` applied `_last_resort_fallback_decision` without revalidation.
+- Regression evidence: the new last-resort tests failed before the fix with the generic `fresh angle` text, then passed after the last-resort path emitted direct job acceptance or `/travel` commands.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 38 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 115 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-lastresortfix-w4` launched locally as PID `48124` at `2026-05-21T16:46:44-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm generic `fresh angle` fallback no longer appears, stderr remains empty, and pilot episodes move from briefing through High Road travel into the ambush without invalid rows.
+- Monitoring result: by `2026-05-21T17:07:05-07:00`, the run remained active with 4 pilot episode dirs, 0 result files, 0 non-empty stderr logs, 0 invalid/system-error trajectory rows, 0 generic `fresh angle` fallback hits, and live High Road routing in `conversation-001-positive` via `/travel route phandalin` then `/travel advance 5`.
+
+## 2026-05-21 - DeepSeek Dataset Point-Target Spell Preflight Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a positive trajectory records an invalid point-target spell.
+- Add connector preflight for combat spells that require grid coordinates, starting from the observed `mage-hand` failure and covering `light`.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-lastresortfix-w4` after `conversation-003-positive` recorded `Mage Hand requires a point target.`
+- [x] Add a failing regression for `/cast <actor> mage-hand` without point coordinates.
+- [x] Implement minimal combat cast validation for point-target spell coordinates.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted point-target spell regression fails before the fix and passes after it.
+- [x] Focused connector suite passes.
+- [x] Broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-lastresortfix-w4`: `conversation-003-positive` reached `demo-complete` but `episode_result.json` had `invalid_action_count: 1` and `trajectory_summary.error_messages` contained `Mage Hand requires a point target.`
+- Regression evidence: `test_party_connector_retries_point_target_spell_without_coordinates` failed before the fix for both `mage-hand` and `light` by submitting `/cast player-1 <spell>` without coordinates, then passed after connector preflight rejected the missing point target and retried to `/cast player-1 magic-missile monster-goblin-1`.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 39 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 116 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-pointtarget-w4` launched locally as PID `31840` at `2026-05-21T17:30:19-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm point-target spell commands without coordinates no longer enter trajectories, stderr remains empty, and pilot episodes reach ambush combat without invalid rows.
+
+## 2026-05-21 - DeepSeek Dataset Earlier Stale Scene Pressure Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a positive briefing starts a third question/demand instead of accepting the job.
+- Activate stale-scene closure before the third recorded story action in a scene, so checks cannot delay closure into another demand.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-pointtarget-w4` after `conversation-001-positive` demanded Gundren's ledger and opened another check.
+- [x] Add failing regressions for stale pressure at two prior story actions.
+- [x] Implement minimal threshold change for stale-scene pressure.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] Targeted stale pressure regressions fail before the fix and pass after it.
+- [x] Focused connector suite passes.
+- [x] Broader unit suites pass.
+- [x] Focused compile passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-pointtarget-w4`: `conversation-001-positive` had two prior natural-language briefing actions, a `/check`, then a third briefing action demanding the wagon ledger; `_scene_progress_pressure(2)` was still `normal`, so stale-briefing validation did not reject it.
+- Regression evidence: the stale briefing and High Road closure tests failed at two prior story actions before the fix, then passed after `_scene_progress_pressure` returned `close_scene_now` at count 2.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 39 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 116 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-stalepressure2-w4` launched locally as PID `48492` at `2026-05-21T17:44:30-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm positive briefing closes after two prior story actions, High Road uses `/travel`, point-target spell commands without coordinates do not enter trajectories, and stderr/invalid rows stay clean.
+- Status snapshot at `2026-05-21T18:05:29-07:00`: runner PID `48492` is alive with 10 active processes; 4 pilot episode directories exist, split 2 positive and 2 negative; 0 `episode_result.json` files are finalized; stderr bytes and invalid/system-error trajectory rows are both 0. Current stage remains active pilot generation/monitoring before the 10-episode pilot-control decision and before full 100-conversation expansion.
+
+## 2026-05-21 - DeepSeek Dataset Logistics Voice Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a positive transcript accepts third-person persona narration.
+- Add a regression for the observed `Mira heads... she mutters...` logistics action and keep player turns in first-person/direct character voice.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-stalepressure2-w4` after `conversation-003-positive` accepted `Mira heads to the stable yard...` as player output.
+- [x] Add a failing regression for leading third-person logistics narration by Mira.
+- [x] Implement the minimal validator fix for the missing `heads` self-narration verb.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_retries_leading_third_person_logistics_action` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v` passes.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passes.
+- [x] Focused `py_compile` passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-stalepressure2-w4`: `conversation-003-positive` had `Mira heads to the stable yard to inspect the wagon... "We will want those tarps tight..." she mutters...` in public player output. The direct-speech validator only matched persona-name narration when the verb appeared in `_SELF_NARRATION_VERBS_RE`, and `heads` was missing.
+- Regression evidence: `test_party_connector_retries_leading_third_person_logistics_action` failed before the fix with `invalid_action_retries` equal to `0`, then passed after adding `heads?` to the self-narration verb list.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 40 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 117 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-logisticsvoice-w4` launched locally as PID `21012` at `2026-05-21T18:12:16-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Initial health at `2026-05-21T18:12:54-07:00`: 4 pilot episode directories exist, split 2 positive and 2 negative; 4 trajectory files and 4 transcript files exist; 0 completed results; 0 stderr bytes; shared campaign DM files stayed clean.
+- Next monitoring target: confirm no `Mira heads`/persona-name self narration, no generic fallback text, no point-target spell commands without coordinates, no ledger regressions, and no invalid/system-error trajectory rows before pilot-control expansion.
+
+## 2026-05-21 - DeepSeek Dataset Copied Template Guard
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when all pilot episodes copy the action schema example as a real turn.
+- Replace the valid action sentence inside the JSON contract template with a shape-only placeholder and reject copied template/example text before submission.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-logisticsvoice-w4` after all 4 active pilot transcripts copied `Gundren, what signs of danger should we watch for on the road?`.
+- [x] Add a failing regression for copied action-template text.
+- [x] Change the action JSON template to a placeholder and add validator rejection for copied template/example text.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_retries_copied_action_template_text` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v` passes.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passes.
+- [x] Focused `py_compile` passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-logisticsvoice-w4`: by `2026-05-21T18:15:20-07:00`, all 4 active pilot episodes had accepted the exact action-template sentence `Gundren, what signs of danger should we watch for on the road?` as their first real action, producing duplicate low-diversity openings.
+- Regression evidence: `test_party_connector_retries_copied_action_template_text` failed before the fix with `invalid_action_retries` equal to `0`, then passed after copied template/example text was rejected and retried.
+- Fix: `_ACTION_DECISION_TEMPLATE` now uses `<write one unique in-character action or slash command here>` instead of a valid action sentence, prompt instructions explicitly say the template is shape-only, and `_validate_direct_story_speech` rejects copied template/example text before submission.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 41 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 118 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-templateguard-w4` launched locally as PID `51548` at `2026-05-21T18:18:52-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Initial health by `2026-05-21T18:20:50-07:00`: 4 pilot episode directories exist, split 2 positive and 2 negative; 0 completed results; 0 stderr bytes; 0 invalid/system-error rows; 0 copied-template hits; 0 suspicious third-person hits. The first accepted action was distinct direct quoted speech from player 3, followed by a legal `/check`.
+- Next monitoring target: confirm the other active pilot episodes avoid template copying, close stale briefing cleanly, use High Road `/travel`, and reach ambush/combat without invalid rows.
+
+## 2026-05-21 - DeepSeek Dataset Briefing Follow-Up Closure Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a positive briefing still spends its second story action on ledger/secret/find demands.
+- Make the Waterdeep Gundren briefing close after one prior story action while keeping the existing two-action stale threshold for other scenes.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-templateguard-w4` after `conversation-001-positive` asked for Gundren's wagon ledger and hidden find as the second briefing story action.
+- [x] Add a failing regression for a second briefing ledger detour after one prior story action.
+- [x] Implement scene-specific pressure so `scene-waterdeep-gundren-briefing` enters `close_scene_now` after one prior story action.
+- [x] Keep duplicate-topic coverage isolated from the Gundren briefing closure rule.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_retries_second_briefing_ledger_detour` fails before the fix and passes after it.
+- [x] `test_party_connector_retries_duplicate_story_topic_and_accepts_revision` still passes in a neutral fake scene.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v` passes.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passes.
+- [x] Focused `py_compile` passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-templateguard-w4`: `conversation-001-positive` reached briefing turn 4 with `"Gundren, if you'll not speak of your find, at least let me examine your wagon ledger..."`. The connector did not apply stale closure because `/check` turns do not count as story actions and the briefing had only one prior counted story action.
+- Regression evidence: `test_party_connector_retries_second_briefing_ledger_detour` failed before the fix with `invalid_action_retries` equal to `0`, then passed after the briefing-specific pressure change. The retry prompt exposes `scene_progress_pressure: close_scene_now` at one prior briefing action.
+- Fix: `_scene_progress_pressure` now takes `scene_id`; the Gundren briefing closes after one prior story action, while other scenes keep the two-action threshold.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 42 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 119 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-briefclose1-w4` launched locally as PID `43148` at `2026-05-21T18:27:49-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm one-question briefing closure, no copied-template hits, no ledger/secret follow-up detours, High Road `/travel` routing, no invalid/system-error rows, no stderr, and clean shared campaign DM files.
+
+## 2026-05-21 - DeepSeek Dataset Observation Voice Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a player turn starts with third-person observation narration.
+- Add coverage for `Thalen narrows his eyes...` and keep the direct-speech validator aligned with observed persona-name action verbs.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-briefclose1-w4` after `conversation-001-positive` accepted `Thalen narrows his eyes...` as player output.
+- [x] Add a failing regression for leading third-person observation narration.
+- [x] Implement the minimal validator fix for the missing `narrows` self-narration verb.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_retries_leading_third_person_observation_action` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v` passes.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passes.
+- [x] Focused `py_compile` passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-briefclose1-w4`: `conversation-001-positive` accepted `Thalen narrows his eyes, studying the dwarf's eagerness...` as a player action. The direct-speech validator uses persona names plus `_SELF_NARRATION_VERBS_RE`, and `narrows` was not in that list.
+- Regression evidence: `test_party_connector_retries_leading_third_person_observation_action` failed before the fix with `invalid_action_retries` equal to `0`, then passed after adding `narrows?`.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 43 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 120 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-narrowsfix-w4` launched locally as PID `45876` at `2026-05-21T18:33:43-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm no leading persona-name/pronoun self narration, no copied-template hits, no ledger/secret follow-up detours, clean briefing closure, High Road `/travel` routing, no invalid/system-error rows, no stderr, and clean shared campaign DM files.
+
+## 2026-05-21 - DeepSeek Dataset Canonical Acceptance Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a noncanonical acceptance phrase fails to leave the Gundren briefing.
+- Require the exact transition-safe acceptance phrase under stale Gundren briefing closure.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-narrowsfix-w4` after `conversation-002-negative` used noncanonical acceptance and remained in `scene-waterdeep-gundren-briefing`.
+- [x] Add a failing regression for noncanonical briefing acceptance.
+- [x] Implement exact safe-phrase validation for stale Gundren briefing closure.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_retries_noncanonical_briefing_acceptance` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v` passes.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passes.
+- [x] Focused `py_compile` passes.
+- [x] `git diff --check` has no substantive issues beyond existing CRLF warnings.
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-narrowsfix-w4`: three active pilot episodes reached High Road after acceptance, but `conversation-002-negative` submitted `"Gundren, the job is accepted. We'll guard the wagon north to Phandalin. Point us to it and we'll be off."` and remained in `scene-waterdeep-gundren-briefing`.
+- Regression evidence: `test_party_connector_retries_noncanonical_briefing_acceptance` failed before the fix with `invalid_action_retries` equal to `0`, then passed after exact safe-phrase validation.
+- Fix: `_SAFE_BRIEFING_ACCEPTANCE_TEXT` now holds the known transition-safe phrase, and `_validate_stale_scene_closure` requires that exact normalized text for stale Gundren briefing closure.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 44 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 121 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-canonicalaccept-w4` launched locally as PID `48796` at `2026-05-21T18:42:36-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Next monitoring target: confirm canonical acceptance exits briefing in all active pilot episodes, no leading persona-name/pronoun self narration, no copied-template hits, no ledger/secret follow-up detours, High Road `/travel` routing, no invalid/system-error rows, no stderr, and clean shared campaign DM files.
+
+## 2026-05-21 - DeepSeek Dataset Post-Acceptance Travel Route Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Treat `f100-canonicalaccept-w4` evidence as a connector guardrail gap: after the briefing has already accepted the job and changed goals to rest/depart, a second natural-language acceptance can narrate acceptance without leaving `scene-waterdeep-gundren-briefing`.
+- Require `/travel route phandalin` when the stale Gundren briefing is already in the accepted/rest state with travel idle.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Confirm the previous runner is stopped and inspect the failing local transcript/trajectory evidence.
+- [x] Add a failing regression for accepted briefing still in scene requiring `/travel route phandalin`.
+- [x] Implement the minimal connector validation and last-resort fallback change.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] New targeted regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from `f100-canonicalaccept-w4`: `conversation-002-negative` was already in `scene-waterdeep-gundren-briefing` with party goals `Get some rest at the inn and depart at first light.; Get the wagon safely onto the High Road.` and `Travel status: idle`. Submitting the canonical natural acceptance narrated acceptance but left the scene unchanged.
+- Regression evidence: `test_party_connector_routes_after_briefing_acceptance_still_in_scene` failed before the fix with `invalid_action_retries` equal to `0`; `test_accepted_briefing_last_resort_routes_idle_travel` failed before the fix because last-resort fallback still used natural acceptance.
+- Fix: added `_briefing_ready_for_travel()` and `_is_travel_route_phandalin()`. Stale Gundren briefing closure now requires `/travel route phandalin` when accepted/rest goals and idle travel are visible, and last-resort fallback uses the same command in that state.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 46 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 123 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-postacceptroute-w4` launched locally as PID `60616` at `2026-05-21T19:00:45-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Monitoring result before stop: 6 episode dirs, 2 clean completed positive results, 0 stderr bytes, 0 copied-template/voice/ledger guardrail hits, and High Road travel routing reached the ambush in multiple episodes.
+- Stop reason for `f100-postacceptroute-w4`: `conversation-004-negative` produced invalid combat cast rows after the connector accepted `/cast player-4 detect-magic` and `/cast player-3 guidance player-1`; the rules engine rejected them with missing slots and missing `--skill`. Runner PID `60616` and children were stopped before further pilot expansion.
+
+## 2026-05-21 - DeepSeek Dataset Combat Utility Spell Guard
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when combat casts pass connector validation but fail in the rules engine.
+- Reject unsupported combat utility/support spell commands before submission, especially `detect-magic` without provable slots and `guidance` without required `--skill` arguments.
+- Keep combat progress deterministic by retrying toward targeted enemy spells, ranged attacks, dodge, or endturn.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-postacceptroute-w4` after invalid combat spell rows appeared.
+- [x] Add failing connector regressions for `detect-magic` and `guidance` combat casts.
+- [x] Implement minimal combat spell validation and prompt filtering.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] New targeted regressions fail before the fix and pass after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-postacceptroute-w4`: `conversation-004-negative` reached combat and the connector accepted `/cast player-4 detect-magic` and `/cast player-3 guidance player-1`; the rules engine rejected them as invalid because the actor had no spell slots for `detect-magic` and `guidance` requires `--skill`.
+- Regression evidence: `test_player_agent_combat_context_filters_unsupported_spell_options`, `test_party_connector_retries_unsupported_combat_detect_magic_cast`, and `test_party_connector_retries_unsupported_combat_guidance_cast` failed before the fix and passed after it.
+- Fix: combat prompt context now exposes only targeted combat spell ids, and `_validate_combat_command` rejects unsupported non-targeted combat spells before they can enter the rules engine, while preserving existing point-target coordinate validation.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 49 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 126 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-combatspellguard-w4` launched locally as PID `18072` at `2026-05-21T19:44:05-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Stop reason for `f100-combatspellguard-w4`: pilot monitoring found the combat spell guard held, but after acceptance the runtime entered `scene-00-high-road-journey` and allowed extra acceptance, Detect Magic, wagon inspection, and check turns before `/travel route phandalin`. Runner PID `18072` and children were stopped before pilot expansion.
+
+## 2026-05-21 - DeepSeek Dataset Immediate High Road Routing Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when accepted briefing output reaches the High Road scene but still allows first-turn inspection/casting/check detours.
+- Treat `scene-00-high-road-journey` as travel-command closure immediately, so the first High Road story action routes or advances travel through the authoritative travel system.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-combatspellguard-w4` after High Road detours appeared before `/travel route phandalin`.
+- [x] Add a failing connector regression for a first High Road idle-scene detour with no prior High Road story history.
+- [x] Implement the minimal scene-pressure change so High Road travel closure applies immediately.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_party_connector_routes_high_road_idle_scene_before_any_detour` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-combatspellguard-w4`: raw contexts showed accepted briefing had already transitioned to `scene-00-high-road-journey`, but `_scene_progress_pressure` returned `normal` at High Road story counts 0 and 1, so validation did not require `/travel route phandalin` yet.
+- Regression evidence: `test_party_connector_routes_high_road_idle_scene_before_any_detour` failed before the fix with `invalid_action_retries: 0`, proving the connector accepted `Before we roll, I inspect the wagon again...` as the first High Road action.
+- Fix: `_scene_progress_pressure()` now returns `close_scene_now` immediately for `scene-00-high-road-journey`, reusing the existing High Road travel closure validator and prompt instructions.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 50 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 127 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-highroadroute0-w4` launched locally as PID `56052` at `2026-05-21T20:00:54-07:00`, with 100 episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, and isolated campaign roots.
+- Monitoring result before stop: 6 episode dirs, 2 completed positive results with rewards `5.01` and `3.65`, 0 invalid trajectory errors, 0 stderr bytes, and High Road route/advance commands appeared across active pilots.
+- Stop reason for `f100-highroadroute0-w4`: negative combat transcripts repeated older public story/player chat entries after later combat actions, indicating transcript logger de-duplication by entry id was insufficient when old chat replayed with fresh ids.
+
+## 2026-05-21 - DeepSeek Dataset Combat Transcript Replay Dedup Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when transcript markdown repeats old public chat after later combat actions.
+- De-duplicate transcript chat entries by stable content fingerprint as well as entry id, so replayed old chat with fresh ids does not pollute RL transcript artifacts.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-highroadroute0-w4` after repeated combat transcript entries appeared.
+- [x] Add a failing transcript logger regression for same chat text replayed under a new entry id.
+- [x] Implement minimal transcript chat fingerprint de-duplication.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+
+### Verification
+- [x] `test_transcript_logger_dedupes_same_chat_text_when_entry_ids_change` fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-highroadroute0-w4`: transcripts for `conversation-002-negative` and `conversation-004-negative` replayed identical older briefing/ambush public chat entries after later combat actions even though trajectory errors stayed null.
+- Regression evidence: `test_transcript_logger_dedupes_same_chat_text_when_entry_ids_change` failed before the fix with the duplicate text appearing twice when the same chat text was replayed under a different `entry_id`.
+- Fix: `PartyTranscriptLogger` now tracks `_seen_chat_entry_fingerprints` keyed by visibility, category, speaker, and exact text, in addition to `_seen_chat_entry_ids`.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 51 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 128 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-transcriptdedupe-w4` launched locally as PID `60160` at `2026-05-21T20:34:09-07:00`, with 100 planned episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, transcripts, trajectories, and isolated campaign roots.
+- Current monitoring at `2026-05-21T20:55:21-07:00`: runner PID `60160` alive, 6 pilot episode dirs, 3 positive and 3 negative dirs, 2 completed positive results, 4 in progress, 0 launcher stderr bytes, 0 non-null trajectory errors, 0 suspicious transcript hits, 0 duplicate public chat lines, and shared `campaigns/lmop/dm/**` clean.
+
+## 2026-05-21 - DeepSeek Dataset Rolling Combat Transcript Outcome Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when transcript markdown stops recording public combat outcome lines while trajectory events still prove the mechanics resolved.
+- Preserve replay de-duplication for identical chat text, but do not drop new combat outcome text when rolling encounter chat entry ids are reused.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-transcriptdedupe-w4` after `conversation-004-negative` showed later `/cast` and `/attack` commands without corresponding public combat outcome lines in the transcript.
+- [x] Add a failing transcript logger regression for new combat text under a reused rolling `encounter:0` chat entry id.
+- [x] Fix transcript de-duplication so content fingerprints suppress true replay duplicates, while reused entry ids with new text are still appended.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+- [ ] Monitor the new pilot through combat and verify transcript outcome lines continue past rolling recent-event id reuse.
+
+### Verification
+- [x] `test_transcript_logger_records_new_chat_text_when_entry_id_is_reused` fails before the fix and passes after it.
+- [x] `test_transcript_logger_dedupes_same_chat_text_when_entry_ids_change` still passes after the fix.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-transcriptdedupe-w4`: `conversation-004-negative` transcript lines 57-69 logged later combat commands/endturns only, while trajectory turns 30, 34, 36, and 38 had null errors plus recent miss/damage/death events.
+- Root cause: encounter chat projection reuses rolling ids such as `encounter:0`; `PartyTranscriptLogger` skipped reused entry ids before comparing stable content fingerprints, so new combat outcome text disappeared once the recent-event window shifted.
+- Fix: `PartyTranscriptLogger` still requires non-empty entry ids, but it now de-duplicates on `visibility/category/speaker/text` fingerprints instead of treating entry id reuse as sufficient to skip a line.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 52 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 129 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-transcriptoutcomes-w4` launched locally as PID `45608` at `2026-05-21T21:07:46-07:00`, with 100 planned episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, transcripts, trajectories, and isolated campaign roots.
+- Initial health at `2026-05-21T21:09:11-07:00`: runner PID `45608` alive, 4 pilot episode dirs, 2 positive and 2 negative dirs, 0 completed results, 4 trajectories, 4 raw logs, 4 transcripts, 0 launcher stderr bytes, 0 non-null trajectory errors, and shared `campaigns/lmop/dm/**` clean.
+- Stop reason for `f100-transcriptoutcomes-w4`: the rolling-id fix worked for mid-combat outcomes, but completed `conversation-003-positive` ended with transcript line 39 `/cast player-1 magic-missile monster-goblin-4` and omitted the terminal damage/death outcome lines that were visible in the final trajectory post-observation.
+
+## 2026-05-21 - DeepSeek Dataset Terminal Combat Transcript Outcome Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a terminal killing blow is recorded as a player command but its public damage/death result is missing from the transcript markdown.
+- Preserve terminal `Recent events:` combat lines in transcripts even when the final `demo-complete` snapshot no longer exposes those outcomes as chat entries.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-transcriptoutcomes-w4` after `conversation-003-positive` omitted final damage/death transcript lines.
+- [x] Add a failing transcript logger regression for `Recent events:` combat lines in terminal/demo-complete snapshots.
+- [x] Fix `PartyTranscriptLogger` to append `Recent events:` lines as public combat transcript lines, de-duplicated by the existing content fingerprint.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+- [x] Monitor the new pilot through a completed combat episode and verify final terminal damage/death outcome lines are present in the transcript.
+
+### Verification
+- [x] `test_transcript_logger_records_recent_event_summary_lines` fails before the fix and passes after it.
+- [x] Transcript logger regressions for reused ids and same-text replay still pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-transcriptoutcomes-w4`: the final trajectory post-observation included `Goblin Ambusher 4 takes 11 force damage` and `Goblin Ambusher 4 dies`, but the transcript ended at the submitted `/cast` command because terminal `demo-complete` snapshots exposed those outcomes only in `summary_lines`.
+- Fix: `PartyTranscriptLogger.record_snapshots()` now scans the `Recent events:` block in each view's `summary_lines` and appends those lines as `[chat:public:combat] System: ...`, using the same content fingerprint set to avoid duplicating normal chat-entry output.
+- Focused verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 53 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 130 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-terminaloutcomes-w4` launched locally as PID `24272` at `2026-05-21T21:27:28-07:00`, with 100 planned episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, transcripts, trajectories, and isolated campaign roots.
+- Initial health at `2026-05-21T21:28:50-07:00`: runner PID `24272` alive, 4 pilot episode dirs, 2 positive and 2 negative dirs, 0 completed results, 4 trajectories, 4 raw logs, 4 transcripts, 0 launcher stderr bytes, 0 non-null trajectory errors, and shared `campaigns/lmop/dm/**` clean.
+- Completed-pilot evidence at `2026-05-21T21:47:01-07:00`: `conversation-001-positive` wrote `episode_result.json` with `status=completed`, `terminal_reason=demo-complete`, `turn_count=17`, `total_reward=4.55`, `invalid_action_count=0`, and `transition_count=13`.
+- Transcript evidence: the completed `conversation-001-positive` transcript includes all four Magic Missile killing blows followed by public combat damage/death outcome lines, including the final terminal `Goblin Ambusher 3 takes 10 force damage` and `Goblin Ambusher 3 dies` lines.
+- Dataset-quality evidence for the completed episode: `training_transitions.jsonl` has 13 records and `transition_quality.json` reports `status=pass`; the per-episode preference-pair file is empty, which is expected for single-trajectory exact-context pairing and will be judged at the combined scene-level preference stage after more mixed pilot episodes complete.
+- Current run state at `2026-05-21T21:47:01-07:00`: runner PID `24272` remains alive, 5 pilot episode dirs exist, 1 completed positive episode result exists, launcher stderr is still 0 bytes, trajectory parsing shows 0 non-null errors across 5 trajectory files, and transcript scans show 0 suspicious hits and 0 duplicate public chat lines.
+
+## 2026-05-21 - DeepSeek Dataset Repeated Combat Outcome Text Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when transcript markdown suppresses a legitimate repeated combat outcome text.
+- Preserve replay de-duplication for repeated recent-event windows, while allowing two distinct rolls to produce the same outcome text, such as two `fire-bolt misses Goblin Ambusher 3.` lines.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-terminaloutcomes-w4` after `conversation-003-positive` omitted a second `fire-bolt misses Goblin Ambusher 3.` line after a distinct Player 1 Fire Bolt roll.
+- [x] Add a failing transcript logger regression for repeated recent-event outcome text after distinct roll events.
+- [x] Fix recent combat event de-duplication to use ordered recent-event sequence overlap instead of global text-only fingerprints.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+- [ ] Monitor the new pilot through repeated combat miss/hit text and verify both distinct occurrences are preserved without replay duplicates.
+
+### Verification
+- [x] `test_transcript_logger_records_repeated_recent_event_text_after_distinct_rolls` fails before the fix and passes after it.
+- [x] Transcript logger regressions for same-text chat replay, reused entry ids, and terminal recent events still pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-terminaloutcomes-w4`: `conversation-003-positive` transcript lines 51-58 logged Player 4 Fire Bolt roll plus miss, then Player 1 Fire Bolt roll, but omitted the second identical miss text. The trajectory post-observation for turn 24 included both `Player 1 rolled 4 for fire-bolt: total 9.` and `fire-bolt misses Goblin Ambusher 3.` with no error.
+- Root cause: terminal/recent-event transcript de-duplication reused the same global `visibility/category/speaker/text` fingerprint set, so legitimate repeated combat text was treated as old replay instead of a distinct event after a different roll.
+- Fix: `PartyTranscriptLogger` now tracks ordered recent combat event text and appends only the suffix beyond the longest existing sequence overlap. This suppresses replayed recent-event windows while preserving repeated outcome text after distinct preceding events.
+- Focused regression verification: the new repeated-outcome test plus same-text replay, reused-id, and terminal-recent-events tests passed.
+- Focused connector verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 54 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 131 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-combatsequence-w4` launched locally as PID `11152` at `2026-05-21T21:55:27-07:00`, with 100 planned episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, transcripts, trajectories, and isolated campaign roots.
+- Initial health at `2026-05-21T21:56:35-07:00`: runner PID `11152` alive, 4 pilot episode dirs, 2 positive and 2 negative dirs, 0 completed results, 4 trajectory files, 0 launcher stderr bytes, 0 non-null trajectory errors, and shared `campaigns/lmop/dm/**` clean.
+- Stop reason for `f100-combatsequence-w4`: non-terminal `Recent events:` summary lines replayed older combat events with mutated current HP text after `conversation-001-positive` Player 4 Magic Missile, polluting transcript lines 39-46 and 51-58.
+
+## 2026-05-21 - DeepSeek Dataset Nonterminal Recent-Events Replay Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when non-terminal `Recent events:` summary lines replay mutable old combat events into the transcript.
+- Preserve live combat transcript output from chat entries, preserve repeated live outcome text after distinct events, and use summary-line recovery only for terminal/demo-complete snapshots.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-combatsequence-w4` after non-terminal recent-event summaries replayed older combat events with mutated HP text.
+- [x] Add a failing transcript logger regression proving non-terminal `Recent events:` replay is ignored.
+- [x] Adjust the repeated-outcome regression to use live combat chat entries rather than non-terminal summary lines.
+- [x] Fix summary-line recovery so it runs only for `Runtime mode: demo-complete` views.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch the local 100-conversation DeepSeek run after the fix.
+- [ ] Monitor the new pilot through live combat and terminal completion to verify no non-terminal summary replay, no missing repeated combat outcomes, and terminal final outcomes remain present.
+
+### Verification
+- [x] `test_transcript_logger_ignores_nonterminal_recent_event_summary_replay` fails before the fix and passes after it.
+- [x] `test_transcript_logger_records_repeated_recent_event_text_after_distinct_rolls` still passes using live combat chat entries.
+- [x] Transcript logger regressions for same-text replay, reused ids, and terminal recent events still pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-combatsequence-w4`: after `/cast player-4 magic-missile monster-goblin-1`, transcript lines 39-46 replayed older Goblin 3 death, Player 2 Fire Bolt, and Goblin 2 death events, and rewrote the earlier Fire Bolt damage line as `HP 1/10` instead of the original `HP 8/10`.
+- Root cause: non-terminal `summary_lines` `Recent events:` are a rolling view of recent combat state, not an immutable event-log transcript source. Using them outside terminal recovery can replay old events and reflect current HP rather than the original event-time HP.
+- Fix: `_record_recent_event_summary_lines()` now exits unless the view reports `Runtime mode: demo-complete`. Live combat transcript lines come from chat entries and ordered event-sequence overlap; terminal `demo-complete` still recovers final damage/death lines from `Recent events:`.
+- Focused regression verification: non-terminal replay, repeated live outcome text, same-text replay, reused-id, and terminal-recent-events tests passed.
+- Focused connector verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 55 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 132 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-chatevents-w4` launched locally as PID `8812` at `2026-05-21T22:15:33-07:00`, with 100 planned episodes, 50 positive, 50 negative, 10-episode pilot, 4 workers, raw logs, transcripts, trajectories, and isolated campaign roots.
+
+## 2026-05-21 - DeepSeek Dataset Story Command Guard Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work while dataset generation is active.
+- Stop and debug `f100-chatevents-w4` after pilot trajectory rows recorded invalid story commands before the dataset could expand.
+- Prevent the autonomous party connector from submitting malformed story-mode slash commands to the web server, preserving trajectory quality for RL data.
+- Normalize live travel status spellings so `route-planned` and `route_planned` both drive `/travel advance 5`, not invalid `/travel resume`.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Inspect stopped pilot trajectory rows and transcripts for `conversation-002-negative`, `conversation-003-positive`, and `conversation-004-negative`.
+- [x] Add failing regressions for hyphenated `route-planned` travel status and story-mode malformed slash commands.
+- [x] Fix travel-status normalization and story-mode slash validation without adding new fallback behavior.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation DeepSeek run after the fix.
+- [ ] Monitor the new pilot for zero non-null trajectory errors before allowing full expansion.
+
+### Verification
+- [x] New route-planned regression fails before the fix and passes after it.
+- [x] New story slash-command regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-chatevents-w4`: `conversation-002-negative` submitted `/travel resume` while the observation showed `Travel status: route-planned`; `conversation-003-positive` submitted `/cast Detect Magic as ritual` and then `/ritual Detect Magic` while the ambush scene was still storytelling/interrupted.
+- Root cause: connector travel-state checks only recognized underscore status names, while live views render hyphenated enum values. Story-mode slash validation only checked `/travel`, so malformed `/cast` and unknown `/ritual` were submitted to the authoritative server instead of being retried locally.
+- Fix: `_travel_status()` now normalizes hyphenated live status values to underscore form, and storytelling slash validation now rejects unsupported slash verbs plus malformed `/cast` syntax before submission. Valid story-mode `/do`, `/improvise`, `/say`, `/story`, `/check`, `/status`, `/view`, `/travel`, and actor-owned `/cast` forms remain available.
+- Focused regression verification: both new tests failed before the fix with zero retries and passed after the fix.
+- Focused connector verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 57 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 134 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-storyslashguard-w4` launched locally as PID `44664` at `2026-05-21T22:39:06-07:00`.
+- Initial monitoring proved the story slash/travel fixes through High Road and ambush transition: 5 episode dirs created, 1 positive episode completed, 0 trajectory errors, 0 stderr bytes, 0 suspicious story slash/travel transcript hits, and shared `campaigns/lmop/dm/**` stayed clean.
+- Stop reason for `f100-storyslashguard-w4`: before pilot expansion, `conversation-005-positive` accepted `Leaning forward, I ask, "Gundren, what exactly are we hauling..."`, violating the direct-player-voice requirement. Runner PID `44664` was stopped, then 8 orphaned run-specific server/connector children were stopped successfully.
+
+## 2026-05-21 - DeepSeek Dataset Narrated Direct-Speech Guard Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop the active run before pilot expansion when a player action wraps quoted dialogue in narrated speech such as `I ask`.
+- Reject unquoted narrated-speech framing even when the same action contains direct quoted dialogue.
+- Preserve valid direct dialogue such as `Gundren, what exactly are we hauling?`.
+- Relaunch a fresh local 100-conversation DeepSeek run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-storyslashguard-w4` after `conversation-005-positive` accepted narrated direct speech.
+- [x] Inspect the trajectory, transcript, raw interaction evidence, and current validator branch.
+- [x] Add a failing regression for narrated direct speech wrapped around quoted dialogue.
+- [x] Fix direct-story-speech validation to reject narrated framing outside quotes.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [x] Monitor the new pilot for direct-player voice and zero non-null trajectory errors before allowing expansion.
+- [ ] Relaunch a fresh local 100-conversation run after the monitor-side false positive stop.
+- [ ] Use UTF-8-aware JSONL parsing in manual pilot monitoring before stopping future runs for trajectory integrity.
+
+### Verification
+- [x] New narrated-direct-speech regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence: `conversation-005-positive` trajectory line 3 and transcript both contain `Leaning forward, I ask, "Gundren, what exactly are we hauling..."` with no error.
+- Root cause: `_validate_direct_story_speech()` checked `_NARRATED_SPEECH_RE`, but returned early when `_has_direct_dialogue(text)` was true, allowing narrated speech if it also contained a direct quote.
+- Fix: direct-speech validation now strips quoted text before applying the narrated-speech regex, so narration such as `I ask` is rejected when it appears outside quotes while pure direct dialogue remains valid.
+- Focused regression verification: `test_party_connector_retries_narrated_framing_around_quoted_dialogue` failed before the fix and passed after it.
+- Focused connector verification after fix: `python -m unittest tests.test_story_demo_party_connector -v` passed 58 tests.
+- Broad verification after fix: `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v` passed 135 tests.
+- Compile/diff/cleanliness verification: focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; `git status --short campaigns/lmop/dm` stayed empty.
+- Fresh run: `f100-directspeechguard-w4` launched locally as PID `31620` at `2026-05-21T23:07:03-07:00`.
+- Monitoring result: the run reached 4 pilot episode dirs with direct-player voice and no UTF-8-parsed trajectory errors, but it was stopped before expansion after a manual PowerShell monitor read UTF-8 JSONL with the wrong default encoding and treated a valid non-ASCII row as malformed. The connector stderr was caused by the intentional stop while a request was in flight.
+
+## 2026-05-22 - DeepSeek Dataset UTF-8 Pilot Monitor False Positive
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Correct the current stage after `f100-directspeechguard-w4` was stopped due monitor-side evidence, not a runner-quality defect.
+- Relaunch a fresh 100-conversation run because the previous pilot was killed intentionally.
+
+### Steps
+- [x] Re-read latest pilot trajectories with explicit UTF-8 decoding.
+- [x] Confirm the apparent malformed row in `conversation-002-negative` parses as valid JSONL under UTF-8.
+- [x] Inspect connector stderr and identify it as stop-induced `ConnectionResetError`.
+- [ ] Relaunch a fresh local 100-conversation run.
+- [ ] Monitor the new pilot with UTF-8-aware trajectory parsing before allowing expansion.
+
+### Verification
+- [x] UTF-8 trajectory parse: all 34 rows across 4 `f100-directspeechguard-w4` trajectory files parsed, with 0 malformed rows and 0 non-null `error` rows.
+- [x] Process cleanup: no active Python dataset/server/connector process remained after the stop.
+
+### Review
+- Current accepted target dataset count remains `0/100`; stopped pilot artifacts are debug evidence only.
+- Historical local artifacts currently include 386 episode directories and 218 `episode_result.json` files across prior stopped attempts, but they are not the final balanced 50/50 dataset.
+
+## 2026-05-22 - DeepSeek Dataset Proper-Name Third-Person Voice Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop `f100-utf8monitor-w4` before pilot expansion after proper-name third-person narration was submitted.
+- Reject character-name narrated framing such as `Mira fixes Gundren...` before it reaches the authoritative web server.
+- Preserve pure direct dialogue and legal slash commands.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-utf8monitor-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect the failing pilot trajectory row and validator code path.
+- [x] Add a failing regression for proper-name third-person framing with a missed narration verb.
+- [x] Fix the validator with the smallest root-cause change.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for direct-player voice and zero non-null trajectory errors before allowing expansion.
+
+### Verification
+- [x] New proper-name third-person regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-utf8monitor-w4`: `conversation-003-positive` trajectory line 3 submitted `Leaning forward, Mira fixes Gundren with a steady gaze. "How many days to Phandalin..."` with no trajectory error.
+- Root cause: `_third_person_self_narration_match()` strips quoted text and checks character-name narration via `_SELF_NARRATION_VERBS_RE`, but that curated verb list did not include `fixes`, so `Mira fixes` was not rejected.
+- Fix: added `test_party_connector_retries_proper_name_fixes_narrated_dialogue`, confirmed it failed before the fix with zero invalid-action retries, then added `fix(?:es)?` to the third-person self-narration verb set.
+- Verification: adjacent direct-speech regressions passed, full connector suite passed 59 tests, broad LLM/story/dataset/reward/trajectory suite passed 136 tests, focused `py_compile` passed, `git diff --check` reported only existing LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-propernamefix-w4` was stopped before pilot expansion after another proper-name/pronoun narration escaped: `Mira kneels near the torn packs... She then moves to the horses...`.
+
+## 2026-05-22 - DeepSeek Dataset Name-Mention Voice Guard Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop relying on an open-ended proper-name verb list for direct-player-voice validation.
+- Reject any player persona name outside quoted dialogue as third-person self narration.
+- Reject pronoun narration with an intervening adverb such as `She then moves`.
+- Preserve pure direct dialogue, first-person action declarations, and legal slash commands.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-propernamefix-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect the failing pilot trajectory row and identify the repeated verb-list fragility.
+- [x] Add failing regressions for proper-name narration with `kneels` and pronoun-adverb narration.
+- [x] Replace proper-name verb matching with a stricter unquoted persona-name guard.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for direct-player voice and zero non-null trajectory errors before allowing expansion.
+
+### Verification
+- [x] New name-mention/pronoun-adverb regressions fail before the fix and pass after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-propernamefix-w4`: `conversation-003-positive` trajectory line 8 submitted `Mira kneels near the torn packs... She then moves to the horses...` with no trajectory error.
+- Root cause: the proper-name self-narration detector still depended on a curated verb list, so every unlisted verb could leak third-person character-name narration. The pronoun detector also required the pronoun to be directly adjacent to a verb, so `She then moves` was not rejected.
+- Fix: added regressions for proper-name `kneels` narration and pronoun-adverb narration, then changed `_third_person_self_narration_match()` to reject any unquoted player persona name and to allow up to two words between third-person pronouns and known narration verbs. Added `kneels?` for pronoun-only narration.
+- Verification: new regressions failed before the fix and passed after it; direct-voice regression group passed; full connector suite passed 61 tests; broad LLM/story/dataset/reward/trajectory suite passed 138 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-nameguard-w4` was stopped before pilot expansion after connector fallback submitted `Gundren, what sign would prove this road danger is organized rather than random?` in `scene-triboar-goblin-ambush`.
+
+## 2026-05-22 - DeepSeek Dataset Offstage NPC Fallback Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop connector fallback from addressing Gundren after the briefing scene.
+- Use scene-safe fallback actions for travel/ambush contexts when LLM output is invalid.
+- Preserve Gundren dialogue fallback only while the current scene is the Waterdeep briefing.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-nameguard-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect trajectory/transcript evidence and identify the stale fallback table as root cause.
+- [x] Add a failing regression for invalid-LLM fallback in the ambush scene.
+- [x] Fix story fallback selection to be scene-aware and avoid offstage NPC address.
+- [x] Verify focused connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for direct-player voice, offstage NPC address, and zero non-null trajectory errors before allowing expansion.
+
+### Verification
+- [x] New offstage NPC fallback regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-nameguard-w4`: `conversation-001-positive` trajectory line 7 had `agent_id=player-2-controller`, `PreScene=scene-triboar-goblin-ambush`, and raw text `Gundren, what sign would prove this road danger is organized rather than random?` with no trajectory error.
+- Transcript evidence showed `[system:player-2-controller] fallback after invalid LLM output` immediately before the stale Gundren line, proving it came from connector fallback rather than a new DeepSeek decision.
+- Root cause: `_story_fallback_decision()` used a fixed fallback table with Gundren-addressed lines regardless of current scene; the table is only valid during `scene-waterdeep-gundren-briefing`.
+- Fix: added `test_story_fallback_avoids_offstage_gundren_in_ambush_scene`, confirmed it failed before the fix, then made `_story_fallback_decision()` keep Gundren-addressed fallbacks only in the Waterdeep briefing, use travel slash fallbacks in High Road route states, and use first-person investigation/guarding actions in ambush/other scenes.
+- Verification: focused fallback tests passed; full connector suite passed 62 tests; broad LLM/story/dataset/reward/trajectory suite passed 139 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-offstagefallback-w4` was stopped before pilot expansion after a DM-side DeepSeek HTTP request exhausted transient connection retries and recorded `LLM request failed: [WinError 10060]` in a trajectory row.
+
+## 2026-05-22 - DeepSeek Dataset Transient LLM Retry Budget Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Reduce pilot-killing transient DeepSeek connection failures by increasing the default retry budget for non-HTTP transport errors.
+- Preserve hard failures for HTTP status errors and persistent provider/network outages.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-offstagefallback-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect the trajectory error and identify exhausted DM-side LLM transport retries.
+- [x] Add a failing regression for several transient URL errors before a successful response.
+- [x] Increase the default post retry budget while preserving explicit retry override behavior.
+- [x] Verify focused LLM transport tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice, offstage NPC address, and zero non-null trajectory errors before allowing expansion.
+
+### Verification
+- [x] New transient retry budget regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_llm_client -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-offstagefallback-w4`: `conversation-001-positive` trajectory line 3 recorded `LLM request failed: [WinError 10060]` after a valid Waterdeep briefing player action, with no connector/server stderr before the manual stop.
+- Root cause: `LLMHttpTransport` retries transient `URLError`/connection failures, but the default `post_read_retries=2` allows only three total attempts, which was not enough for this live DeepSeek connection failure.
+- Fix: added `test_default_post_retry_budget_covers_several_transient_url_errors`, confirmed it failed before the fix, then increased the default `LLMHttpTransport` `post_read_retries` from 2 to 4, allowing five total transient attempts. Explicit retry overrides still work.
+- Verification: focused LLM transport suite passed 5 tests; broad LLM/story/dataset/reward/trajectory suite passed 140 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-retrybudget-w4` is active in pilot monitoring with 4 in-progress conversations, 15 submitted turns, 84 raw LLM rows, 0 malformed trajectory rows, 0 non-null trajectory errors, 0 stderr bytes, and 0 watched voice/offstage fallback pattern hits.
+- Stop result: `f100-retrybudget-w4` was stopped at 45 submitted turns after the ad hoc monitor matched ` kneels ` in the full JSON trajectory row. Root-cause inspection showed the submitted raw texts were `/check` and monster `/endturn` commands; the match came from `recent_public_transcript_texts`, not player-controller `raw_text`.
+
+## 2026-05-22 - DeepSeek Dataset Raw-Text Monitor False Positive
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Treat suspicious quality hits as pilot gates, but distinguish player submitted `raw_text` from replayed state/transcript fields.
+- Relaunch a fresh local 100-conversation run with the monitor checking only relevant submitted action text and trajectory errors.
+
+### Steps
+- [x] Stop `f100-retrybudget-w4` before pilot expansion after the suspicious-pattern gate fired.
+- [x] Verify 0 remaining run-specific processes.
+- [x] Inspect the exact matched rows and fields.
+- [x] Record the stop diagnosis in `manual-stop-pilot-quality-gate.json`.
+- [x] Relaunch a fresh local 100-conversation run after tightening the manual monitor.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, and non-null trajectory errors before allowing expansion.
+
+### Verification
+- [x] `f100-retrybudget-w4` has 0 remaining run-specific Python processes.
+- [x] Matched raw texts are `/check`, `/endturn monster-goblin-1`, `/endturn monster-goblin-2`, `/endturn monster-goblin-3`, and `/endturn monster-goblin-4`; none contain third-person player narration or offstage NPC address.
+
+### Review
+- Root-cause evidence: `rg -n "kneels"` showed the match inside `recent_public_transcript_texts`, including DM/check-result narration such as `Player-3 kneels...`, while the actual submitted turn `raw_text` was `/check` or monster `/endturn`.
+- Root cause: the ad hoc monitor scanned full serialized JSON trajectory rows, so state snapshots and public transcript history could trigger player-output quality gates.
+- Fix: no generation-code change. Tighten subsequent monitoring commands to parse JSONL with UTF-8 and apply voice/offstage patterns only to submitted `raw_text` fields for relevant player-controller turns.
+- Relaunch result: `f100-rawtextmonitor-w4` started locally with root PID `13212`, 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-rawtextmonitor-w4` was stopped at 13 submitted turns after `conversation-003-positive` repeated the safe briefing acceptance as a system fallback and received `-0.20` reward for stalling/repetition.
+
+## 2026-05-22 - DeepSeek Dataset Accepted-Briefing Fallback Progress Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop positive-profile fallback from repeating the safe briefing acceptance after the briefing has already accepted the job.
+- Route idle travel once the accepted briefing exposes the high-road wagon goal, even if a prior failed social check removed the rest-at-inn goal.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-rawtextmonitor-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect trajectory, transcript, and state summary evidence for the repeated positive-profile fallback.
+- [x] Add a failing regression for accepted briefing travel readiness without the rest-at-inn goal.
+- [x] Fix accepted briefing readiness with the smallest root-cause change.
+- [x] Verify focused fallback tests, full connector suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, non-null trajectory errors, and positive-profile fallback repetition before allowing expansion.
+
+### Verification
+- [x] New accepted-briefing fallback regression fails before the fix and passes after it.
+- [x] Adjacent briefing/travel fallback tests pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-rawtextmonitor-w4`: `conversation-003-positive` submitted `Gundren, we accept the job. We will take the wagon to Phandalin.` from `player-4-controller` with reward `0.33`, then `[system:player-1-controller] fallback after invalid LLM output` submitted the exact same text and received reward `-0.20`.
+- State evidence after the first acceptance: `Travel status: idle`, `Party goals: Get the wagon safely onto the High Road.`, and story log lines saying the wagon was loaded and ready for dawn departure. The scene was still `scene-waterdeep-gundren-briefing`, so fallback needed to route travel rather than repeat acceptance.
+- Root cause: `_briefing_ready_for_travel()` required both `Get some rest at the inn and depart at first light` and `Get the wagon safely onto the High Road`; a failed social check path exposed only the high-road goal, so last-resort fallback considered the briefing not ready and repeated `_SAFE_BRIEFING_ACCEPTANCE_TEXT`.
+- Fix: added `test_accepted_briefing_routes_idle_travel_without_rest_goal`, confirmed it failed with repeated acceptance, then relaxed `_briefing_ready_for_travel()` so idle travel plus the high-road wagon goal is enough to route `/travel route phandalin`.
+- Verification: full connector suite passed 63 tests; broad LLM/story/dataset/reward/trajectory suite passed 141 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-briefingready-w4` started locally with root PID `32876`, 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-briefingready-w4` was stopped at 8 submitted turns after the fixed path routed `/travel route phandalin` successfully but left the scene id as Waterdeep with `Travel status: route-planned`, exposing a next-fallback risk.
+
+## 2026-05-22 - DeepSeek Dataset Route-Planned Briefing Fallback Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- When travel has already been routed from the Waterdeep briefing but the scene id has not yet changed, fallback must advance travel rather than repeat briefing acceptance.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-briefingready-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect the route-planned briefing trajectory row.
+- [x] Add a failing regression for route-planned travel while still in the Waterdeep briefing scene.
+- [x] Fix Waterdeep briefing last-resort fallback to advance planned travel.
+- [x] Verify focused fallback tests, full connector suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [x] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, non-null trajectory errors, duplicate story raw text, and route-planned briefing fallback progression before allowing expansion.
+
+### Verification
+- [x] New route-planned briefing fallback regression fails before the fix and passes after it.
+- [x] Adjacent briefing/travel fallback tests pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-briefingready-w4`: `conversation-001-positive` submitted `/travel route phandalin` with no error. The row's post-observation still had `Current scene: scene-waterdeep-gundren-briefing`, but travel changed from `idle` to `route-planned` with route `Phandalin; 480 minutes at current pace`.
+- Root cause: `_last_resort_fallback_decision()` handled travel status only after the scene id became `scene-00-high-road-journey`. In the transient Waterdeep/route-planned state, the same invalid-output fallback path would still return `_SAFE_BRIEFING_ACCEPTANCE_TEXT`.
+- Fix: added `test_briefing_with_planned_route_last_resort_advances_travel`, confirmed it failed with repeated acceptance, then made Waterdeep briefing last-resort fallback return `/travel advance 5` when `_travel_status(view)` is `route_planned` or `traveling`.
+- Verification: adjacent briefing/travel fallback tests passed; full connector suite passed 64 tests; broad LLM/story/dataset/reward/trajectory suite passed 142 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-routeplannedfix-w4` started locally with root PID `18520`, 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-routeplannedfix-w4` was stopped at 11 submitted turns after `conversation-002-negative` routed `/travel route phandalin` while the briefing still had the pending goal to decide whether to take the job, then accepted afterward.
+
+## 2026-05-22 - DeepSeek Dataset Premature Briefing Travel Routing Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Do not route or advance travel from the Waterdeep briefing while the party still has an explicit goal to decide whether to take the Phandalin job.
+- Preserve the accepted-briefing behavior: after acceptance is no longer pending, idle travel routes and planned travel advances.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-routeplannedfix-w4` and verify 0 remaining run-specific processes.
+- [x] Inspect the premature route and subsequent acceptance trajectory rows.
+- [x] Add a failing regression for idle travel with acceptance still pending.
+- [x] Add a failing regression for route-planned travel with acceptance still pending.
+- [x] Fix briefing readiness/advance gates with an explicit pending-acceptance detector.
+- [x] Verify focused fallback tests, full connector suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, non-null trajectory errors, duplicate story raw text, premature route-before-acceptance, and route-planned briefing fallback progression before allowing expansion.
+
+### Verification
+- [x] New pending-acceptance idle routing regression fails before the fix and passes after it.
+- [x] New pending-acceptance route-planned advancing regression fails before the fix and passes after it.
+- [x] Adjacent briefing/travel fallback tests pass.
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-routeplannedfix-w4`: `conversation-002-negative` submitted `/travel route phandalin` from `scene-waterdeep-gundren-briefing`, changed travel status to `route-planned`, and then submitted `Gundren, we accept the job...`, which finally transitioned to `scene-00-high-road-journey`.
+- Root cause: `_briefing_ready_for_travel()` treated the high-road wagon goal as sufficient, but pre-acceptance briefing states can also include that goal while still carrying `Hear Gundren out and decide whether to take the Phandalin job.` The route-planned fallback branch also needed the same pending-acceptance gate.
+- Fix: added `_briefing_acceptance_pending()` and used it so idle briefing travel routes only after acceptance is no longer pending, and route-planned/traveling briefing state advances only after acceptance is no longer pending.
+- Verification: adjacent briefing/travel fallback tests passed; full connector suite passed 66 tests; broad LLM/story/dataset/reward/trajectory suite passed 144 tests; focused `py_compile` passed; `git diff --check` reported only existing LF/CRLF warnings; shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-acceptgate-w4` started locally with root PID `7808`, 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+
+## 2026-05-22 - DeepSeek Dataset Unprompted Story Check Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop story-mode player controllers from submitting `/check*` unless the server has issued a pending story-check prompt.
+- Preserve legal `/check` answers for pending story-check prompts.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-acceptgate-w4` after the zero-error pilot gate failed.
+- [x] Verify 0 remaining run-specific processes.
+- [x] Inspect trajectory, transcript, and raw DeepSeek interaction evidence for the unprompted `/check investigation`.
+- [x] Record the stop diagnosis in `manual-stop-unprompted-story-check.json`.
+- [x] Add a failing regression for unprompted story-mode `/check*`.
+- [x] Fix story slash-command validation so `/check*` is only valid through the pending story-check prompt path.
+- [x] Verify focused connector tests, full connector suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, non-null trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, and unprompted `/check*`.
+
+### Verification
+- [x] New unprompted story-check regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_unprompted_story_check_before_submit tests.test_story_demo_party_connector.PartyConnectorTests.test_player_agent_negative_profile_prompts_legal_stalling_examples -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-acceptgate-w4`: `conversation-004-negative` trajectory line 11 submitted `/check investigation` with `prompt: null`, `Current scene: scene-triboar-goblin-ambush`, and error `There is no pending story check for this controller.`
+- Raw DeepSeek evidence showed the model chose `/check investigation` even though the player context had `prompt: null` and no recent visible check entries.
+- Root cause: `_validate_story_slash_command()` allowed `/check` during non-prompt storytelling turns, while `/check` is only executable when the server has already issued a story-check prompt.
+- Fix: non-prompt story-mode `/check*` now fails connector validation before submit, and the player-agent prompt explicitly says never to use `/check` unless a visible story-check prompt is present.
+- Relaunch result: `f100-unpromptedcheck-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-unpromptedcheck-w4` was stopped during pilot monitoring after `conversation-001-positive` submitted `/travel route phandalin` before the party accepted the job.
+
+## 2026-05-22 - DeepSeek Dataset Premature Waterdeep Travel Command Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop direct DeepSeek `/travel*` commands from routing or advancing travel while Waterdeep briefing still has the explicit goal to decide whether to take the Phandalin job.
+- Preserve post-acceptance travel routing and advancing.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-unpromptedcheck-w4` after the premature-travel quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory, transcript, and raw DeepSeek interaction evidence for premature `/travel route phandalin`.
+- [x] Record the stop diagnosis in `manual-stop-premature-waterdeep-travel-command.json`.
+- [x] Add a failing regression for direct `/travel route phandalin` before job acceptance.
+- [x] Fix story slash-command validation so Waterdeep `/travel*` is rejected while job acceptance is pending.
+- [x] Verify focused connector tests, full connector suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address in `raw_text`, malformed rows, non-null trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, and unprompted `/check*`.
+
+### Verification
+- [x] New direct premature-travel regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_waterdeep_travel_before_job_acceptance -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory -v`
+- [x] `python -m py_compile dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-unpromptedcheck-w4`: `conversation-001-positive` trajectory line 5 submitted `/travel route phandalin` from `scene-waterdeep-gundren-briefing` with `Travel status: idle` and party goal `Hear Gundren out and decide whether to take the Phandalin job.`
+- Raw DeepSeek evidence showed the model's topic focus was `accept job and plan travel route`, but the executable command only routed travel; it did not actually accept the job.
+- Root cause: direct story-mode `/travel*` validation only checked travel command syntax and did not apply the pending job-acceptance gate unless the scene was already considered stale.
+- Fix: Waterdeep briefing `/travel*` now fails connector validation while `_briefing_acceptance_pending(view)` is true, forcing the retry/fallback path to accept the job before routing.
+- Relaunch result: `f100-accepttravelgate-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-accepttravelgate-w4` was stopped during pilot monitoring after the DM narrated offstage Gundren and Sildar as present during the Triboar ambush.
+
+## 2026-05-22 - DeepSeek Dataset Offstage NPC DM Narration Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop DM story-turn outputs from making Gundren or Sildar speak or visibly act when their NPC ids are not in `visible_npc_ids`.
+- Preserve valid absent/clue mentions such as asking who ambushed Gundren and Sildar.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-accepttravelgate-w4` after the offstage NPC quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory, transcript, and runtime context evidence for offstage Gundren/Sildar narration.
+- [x] Record the stop diagnosis in `manual-stop-offstage-npc-dm-narration.json`.
+- [x] Add a failing DM-runtime regression for offstage NPC speaker/action narration.
+- [x] Fix DM story-turn validation and prompt guidance so offstage NPCs cannot speak or visibly act.
+- [x] Verify focused DM runtime tests, connector tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, non-null trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, and unprompted `/check*`.
+
+### Verification
+- [x] New offstage NPC DM narration regression fails before the fix and passes after it.
+- [x] New story/check prompt guidance assertions fail before the fix and pass after it.
+- [x] `python -m unittest tests.test_dm_runtime.DMRuntimeTests.test_story_turn_prompt_explicitly_requires_bare_json_object tests.test_dm_runtime.DMRuntimeTests.test_check_outcome_prompt_marks_rules_engine_result_as_final tests.test_dm_runtime.DMRuntimeTests.test_story_turn_retries_offstage_npc_speaker_and_action -v`
+- [x] `python -m unittest tests.test_dm_runtime -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-accepttravelgate-w4`: `conversation-003-positive` trajectory line 8 had `Current scene: scene-triboar-goblin-ambush` and the DM transcript included `Gundren grows impatient`, `Gundren Rockseeker: "Well?"`, and `Sildar Hallwinter: Sildar kneels by a torn pack`.
+- The session view's visible NPC ids were empty for the ambush; Gundren and Sildar should be absent/captive clues, not active speakers.
+- Fix: DM story-turn and check-outcome prompts now state that only NPC ids listed in `visible_npc_ids` may speak or visibly act, check-outcome prompts include `visible_npc_ids`, and runtime parsing rejects Gundren/Sildar speaker entries or active present-tense narration outside Waterdeep unless their ids are visible.
+- Verification: focused offstage/prompt regressions passed, full DM runtime passed 31 tests, full connector passed 68 tests, broad dataset/story/reward/trajectory suite passed 177 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-offstagedmguard-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-offstagedmguard-w4` was stopped during pilot monitoring after `conversation-006-negative` failed before any submitted turns because stale port `9110` was already occupied.
+
+## 2026-05-22 - DeepSeek Dataset Port Preflight Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Prevent stale local HTTP/WS server ports from corrupting a live dataset run.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-offstagedmguard-w4` before pilot expansion after the stale-port failure.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect episode result and server/connector logs for the stale websocket collision.
+- [x] Record the stop diagnosis in `manual-stop-stale-port-preflight-failure.json`.
+- [x] Add a failing runner regression for occupied websocket ports.
+- [x] Fix the dataset runner to preflight all planned HTTP and websocket ports before launching live episodes.
+- [x] Verify focused runner tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, stale-port preflight failures, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, structural trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, and unprompted `/check*`.
+
+### Verification
+- [x] New occupied-websocket regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_port_preflight_rejects_occupied_websocket_port -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-offstagedmguard-w4`: `conversation-006-negative` failed before any submitted turn. `web-server.stderr.log` showed `OSError: [Errno 10048]` while binding websocket `127.0.0.1:9110`, and the connector later hit an ownership mismatch against a stale session.
+- Root cause: the runner waited only for the HTTP automation endpoint and did not preflight the paired websocket port. A stale websocket listener could leave the new server half-started and route the connector into the wrong session.
+- Fix: the runner now checks every planned episode's HTTP and websocket ports with a socket probe before launching live episodes, failing early with an explicit stale-port error.
+- Verification: focused port-preflight regression passed, full runner suite passed 10 tests, broad dataset/story/reward/trajectory suite passed 178 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-portpreflight-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-portpreflight-w4` was stopped during pilot monitoring after `conversation-001-positive` submitted `/travel advance 5` while travel was interrupted by the ambush hook.
+
+## 2026-05-22 - DeepSeek Dataset Interrupted Travel Advance Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop story-mode player controllers from submitting `/travel route` or `/travel advance` while travel is interrupted by a pending scene hook.
+- Preserve legal ways to resolve the interrupted scene through plain-text action or `/travel resume` when applicable.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-portpreflight-w4` after the interrupted-travel quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory and stop artifact evidence for `/travel advance 5` during interrupted travel.
+- [x] Record the stop diagnosis in `manual-stop-interrupted-travel-advance.json`.
+- [x] Add a failing regression for `/travel advance` while travel is interrupted.
+- [x] Fix story slash-command validation so interrupted travel rejects `/travel route` and `/travel advance` before submit.
+- [x] Verify focused connector tests, full connector suite, runner suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, stale-port preflight failures, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, structural trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, unprompted `/check*`, and `/travel route` or `/travel advance` while interrupted.
+
+### Verification
+- [x] New interrupted-travel advance regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_travel_advance_while_interrupted -v`
+- [x] `python -m py_compile user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-portpreflight-w4`: `conversation-001-positive` trajectory line 11 had `Current scene: scene-triboar-goblin-ambush`, `Travel status: interrupted`, raw text `/travel advance 5`, and server error `Travel is interrupted by a pending hook and must be resumed or resolved first.`
+- Root cause: `_validate_story_slash_command()` gated Waterdeep pre-acceptance travel and unprompted checks, but did not treat interrupted travel as a state where route/advance commands are invalid.
+- Fix: story-mode `/travel route` and `/travel advance` are now rejected locally when `_travel_status(view)` is `interrupted`, forcing DeepSeek or fallback to resolve the current hook through plain text or an allowed resume path instead of sending an invalid executable command.
+- Verification: focused interrupted-travel regression passed, full connector suite passed 69 tests, full runner suite passed 10 tests, broad dataset/story/reward/trajectory suite passed 179 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-interruptedtravelgate-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-interruptedtravelgate-w4` was stopped during pilot monitoring after `conversation-001-positive` directly addressed offstage Gundren and Sildar in the Triboar ambush scene.
+
+## 2026-05-22 - DeepSeek Dataset Offstage Direct Address Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop player story raw text from directly addressing Gundren or Sildar when they are absent rescue targets or clues rather than visible NPCs.
+- Preserve direct Gundren/Sildar dialogue in Waterdeep or other scenes where the scene/visible NPC context makes them present.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-interruptedtravelgate-w4` before pilot expansion after the offstage direct-address quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory evidence for the accepted offstage direct address.
+- [x] Record the stop diagnosis in `manual-stop-offstage-direct-address.json`.
+- [x] Add a failing regression for direct Gundren/Sildar address in the Triboar ambush scene.
+- [x] Fix player story validation and prompt guidance so offstage NPC direct address is retried locally.
+- [x] Verify focused connector tests, full connector suite, runner suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, stale-port preflight failures, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, structural trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, unprompted `/check*`, and `/travel route` or `/travel advance` while interrupted.
+
+### Verification
+- [x] New offstage direct-address regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_offstage_npc_direct_address_in_ambush_scene -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_story_fallback_avoids_offstage_gundren_in_ambush_scene tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_offstage_npc_direct_address_in_ambush_scene tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_narrated_speech_as_direct_dialogue tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_narrated_framing_around_quoted_dialogue -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-interruptedtravelgate-w4`: `conversation-001-positive` trajectory line 14 had `Current scene: scene-triboar-goblin-ambush`, `Travel status: interrupted`, party goals to follow the hidden trail and rescue Gundren/Sildar, and raw text that spoke to `Gundren, Sildar` as if they were present.
+- Root cause: `_validate_direct_story_speech()` rejected narrated speech and third-person self narration, but it did not know whether a directly addressed NPC was visible/onstage. Direct dialogue to absent rescue targets could therefore pass local validation and receive positive reward.
+- Fix: player story validation now rejects direct address to known scene NPCs when they are not explicitly visible and the current scene id does not identify their present scene. The player prompt also says to address only visibly present NPCs and refer to absent Gundren/Sildar in third person.
+- Verification: focused offstage/direct-speech regressions passed, full connector suite passed 70 tests, full runner suite passed 10 tests, broad dataset/story/reward/trajectory suite passed 180 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+- Relaunch result: `f100-offstageaddressguard-w4` started locally with 100 planned episodes, 50 positive, 50 negative, a 10-episode pilot, and 4 workers.
+- Stop result: `f100-offstageaddressguard-w4` was stopped during pilot monitoring after `conversation-002-negative` accepted quoted dialogue followed by third-person `She eyes...` narration.
+
+## 2026-05-22 - DeepSeek Dataset Broad Pronoun Narration Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop player story raw text from appending broad `he/she` third-person self narration after quoted dialogue.
+- Avoid another narrow verb-list-only patch; make the guard catch sentence-initial `he/she` narration even with previously unseen verbs.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-offstageaddressguard-w4` before pilot expansion after the pronoun-narration quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory evidence for the accepted `She eyes...` narration.
+- [x] Record the stop diagnosis in `manual-stop-pronoun-eyes-narration.json`.
+- [x] Add a failing regression for quoted dialogue followed by broad `She eyes...` narration.
+- [x] Fix the player voice guard with a broad sentence-start `he/she` detector while preserving narrower `they` handling.
+- [x] Verify focused connector tests, full connector suite, runner suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, stale-port preflight failures, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, structural trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, unprompted `/check*`, and `/travel route` or `/travel advance` while interrupted.
+
+### Verification
+- [x] New broad-pronoun narration regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_quoted_dialogue_with_broad_pronoun_self_narration -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_pronoun_adverb_narrated_action tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_quoted_dialogue_with_pronoun_self_narration tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_quoted_dialogue_with_broad_pronoun_self_narration tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_retries_offstage_npc_direct_address_in_ambush_scene -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-offstageaddressguard-w4`: `conversation-002-negative` trajectory line 3 accepted `"Gundren, what's the pay, exactly? ..."` followed by `She eyes the dwarf, a ledger already open in her mind.`
+- Root cause: `_third_person_self_narration_match()` had been broadened for proper names, but `he/she/they` pronoun narration still depended on `_SELF_NARRATION_VERBS_RE`. The unseen verb `eyes` was not listed, so the row bypassed local retry validation.
+- Fix: the pronoun detector now catches sentence-initial `he/she` narration after quote stripping regardless of the specific verb, while leaving `they` on the narrower verb-list path to avoid overmatching group or enemy references.
+- Verification: focused broad-pronoun regression passed, full connector suite passed 71 tests, full runner suite passed 10 tests, broad dataset/story/reward/trajectory suite passed 181 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+
+## 2026-05-22 - DeepSeek Dataset Contextual Attack Aftermath Fix
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop positive-profile story text from being misclassified as hostile merely because it refers to clues or residue "from the attack".
+- Preserve direct hostile declarations such as "I attack..." so combat escalation still remains rules-authoritative.
+- Relaunch a fresh local 100-conversation run only after focused and broad verification pass.
+
+### Steps
+- [x] Stop `f100-pronounguard-w4` before pilot expansion after the contextual attack false-positive quality gate fired.
+- [x] Verify the run's local server ports are no longer listening.
+- [x] Inspect trajectory evidence for the positive-profile `from the attack` false hostile escalation.
+- [x] Record the stop diagnosis in `manual-stop-contextual-attack-aftermath.json`.
+- [x] Add a failing regression for contextual attack aftermath references that should remain in story mode.
+- [x] Fix the hostile-escalation attack-token classifier so prepositional aftermath/reference phrases are contextual instead of direct attacks.
+- [x] Verify focused hostile tests, full hostile suite, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch a fresh local 100-conversation run after the fix.
+- [ ] Monitor the new pilot for transport errors, stale-port preflight failures, direct-player voice in `raw_text`, offstage NPC address/narration, malformed rows, structural trajectory errors, duplicate story raw text, premature route-before-acceptance, route-planned briefing fallback progression, unprompted `/check*`, `/travel route` or `/travel advance` while interrupted, and contextual attack-reference false positives.
+
+### Verification
+- [x] New contextual attack aftermath regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_hostile_escalation.HostileEscalationTests.test_contextual_attack_aftermath_reference_remains_story_mode tests.test_hostile_escalation.HostileEscalationTests.test_direct_attack_declaration_still_escalates tests.test_hostile_escalation.HostileEscalationTests.test_information_request_about_attack_patterns_remains_story_mode tests.test_hostile_escalation.HostileEscalationTests.test_question_about_goblins_attacking_remains_story_mode -v`
+- [x] `python -m unittest tests.test_hostile_escalation -v`
+- [x] `python -m py_compile rules_engine\hostile_escalation.py tests\test_hostile_escalation.py`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py rules_engine\hostile_escalation.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py tests\test_hostile_escalation.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+
+### Review
+- Root-cause evidence from stopped `f100-pronounguard-w4`: `conversation-003-positive` submitted `...Detect Magic...to see if any magical residue lingers from the attack.` in `scene-triboar-goblin-ambush`, and the server returned `Who are you trying to attack or physically force into the fight?`
+- Root cause: `_attack_match_is_contextual_reference()` recognized some informational uses of `attack`, but not prepositional aftermath phrases like `from the attack`. The hostile-escalation detector therefore treated a clue/reference phrase as a direct hostile action.
+- Fix: the attack-token classifier now treats `about`, `after`, `before`, `during`, `following`, `from`, `of`, and `since` plus optional `the` before `attack` as contextual references, while direct attack declarations still escalate.
+- Verification: focused hostile regressions passed, full hostile suite passed 14 tests, broad dataset/story/reward/trajectory suite passed 182 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, and shared `campaigns/lmop/dm/**` stayed clean.
+
+## 2026-05-22 - DeepSeek Dataset Pilot Failure Expansion Guard
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Stop accepting or expanding a dataset run when pilot episodes fail, especially external provider failures such as DeepSeek HTTP 402.
+- Preserve the pilot artifacts and quality report so the failure is auditable.
+- Do not relaunch live DeepSeek generation until the provider balance issue is resolved.
+
+### Steps
+- [x] Relaunch a fresh local run as `f100-attackaftermathguard-w4-cleanports` after the contextual attack fix.
+- [x] Verify early pilot quality: first scans had no malformed rows, no trajectory errors, no positive invalid actions, and one completed `demo-complete` positive episode.
+- [x] Stop the run after pilot/main expansion produced widespread `episode-error` failures.
+- [x] Inspect connector/server stderr and identify DeepSeek HTTP 402 `Insufficient Balance` as the dominant connector failure, with additional memory pressure from rapid failed expansion.
+- [x] Record the stopped run diagnosis in `manual-stop-pilot-failures-and-deepseek-402.json`.
+- [x] Add a failing regression proving the runner expands into main episodes after a failed pilot.
+- [x] Fix the runner so any failed or incomplete pilot creates final local reports and halts before main expansion.
+- [x] Fix the occupied-port regression to allocate an independent free HTTP port instead of assuming `ws_port + 2` is free.
+- [x] Verify focused runner tests, broader dataset/story/reward suites, compile checks, diff checks, and shared campaign cleanliness.
+- [ ] Relaunch live generation only after the DeepSeek account can answer requests without HTTP 402.
+
+### Verification
+- [x] New pilot-halt regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_run_dataset_stops_after_failed_pilot_before_main_expansion -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_port_preflight_rejects_occupied_websocket_port tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_run_dataset_stops_after_failed_pilot_before_main_expansion -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py rules_engine\hostile_escalation.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py tests\test_hostile_escalation.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+- [x] No listeners remain on the stopped run's `12000-13199` port range.
+
+### Review
+- Root-cause evidence from stopped `f100-attackaftermathguard-w4-cleanports`: `conversation-002-negative` and other connector stderr logs show `LLM request failed with HTTP 402` and response body `Insufficient Balance`. The run reached 77 episode dirs before manual process stop because the runner proceeded into main expansion even though the pilot had already failed.
+- Root cause: `run_dataset()` always evaluated pilot control and then ran the remaining plan; it adjusted negative intensity but did not treat failed/incomplete pilot episodes as a hard expansion blocker.
+- Fix: `run_dataset()` now calls `_pilot_blocking_issues()` after the pilot. Any failed or incomplete pilot writes local conversations, combined dataset outputs, quality reports, and a failed run report with `pilot_failed_before_expansion` or `pilot_incomplete_before_expansion`, then returns before scheduling main episodes.
+- Verification: focused pilot-halt regression passed, full runner suite passed 11 tests, broad dataset/story/reward/trajectory suite passed 183 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, shared `campaigns/lmop/dm/**` stayed clean, and the stopped run's clean-port range has no remaining listeners.
+- Current blocker: accepted final dataset remains `0/100`; live DeepSeek generation cannot continue until the HTTP 402 `Insufficient Balance` condition is resolved.
+
+## 2026-05-22 - DeepSeek Dataset Provider Preflight Guard
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Recheck the DeepSeek HTTP 402 condition before launching any new generation.
+- Prevent the 100-conversation runner from creating episode directories or starting servers when the configured LLM provider cannot answer a tiny preflight request.
+- Preserve a local failed report explaining the provider failure for auditability.
+
+### Steps
+- [x] Re-read task lessons and current TODO state before making new runner changes.
+- [x] Run a tiny live DeepSeek probe against `D:\DND-newagent\.env`.
+- [x] Add a failing regression for provider preflight halting before episode execution.
+- [x] Implement the runner provider preflight and failed-report path.
+- [x] Verify focused runner tests, broad relevant suite, compile checks, diff checks, and shared campaign cleanliness.
+
+### Verification
+- [x] Live probe result: DeepSeek still returns HTTP 402 with response body `Insufficient Balance`.
+- [x] New provider-preflight regression fails before the fix and passes after it.
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_run_dataset_preflights_provider_before_episode_execution -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_run_dataset_preflights_provider_before_episode_execution tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_run_dataset_stops_after_failed_pilot_before_main_expansion -v`
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] Real preflight-only run `f100-providerpreflight-402-check` returns `status=failed`, `episode_count=0`, and `llm_provider_preflight_failed`.
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile dm_agent\runtime.py dm_agent\client.py user-test\web_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py rules_engine\hostile_escalation.py tests\test_dm_runtime.py tests\test_llm_client.py tests\test_story_demo_party_connector.py tests\test_deepseek_100_dataset_runner.py tests\test_hostile_escalation.py training\rewards.py tests\test_rewards.py`
+- [x] `git diff --check`
+- [x] Shared `campaigns/lmop/dm/**` stays clean.
+- [x] No listeners remain on the real preflight run's `20000-20150` or `21000-21150` port ranges.
+
+### Review
+- Root-cause evidence: both a direct minimal client request and the real runner preflight returned DeepSeek HTTP 402 with response body `Insufficient Balance`.
+- Fix: `run_dataset()` now probes unique DM/player LLM env files before resolving character data or launching episodes. On failure, it writes `provider_preflight.json`, empty `conversations.jsonl`, `dataset_quality_report.json`, and `dataset_run_report.json` with `episode_count=0` and `llm_provider_preflight_failed`.
+- Verification: focused preflight regression passed, full runner suite passed 12 tests, broad dataset/story/reward/trajectory suite passed 184 tests, focused `py_compile` passed, `git diff --check` reported only LF/CRLF warnings, shared `campaigns/lmop/dm/**` stayed clean, and the real failed-preflight run created no `episodes` directory and no listeners.
+- Current blocker: accepted final dataset remains `0/100`; live generation cannot resume until DeepSeek stops returning HTTP 402.
+
+## 2026-05-22 - DeepSeek Dataset Blocked Provider Recheck
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit/push/fetch/GitHub work.
+- Recheck whether the external DeepSeek HTTP 402 blocker has cleared before relaunching generation.
+- Do not start another 100-conversation run while the tiny provider probe still fails.
+
+### Steps
+- [x] Recheck the live DeepSeek endpoint using `D:\DND-newagent\.env`.
+- [x] Verify no listeners remain on the stopped dataset ranges `12000-13199` or preflight ranges `20000-21150`.
+- [x] Confirm the latest local run artifacts remain failed/preflight artifacts, not accepted final training data.
+- [x] Leave the active dataset goal blocked instead of redefining completion around local scaffolding.
+
+### Verification
+- [x] Live probe result: DeepSeek still returns HTTP 402 with response body `Insufficient Balance`.
+- [x] No listeners are present on `12000-13199` or `20000-21150`.
+
+### Review
+- This is the same external provider blocker observed in the stopped `f100-attackaftermathguard-w4-cleanports` run and the `f100-providerpreflight-402-check` run.
+- Accepted final dataset remains `0/100`; live DeepSeek generation cannot continue until the account can answer requests again.
+
+## 2026-05-22 - Retrieve Most Recent Local DeepSeek Dataset
+
+### Scope
+- Keep retrieval local-only and avoid commit/push/fetch/GitHub work.
+- Package the most recent usable dataset artifacts regardless of quality.
+- Preserve the newer preflight-only failure report so the latest-run chronology stays clear.
+
+### Steps
+- [x] Identify the strict latest run as `f100-providerpreflight-402-check`, which has `episode_count=0`.
+- [x] Identify the latest non-empty episode run as `f100-attackaftermathguard-w4-cleanports`.
+- [x] Create a local export manifest and README with quality/status counts.
+- [x] Archive the latest non-empty run plus the preflight-only report into `runs/deepseek-100-conversation-dataset/exports/most-recent-deepseek-dataset-20260522-175922.zip`.
+- [x] Clean up failed intermediate export folders created while working around Windows path-length limits.
+
+### Verification
+- [x] Archive listing has 3,770 entries and includes `EXPORT_MANIFEST.json`, `README.md`, `f100-attackaftermathguard-w4-cleanports/`, and `f100-providerpreflight-402-check/`.
+- [x] Manifest confirms `accepted_final_dataset_count=0`, `episode_dir_count=77`, status counts `completed=1`, `failed=72`, `missing_result=4`, and label counts `positive=39`, `negative=38`.
+- [x] Archive size is 4,022,783 bytes.
+
+### Review
+- The export is not accepted training data. It is a retrieval of the latest local artifacts regardless of quality, with the single completed episode and all failed/missing-result episode artifacts preserved for audit.
+
+## 2026-05-22 - DM-Controlled Monster Turns
+
+### Scope
+- Keep the rules engine authoritative for combat legality, action economy, dice, HP, and turn order.
+- Fix the demo/dataset controller path where DM-owned monster turns are currently auto-ended by the party connector.
+- Use DM-owned slash commands for monster combat actions instead of player narration or direct state mutation.
+- Keep all work local-only; do not commit, push, fetch, or contact GitHub.
+
+### Plan
+- [x] Reproduce the current connector behavior with a failing unit regression: active monster with available action should not produce `[system:dm] /endturn`.
+- [x] Add a DM combat action planner that sees the DM combat snapshot and emits one legal monster slash command.
+- [x] Route active DM-owned monster turns through the DM combat planner when the monster still has an action.
+- [x] Preserve fast end-turn only when the active monster has already spent its action.
+- [x] Make combat target summarization choose enemies relative to the active actor side so monsters target players and players target monsters.
+- [x] Verify focused connector tests and compile checks.
+
+### Verification
+- [x] Focused red regression fails before the fix: missing `build_default_dm_combat_agent` / no DM monster-control path.
+- [x] `python -m unittest tests.test_story_demo_party_connector.PartyConnectorTests.test_party_connector_routes_active_monster_turn_through_dm_agent -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime -v`
+- [x] `python -m py_compile user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py user-test\run_deepseek_100_conversation_dataset.py`
+- [x] `git diff --check -- user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py tasks\TODO.md tasks\LESSONS.md tasks\SUMMARIES.md`
+
+### Review
+- Root cause: `PartyConnector._execute_combat_cycle()` treated active actors not owned by player controllers as a connector-owned auto-pass path, submitting `/endturn <monster>` as `dm` and recording it as `[system:dm]`.
+- Fix: added `DMCombatAgent`, wired `run_party_connector()` to build it by default, and routed DM-owned active monster turns through a validated DM slash-command decision when the monster has an action available. End-turn fast-path remains only for DM-owned monsters that have already spent their action.
+- The combat context now computes visible enemy targets relative to the active actor side, so player turns target monsters and monster turns target players.
+- Verification: focused regression passed, full connector suite passed 72 tests, broad dataset/story/reward/trajectory suite passed 185 tests, focused `py_compile` passed, and diff hygiene check reported only existing LF/CRLF warnings.
+
+## 2026-05-22 - Accepted Dataset Pool and Stable Combat Events
+
+### Scope
+- Keep all dataset artifacts local-only and avoid commit, push, fetch, or GitHub work.
+- Persist each strict-good generated conversation immediately into a durable accepted pool.
+- Reduce future 100-conversation generation by the accepted positive/negative counts already in that pool.
+- Fix the combat transcript issue where old magic missile damage lines are re-rendered with later HP and replayed as new events.
+
+### Plan
+- [x] Add failing accepted-pool tests for reduced remaining generation, pilot-good persistence before a failed pilot halt, and invalid completed conversations not being accepted.
+- [x] Add failing combat projection/transcript tests proving old damage event HP stays immutable and recent combat chat IDs remain stable when the recent window slides.
+- [x] Implement accepted-pool load/dedup/append logic and report pool progress in run outputs.
+- [x] Rework combat recent-event formatting to use event-owned HP-after fields and stable event-log IDs.
+- [x] Run focused tests, relevant broad suites, compile checks, and diff hygiene.
+
+### Verification
+- [x] Focused accepted-pool regressions failed before implementation and passed after implementation.
+- [x] Focused combat-event regressions failed before implementation and passed after implementation.
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_encounter_session tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime tests.test_encounter_session -v`
+- [x] `python -m py_compile user-test\run_deepseek_100_conversation_dataset.py user-test\web_story_demo_party_connector.py session_server\encounter_session.py session_server\encounter_projection.py session_server\web_projection.py shared_types\session_projection.py tests\test_deepseek_100_dataset_runner.py tests\test_encounter_session.py tests\test_story_demo_party_connector.py`
+- [x] `git diff --check -- user-test\run_deepseek_100_conversation_dataset.py user-test\web_story_demo_party_connector.py session_server\encounter_session.py session_server\encounter_projection.py session_server\web_projection.py shared_types\session_projection.py tests\test_deepseek_100_dataset_runner.py tests\test_encounter_session.py tests\test_story_demo_party_connector.py tasks\TODO.md tasks\SUMMARIES.md tasks\LESSONS.md`
+- [x] Attempted `tests.test_web_server`; it failed before exercising these changes because this worktree lacks `5etools-mirror-2.github.io\data\items-base.json`.
+
+### Review
+- Root cause for the transcript issue: encounter recent-event text formatted each `DamageAppliedEvent` with the target actor's current HP, so old magic missile damage lines changed after later damage and looked like new combat events in the transcript.
+- Fix: recent-event formatting now uses `DamageAppliedEvent.target_hit_points_after` and `target_temp_hit_points_after`, and web combat chat entries use stable `encounter-event:<event-log-index>` IDs. The transcript logger now ignores replayed combat entries with already-seen stable IDs.
+- Accepted-pool logic: `run_deepseek_100_conversation_dataset.py` loads `accepted_conversations.jsonl` from the output root by default, subtracts strict-good accepted positive/negative rows from the target, and appends newly strict-good rows after the pilot and main phases. Strict-good means completed `demo-complete`, successful trajectory summary, zero invalid actions, minimum transitions, and required artifacts.
+- Verification: focused regressions passed, full runner suite passed 15 tests, full encounter suite passed 19 tests, full connector suite passed 72 tests, broad relevant suite passed 207 tests, focused `py_compile` passed, and diff hygiene reported only existing LF/CRLF warnings.

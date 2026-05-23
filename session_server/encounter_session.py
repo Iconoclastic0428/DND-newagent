@@ -89,115 +89,109 @@ def _battlefield_public_lines(state: EncounterState) -> tuple[str, ...]:
     )
 
 
-def _recent_event_lines(state: EncounterState, *, limit: int = 12, actor_labeler=None) -> tuple[str, ...]:
+def _recent_event_items(state: EncounterState, *, limit: int = 12, actor_labeler=None) -> tuple[tuple[int, str], ...]:
     actor_label = actor_labeler or (lambda actor_id: _actor_name(state, actor_id))
-    formatted: list[str] = []
-    for event in state.event_log:
+    formatted: list[tuple[int, str]] = []
+    for event_index, event in enumerate(state.event_log):
+        line: str | None = None
         if isinstance(event, ReactionChosenEvent):
             if event.option_id == 'decline':
-                formatted.append(f'{actor_label(event.actor_id)} declined a reaction.')
+                line = f'{actor_label(event.actor_id)} declined a reaction.'
             elif event.option_id.startswith('opportunity:'):
                 _, owner_actor_id, attack_id = event.option_id.split(':', 2)
-                formatted.append(
-                    f'{actor_label(owner_actor_id)} triggered Opportunity Attack ({_attack_name(state, owner_actor_id, attack_id)}).'
-                )
+                line = f'{actor_label(owner_actor_id)} triggered Opportunity Attack ({_attack_name(state, owner_actor_id, attack_id)}).'
         elif isinstance(event, AttackDeclaredEvent):
-            formatted.append(
-                f'{actor_label(event.actor_id)} attacks {actor_label(event.target_id)} with {_attack_name(state, event.actor_id, event.attack_id)}.'
-            )
+            line = f'{actor_label(event.actor_id)} attacks {actor_label(event.target_id)} with {_attack_name(state, event.actor_id, event.attack_id)}.'
         elif isinstance(event, AttackRolledEvent):
             roll_text = ', '.join(str(roll) for roll in event.attack_rolls)
-            formatted.append(
-                f'{actor_label(event.actor_id)} rolled {roll_text} for {_attack_name(state, event.actor_id, event.attack_id)}: total {event.attack_total}.'
-            )
+            line = f'{actor_label(event.actor_id)} rolled {roll_text} for {_attack_name(state, event.actor_id, event.attack_id)}: total {event.attack_total}.'
         elif isinstance(event, AttackHitEvent):
-            formatted.append(
-                f'{_attack_name(state, event.actor_id, event.attack_id)} hits {actor_label(event.target_id)}.'
-            )
+            line = f'{_attack_name(state, event.actor_id, event.attack_id)} hits {actor_label(event.target_id)}.'
         elif isinstance(event, AttackMissedEvent):
-            formatted.append(
-                f'{_attack_name(state, event.actor_id, event.attack_id)} misses {actor_label(event.target_id)}.'
-            )
+            line = f'{_attack_name(state, event.actor_id, event.attack_id)} misses {actor_label(event.target_id)}.'
         elif isinstance(event, DamageAppliedEvent):
             target = state.actors.get(event.target_id)
             if target is None:
-                formatted.append(f'{event.target_id} takes {event.damage_total} {event.damage_type} damage.')
+                line = f'{event.target_id} takes {event.damage_total} {event.damage_type} damage.'
             else:
-                formatted.append(
-                    f'{actor_label(event.target_id)} takes {event.damage_total} {event.damage_type} damage; HP {target.current_hit_points}/{target.max_hit_points}, Temp {target.temp_hit_points}.'
+                line = (
+                    f'{actor_label(event.target_id)} takes {event.damage_total} {event.damage_type} damage; '
+                    f'HP {event.target_hit_points_after}/{target.max_hit_points}, Temp {event.target_temp_hit_points_after}.'
                 )
         elif isinstance(event, UnconsciousAtZeroAppliedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} drops to 0 HP and falls unconscious.')
+            line = f'{actor_label(event.actor_id)} drops to 0 HP and falls unconscious.'
         elif isinstance(event, DeathSaveRolledEvent):
-            formatted.append(f'{actor_label(event.actor_id)} rolls a death save: {event.selected_roll}.')
+            line = f'{actor_label(event.actor_id)} rolls a death save: {event.selected_roll}.'
         elif isinstance(event, DeathSaveSucceededEvent):
-            formatted.append(f'{actor_label(event.actor_id)} records a death save success ({event.total_successes}/3).')
+            line = f'{actor_label(event.actor_id)} records a death save success ({event.total_successes}/3).'
         elif isinstance(event, DeathSaveFailedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} records {event.failures_added} death save failure(s) ({event.total_failures}/3).')
+            line = f'{actor_label(event.actor_id)} records {event.failures_added} death save failure(s) ({event.total_failures}/3).'
         elif isinstance(event, DeathSaveNaturalOneEvent):
-            formatted.append(f'{actor_label(event.actor_id)} rolled a natural 1 on a death save.')
+            line = f'{actor_label(event.actor_id)} rolled a natural 1 on a death save.'
         elif isinstance(event, DeathSaveNaturalTwentyEvent):
-            formatted.append(f'{actor_label(event.actor_id)} rolled a natural 20 on a death save and regains 1 HP.')
+            line = f'{actor_label(event.actor_id)} rolled a natural 20 on a death save and regains 1 HP.'
         elif isinstance(event, StabilizedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} is stabilized at 0 HP.')
+            line = f'{actor_label(event.actor_id)} is stabilized at 0 HP.'
         elif isinstance(event, HealedFromZeroEvent):
-            formatted.append(f'{actor_label(event.actor_id)} is healed from 0 HP to {event.hit_points_after} HP.')
+            line = f'{actor_label(event.actor_id)} is healed from 0 HP to {event.hit_points_after} HP.'
         elif isinstance(event, DiedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} dies.')
+            line = f'{actor_label(event.actor_id)} dies.'
         elif isinstance(event, ShortRestStartedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} starts a short rest.')
+            line = f'{actor_label(event.actor_id)} starts a short rest.'
         elif isinstance(event, ShortRestInterruptedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} has a short rest interrupted by {event.reason.value}.')
+            line = f'{actor_label(event.actor_id)} has a short rest interrupted by {event.reason.value}.'
         elif isinstance(event, ShortRestCompletedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} completes a short rest.')
+            line = f'{actor_label(event.actor_id)} completes a short rest.'
         elif isinstance(event, LongRestStartedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} starts a long rest.')
+            line = f'{actor_label(event.actor_id)} starts a long rest.'
         elif isinstance(event, LongRestInterruptedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} has a long rest interrupted by {event.reason.value}.')
+            line = f'{actor_label(event.actor_id)} has a long rest interrupted by {event.reason.value}.'
         elif isinstance(event, LongRestResumedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} resumes a long rest.')
+            line = f'{actor_label(event.actor_id)} resumes a long rest.'
         elif isinstance(event, LongRestCompletedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} completes a long rest.')
+            line = f'{actor_label(event.actor_id)} completes a long rest.'
         elif isinstance(event, TimeAdvancedEvent):
-            formatted.append(f'Time advances by {event.elapsed_seconds // 60} minute(s) of {event.activity_type.value}.')
+            line = f'Time advances by {event.elapsed_seconds // 60} minute(s) of {event.activity_type.value}.'
         elif isinstance(event, HitPointDieSpentEvent):
-            formatted.append(f'{actor_label(event.actor_id)} spends a Hit Point Die and recovers {event.hit_points_gained} HP.')
+            line = f'{actor_label(event.actor_id)} spends a Hit Point Die and recovers {event.hit_points_gained} HP.'
         elif isinstance(event, HitPointDiceRestoredEvent):
-            formatted.append(f'{actor_label(event.actor_id)} restores Hit Point Dice to {event.remaining_hit_dice}.')
+            line = f'{actor_label(event.actor_id)} restores Hit Point Dice to {event.remaining_hit_dice}.'
         elif isinstance(event, HitPointsRecoveredFromRestEvent):
-            formatted.append(f'{actor_label(event.actor_id)} recovers {event.amount_recovered} HP from rest.')
+            line = f'{actor_label(event.actor_id)} recovers {event.amount_recovered} HP from rest.'
         elif isinstance(event, SpellSlotsRecoveredFromRestEvent):
-            formatted.append(f'{actor_label(event.actor_id)} recovers spell slots in {event.resource_id}.')
+            line = f'{actor_label(event.actor_id)} recovers spell slots in {event.resource_id}.'
         elif isinstance(event, ResourceRecoveredFromRestEvent):
-            formatted.append(f'{actor_label(event.actor_id)} recovers {event.resource_id}.')
+            line = f'{actor_label(event.actor_id)} recovers {event.resource_id}.'
         elif isinstance(event, ItemChargesRecoveredFromRestEvent):
-            formatted.append(f'{actor_label(event.actor_id)} recovers charges for {event.resource_id}.')
+            line = f'{actor_label(event.actor_id)} recovers charges for {event.resource_id}.'
         elif isinstance(event, ExhaustionReducedFromRestEvent):
-            formatted.append(f'{actor_label(event.actor_id)} reduces Exhaustion to {event.exhaustion_level_after}.')
+            line = f'{actor_label(event.actor_id)} reduces Exhaustion to {event.exhaustion_level_after}.'
         elif isinstance(event, TeleportDeclaredEvent):
-            formatted.append(
-                f'{actor_label(event.actor_id)} begins a teleport to ({event.to_position.x},{event.to_position.y},{event.to_position.z}).'
-            )
+            line = f'{actor_label(event.actor_id)} begins a teleport to ({event.to_position.x},{event.to_position.y},{event.to_position.z}).'
         elif isinstance(event, TeleportResolvedEvent):
-            formatted.append(
-                f'{actor_label(event.actor_id)} teleports to ({event.to_position.x},{event.to_position.y},{event.to_position.z}).'
-            )
+            line = f'{actor_label(event.actor_id)} teleports to ({event.to_position.x},{event.to_position.y},{event.to_position.z}).'
         elif isinstance(event, FallStartedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} starts falling.')
+            line = f'{actor_label(event.actor_id)} starts falling.'
         elif isinstance(event, FallDistanceComputedEvent):
-            formatted.append(f'{actor_label(event.actor_id)} falls {event.distance_ft} ft.')
+            line = f'{actor_label(event.actor_id)} falls {event.distance_ft} ft.'
         elif isinstance(event, FallLandedEvent):
-            formatted.append(
-                f'{actor_label(event.actor_id)} lands at ({event.to_position.x},{event.to_position.y},{event.to_position.z}) on {event.landing_surface_type.value}.'
-            )
+            line = f'{actor_label(event.actor_id)} lands at ({event.to_position.x},{event.to_position.y},{event.to_position.z}) on {event.landing_surface_type.value}.'
         elif isinstance(event, ProneAppliedFromFallEvent):
-            formatted.append(f'{actor_label(event.actor_id)} lands prone from the fall.')
+            line = f'{actor_label(event.actor_id)} lands prone from the fall.'
         elif isinstance(event, SupportStateEvaluatedEvent) and event.support_state.value in {'flying', 'hovering'}:
-            formatted.append(f'{actor_label(event.actor_id)} is now {event.support_state.value}.')
+            line = f'{actor_label(event.actor_id)} is now {event.support_state.value}.'
+        if line is not None:
+            formatted.append((event_index, line))
     if not formatted:
         return ()
-    tail = formatted[-limit:]
-    return tuple(['Recent events:', *[f'  - {line}' for line in tail]])
+    return tuple(formatted[-limit:])
+
+
+def _recent_event_lines(state: EncounterState, *, limit: int = 12, actor_labeler=None) -> tuple[str, ...]:
+    formatted = _recent_event_items(state, limit=limit, actor_labeler=actor_labeler)
+    if not formatted:
+        return ()
+    return tuple(['Recent events:', *[f'  - {line}' for _, line in formatted]])
 
 
 class EncounterSession:
@@ -413,7 +407,8 @@ class EncounterSession:
                 return 'Unseen contact'
             return 'Unknown contact'
 
-        recent_event_lines = _recent_event_lines(self.state, actor_labeler=actor_labeler)
+        recent_event_items = _recent_event_items(self.state, actor_labeler=actor_labeler)
+        recent_event_lines = tuple(['Recent events:', *[f'  - {line}' for _, line in recent_event_items]]) if recent_event_items else ()
         summary_lines.extend(recent_event_lines)
         available_choices: dict[str, tuple[ChoiceView, ...]] = {}
         controller_prompt = self.control_runtime.prompt_for_controller(self.state, controller_id)
@@ -432,7 +427,8 @@ class EncounterSession:
             control_runtime=self.control_runtime,
             controller_id=controller_id,
             available_choices=available_choices,
-            recent_events=tuple(line[4:] for line in recent_event_lines[1:]) if recent_event_lines else (),
+            recent_events=tuple(line for _, line in recent_event_items),
+            recent_event_ids=tuple(f'encounter-event:{event_index}' for event_index, _ in recent_event_items),
         )
         return ControllerEncounterView(
             controller_id=controller_id,

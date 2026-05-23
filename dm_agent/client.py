@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from http import client as http_client
 from typing import Any, Callable, Protocol
 from urllib import error, request
 from urllib.parse import urljoin
@@ -110,13 +111,16 @@ class LLMTransport(Protocol):
 
 
 class LLMHttpTransport:
-    def __init__(self, *, timeout_seconds: float = 300.0, stream_timeout_seconds: float = 300.0) -> None:
+    def __init__(self, *, timeout_seconds: float = 300.0, stream_timeout_seconds: float = 300.0, post_read_retries: int = 4) -> None:
         if timeout_seconds <= 0:
             raise ValueError('timeout_seconds must be > 0.')
         if stream_timeout_seconds <= 0:
             raise ValueError('stream_timeout_seconds must be > 0.')
+        if post_read_retries < 0:
+            raise ValueError('post_read_retries must be >= 0.')
         self.timeout_seconds = timeout_seconds
         self.stream_timeout_seconds = stream_timeout_seconds
+        self.post_read_retries = post_read_retries
 
     def _http_error(self, exc: error.HTTPError) -> LLMResponseError:
         try:
@@ -128,14 +132,23 @@ class LLMHttpTransport:
 
     def post(self, *, url: str, headers: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
         body = json.dumps(payload).encode('utf-8')
-        req = request.Request(url, data=body, headers=headers, method='POST')
-        try:
-            with request.urlopen(req, timeout=self.timeout_seconds) as response:
-                raw = response.read().decode('utf-8')
-        except error.HTTPError as exc:
-            raise self._http_error(exc) from exc
-        except error.URLError as exc:
-            raise LLMResponseError(f'LLM request failed: {exc.reason}.') from exc
+        for attempt in range(self.post_read_retries + 1):
+            req = request.Request(url, data=body, headers=headers, method='POST')
+            try:
+                with request.urlopen(req, timeout=self.timeout_seconds) as response:
+                    raw = response.read().decode('utf-8')
+                break
+            except error.HTTPError as exc:
+                raise self._http_error(exc) from exc
+            except error.URLError as exc:
+                if attempt < self.post_read_retries:
+                    continue
+                raise LLMResponseError(f'LLM request failed: {exc.reason}.') from exc
+            except http_client.IncompleteRead as exc:
+                if attempt >= self.post_read_retries:
+                    raise LLMResponseError('LLM request failed while reading response: incomplete HTTP response.') from exc
+        else:
+            raise LLMResponseError('LLM request failed while reading response.')
         data = json.loads(raw)
         if not isinstance(data, dict):
             raise LLMResponseError('LLM response payload must be a JSON object.')

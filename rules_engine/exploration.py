@@ -84,6 +84,7 @@ from shared_types.storytelling import SpellcastingReactionCategory, Spellcasting
 from .exploration_declarations import (
     ExplorationDeclarationPrompt,
     interpret_declaration as interpret_exploration_declaration,
+    resolve_immediate_declaration as resolve_immediate_exploration_declaration,
     resolve_pending_exploration_check as apply_pending_exploration_check,
 )
 
@@ -273,6 +274,24 @@ class ExplorationProcedureEngine:
             declaration=declaration,
         )
 
+    def resolve_immediate_declaration(
+        self,
+        state: ExplorationState,
+        *,
+        encounter_state: EncounterState,
+        controller_id: str,
+        actor_id: str,
+        declaration: str,
+    ) -> tuple[ExplorationState, list[object]] | None:
+        return resolve_immediate_exploration_declaration(
+            self,
+            state,
+            encounter_state=encounter_state,
+            controller_id=controller_id,
+            actor_id=actor_id,
+            declaration=declaration,
+        )
+
     def resolve_pending_exploration_check(
         self,
         state: ExplorationState,
@@ -292,6 +311,116 @@ class ExplorationProcedureEngine:
             d20_result=d20_result,
             random_counter_used=random_counter_used,
         )
+
+    def apply_story_observation_check(
+        self,
+        state: ExplorationState,
+        *,
+        encounter_state: EncounterState,
+        actor_id: str,
+        check_request: CheckRequest,
+        d20_result,
+        prompt: str,
+        reason: str,
+    ) -> tuple[ExplorationState, list[object]]:
+        actor = self._require_party_actor(encounter_state, actor_id)
+        if check_request.interacting_with_actor_id is not None:
+            return state, []
+        if not _story_check_targets_environment(prompt, reason):
+            return state, []
+        traps = dict(state.traps)
+        known_discoveries = state.known_discoveries
+        events: list[object] = []
+        for trap_id, definition in self.trap_definitions.items():
+            if not self._definition_matches_context(definition.scene_id, definition.location_id, state.current_scene_id, state.current_location_id):
+                continue
+            runtime = traps[trap_id]
+            if runtime.status not in {TrapStatus.HIDDEN, TrapStatus.DETECTABLE}:
+                continue
+            if definition.detect_procedure is None:
+                continue
+            option = _matching_story_observation_option(definition.detect_procedure, check_request)
+            if option is None:
+                continue
+            outcome = self._procedure_outcome(total=d20_result.total, dc=option.dc, partial_margin=option.partial_margin)
+            progress_gain = self._progress_for_outcome(option, outcome)
+            if progress_gain <= 0:
+                continue
+            current_progress = runtime.detect_progress or self._initial_progress(definition.detect_procedure)
+            progress_points = current_progress.progress_points + progress_gain
+            status = ProcedureStatus.COMPLETED if progress_points >= current_progress.required_progress_points else ProcedureStatus.IN_PROGRESS
+            revealed_clues = self._revealed_clues_for_outcome(option, outcome)
+            merged_clues = unique_strings(current_progress.revealed_clues + revealed_clues)
+            new_progress = replace(
+                current_progress,
+                status=status,
+                progress_points=progress_points,
+                attempt_count=current_progress.attempt_count + 1,
+                failure_count=current_progress.failure_count + (1 if outcome == ProcedureOutcome.FAILURE else 0),
+                revealed_clues=merged_clues,
+                last_summary=self._procedure_summary(
+                    definition.detect_procedure,
+                    option,
+                    outcome,
+                    tuple(clue for clue in revealed_clues if clue not in current_progress.revealed_clues),
+                    completed=(status == ProcedureStatus.COMPLETED),
+                ),
+            )
+            if status != ProcedureStatus.COMPLETED:
+                traps[trap_id] = replace(runtime, detect_progress=new_progress, last_summary=new_progress.last_summary)
+                events.append(
+                    ExplorationProcedureProgressedEvent(
+                        procedure_id=definition.detect_procedure.procedure_id,
+                        title=definition.detect_procedure.title,
+                        category=definition.detect_procedure.category,
+                        actor_id=actor.actor_id,
+                        status=new_progress.status,
+                        progress_points=new_progress.progress_points,
+                        required_progress_points=new_progress.required_progress_points,
+                        summary=new_progress.last_summary,
+                    )
+                )
+                continue
+            traps[trap_id] = replace(
+                runtime,
+                status=TrapStatus.DETECTED,
+                visible_to_party=True,
+                detected_by_actor_ids=unique_strings(runtime.detected_by_actor_ids + (actor.actor_id,)),
+                detect_progress=new_progress,
+                last_summary=definition.revealed_summary,
+            )
+            known_discoveries = unique_strings(known_discoveries + tuple(revealed_clues) + (definition.revealed_summary,))
+            events.extend(
+                [
+                    ExplorationProcedureCompletedEvent(
+                        procedure_id=definition.detect_procedure.procedure_id,
+                        title=definition.detect_procedure.title,
+                        category=definition.detect_procedure.category,
+                        actor_id=actor.actor_id,
+                        summary=new_progress.last_summary,
+                    ),
+                    TrapDetectedEvent(
+                        trap_id=definition.trap_id,
+                        title=definition.title,
+                        actor_id=actor.actor_id,
+                        passive=False,
+                        status=TrapStatus.DETECTED,
+                        summary=definition.revealed_summary,
+                    ),
+                    DiscoveryRevealedEvent(
+                        discovery_id=f'trap:{definition.trap_id}:story-check',
+                        text=definition.revealed_summary,
+                        source_category=ProcedureCategory.TRAP,
+                        actor_id=actor.actor_id,
+                        public=True,
+                    ),
+                ]
+            )
+        if not events:
+            return state, []
+        updated = replace(state, traps=traps, known_discoveries=known_discoveries)
+        events.append(self._projection_event(updated))
+        return updated, events
 
     def attempt_social_influence(
         self,
@@ -477,20 +606,24 @@ class ExplorationProcedureEngine:
         actor_id = intent.actor_id or self.exposed_actor_id(state)
         actor = self._require_party_actor(encounter_state, actor_id)
         runtime = state.traps[intent.trap_id]
+        status = TrapStatus.RESOLVED if intent.safe else TrapStatus.TRIGGERED
+        summary = definition.trigger_summary
+        if intent.safe:
+            summary = f'{actor.name} safely triggers {definition.title} from a distance. The trap no longer threatens the march.'
         visible = runtime.visible_to_party or definition.reveal_on_trigger
         trap_state = replace(
             runtime,
-            status=TrapStatus.TRIGGERED,
+            status=status,
             visible_to_party=visible,
             triggered_by_actor_id=actor.actor_id,
-            last_summary=definition.trigger_summary,
+            last_summary=summary,
         )
         traps = dict(state.traps)
         traps[intent.trap_id] = trap_state
         updated = replace(state, traps=traps)
-        updated = self._merge_discoveries(updated, (definition.trigger_summary,))
+        updated = self._merge_discoveries(updated, (summary,))
         return updated, [
-            TrapTriggeredEvent(trap_id=definition.trap_id, title=definition.title, actor_id=actor.actor_id, summary=definition.trigger_summary),
+            TrapTriggeredEvent(trap_id=definition.trap_id, title=definition.title, actor_id=actor.actor_id, summary=summary),
             self._projection_event(updated),
         ]
 
@@ -506,10 +639,12 @@ class ExplorationProcedureEngine:
         runtime = state.traps[intent.trap_id]
         if runtime.status not in {TrapStatus.DETECTED, TrapStatus.TRIGGERED, TrapStatus.BYPASSED}:
             raise EncounterValidationError('A trap must be detected or triggered before it can be bypassed safely.')
-        bypassed = unique_strings(runtime.bypassed_by_actor_ids + (actor.actor_id,))
+        bypass_actor_ids = self.party_actor_ids(encounter_state) if intent.party_wide else (actor.actor_id,)
+        bypassed = unique_strings(runtime.bypassed_by_actor_ids + bypass_actor_ids)
         status = TrapStatus.BYPASSED if set(bypassed) >= set(self.party_actor_ids(encounter_state)) else runtime.status
         traps = dict(state.traps)
-        traps[intent.trap_id] = replace(runtime, bypassed_by_actor_ids=bypassed, status=status, visible_to_party=True, last_summary=f'{actor.name} bypasses {definition.title}.')
+        summary = f'{actor.name} marks {definition.title} and the party bypasses it.' if intent.party_wide else f'{actor.name} bypasses {definition.title}.'
+        traps[intent.trap_id] = replace(runtime, bypassed_by_actor_ids=bypassed, status=status, visible_to_party=True, last_summary=summary)
         updated = replace(state, traps=traps)
         return updated, [self._projection_event(updated)]
 
@@ -1261,6 +1396,46 @@ class ExplorationProcedureEngine:
 
     def _time_advance_event(self, *, hours: int) -> TimeAdvancedEvent:
         return TimeAdvancedEvent(elapsed_seconds=hours * 60 * 60, activity_type=RestActivityType.LIGHT_ACTIVITY)
+
+
+def _story_check_targets_environment(prompt: str, reason: str) -> bool:
+    text = f'{prompt} {reason}'.lower()
+    return any(
+        marker in text
+        for marker in (
+            'amiss',
+            'brush',
+            'danger',
+            'hazard',
+            'hidden',
+            'look',
+            'notice',
+            'path',
+            'road',
+            'scan',
+            'scout',
+            'search',
+            'snare',
+            'trail',
+            'trap',
+            'wagon',
+            'watch',
+        )
+    )
+
+
+def _matching_story_observation_option(definition: ProcedureDefinition, check_request: CheckRequest) -> ProcedureCheckOption | None:
+    requested_skill = (check_request.skill_name or '').strip().lower()
+    for option in definition.attempt_options:
+        if option.attempt_kind not in {ProcedureAttemptKind.SEARCH, ProcedureAttemptKind.STUDY}:
+            continue
+        if option.ability != check_request.ability:
+            continue
+        option_skill = (option.skill_name or '').strip().lower()
+        if option_skill and option_skill != requested_skill:
+            continue
+        return option
+    return None
 
 
 def _lmop_social_profiles() -> tuple[NpcInfluenceProfile, ...]:

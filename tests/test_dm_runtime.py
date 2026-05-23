@@ -293,7 +293,14 @@ class DMRuntimeTests(unittest.TestCase):
             client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
             config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
         )
-        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        context = StorytellingTurnContext(
+            campaign_id='lmop',
+            mode=RuntimeMode.STORYTELLING,
+            current_scene_id='scene-1',
+            current_location_id='waterdeep',
+            party_goal_summary='take the job',
+            visible_npc_ids=('gundren-rockseeker',),
+        )
         decision, _ = runtime.plan_story_turn(
             context,
             (),
@@ -305,6 +312,86 @@ class DMRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(decision.transcript_entries[1].speaker, 'player-3')
         self.assertEqual(decision.transcript_entries[1].visibility.value, 'dm-only')
+
+    def test_story_turn_retries_offstage_npc_speaker_and_action(self) -> None:
+        transport = FakeTransport(
+            [
+                {
+                    'output': [
+                        {
+                            'type': 'message',
+                            'role': 'assistant',
+                            'content': [
+                                {
+                                    'type': 'output_text',
+                                    'text': (
+                                        '{'
+                                        '"public_narration":"Gundren grows impatient while Sildar kneels by a torn pack.",'
+                                        '"transcript_entries":[{"speaker":"Gundren Rockseeker","text":"Can we get moving?","visibility":"public"}],'
+                                        '"check_request":null,'
+                                        '"scene_update":null,'
+                                        '"mode_switch_decision":null,'
+                                        '"memory_note":"test"'
+                                        '}'
+                                    ),
+                                }
+                            ],
+                        }
+                    ]
+                },
+                {
+                    'output': [
+                        {
+                            'type': 'message',
+                            'role': 'assistant',
+                            'content': [
+                                {
+                                    'type': 'output_text',
+                                    'text': (
+                                        '{'
+                                        '"public_narration":"The torn packs and riderless horses point to a fresh ambush, but no ally is on the road to answer.",'
+                                        '"transcript_entries":[],'
+                                        '"check_request":null,'
+                                        '"scene_update":null,'
+                                        '"mode_switch_decision":null,'
+                                        '"memory_note":"test"'
+                                        '}'
+                                    ),
+                                }
+                            ],
+                        }
+                    ]
+                },
+            ]
+        )
+        runtime = DMStorytellingRuntime(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        context = StorytellingTurnContext(
+            campaign_id='lmop',
+            mode=RuntimeMode.STORYTELLING,
+            current_scene_id='scene-triboar-goblin-ambush',
+            current_location_id='triboar-trail',
+            party_goal_summary='Survive the ambush; Secure the wagon and investigate the trail.',
+            unresolved_hooks=('Who ambushed Gundren and Sildar?',),
+            visible_npc_ids=(),
+        )
+
+        decision, _ = runtime.plan_story_turn(
+            context,
+            (),
+            controller_id='player-2-controller',
+            actor_id='player-2',
+            declaration='I cast Detect Magic to inspect the ambush site.',
+            available_actor_ids=('player-1', 'player-2', 'player-3', 'player-4'),
+            available_combatant_actor_ids=('player-1', 'player-2', 'player-3', 'player-4', 'monster-goblin-1'),
+        )
+
+        self.assertEqual(len(transport.requests), 2)
+        retry_payload = transport.requests[1]['payload']['input'][-1]['content'][0]['text']
+        self.assertIn('Offstage NPC Gundren Rockseeker cannot speak or visibly act', retry_payload)
+        self.assertEqual(decision.public_narration, 'The torn packs and riderless horses point to a fresh ambush, but no ally is on the road to answer.')
 
     def test_story_turn_parser_drops_redundant_public_narration(self) -> None:
         transport = FakeTransport(
@@ -336,7 +423,14 @@ class DMRuntimeTests(unittest.TestCase):
             client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
             config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
         )
-        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        context = StorytellingTurnContext(
+            campaign_id='lmop',
+            mode=RuntimeMode.STORYTELLING,
+            current_scene_id='scene-1',
+            current_location_id='waterdeep',
+            party_goal_summary='take the job',
+            visible_npc_ids=('gundren-rockseeker',),
+        )
         decision, _ = runtime.plan_story_turn(
             context,
             (),
@@ -539,6 +633,7 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertIn('Return exactly one JSON object and nothing else.', payload['instructions'])
         self.assertIn('reviewed by a separate GPT verifier', payload['instructions'])
         self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', payload['instructions'])
+        self.assertIn('Only NPC ids listed in visible_npc_ids may speak or visibly act', payload['instructions'])
 
     def test_adjudication_prompt_explicitly_requires_bare_json_object(self) -> None:
         planner = DMAdjudicationPlanner(
@@ -1131,7 +1226,14 @@ class DMRuntimeTests(unittest.TestCase):
             client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=transport),
             config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
         )
-        context = StorytellingTurnContext(campaign_id='lmop', mode=RuntimeMode.STORYTELLING, current_scene_id='scene-1', current_location_id='waterdeep', party_goal_summary='take the job')
+        context = StorytellingTurnContext(
+            campaign_id='lmop',
+            mode=RuntimeMode.STORYTELLING,
+            current_scene_id='scene-1',
+            current_location_id='waterdeep',
+            party_goal_summary='take the job',
+            visible_npc_ids=('gundren-rockseeker',),
+        )
         pending_check = StoryCheckRequestState(
             request_id='story-check-player-3',
             actor_id='player-3',
@@ -1168,6 +1270,8 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertIn('"selected_roll": 14', payload['input'][0]['content'][0]['text'])
         self.assertIn('"dc": 15', payload['input'][0]['content'][0]['text'])
         self.assertIn('"available_combatant_actor_ids": ["player-3", "monster-goblin-1", "monster-goblin-2"]', payload['input'][0]['content'][0]['text'])
+        self.assertIn('"visible_npc_ids": ["gundren-rockseeker"]', payload['input'][0]['content'][0]['text'])
+        self.assertIn('Only NPC ids listed in visible_npc_ids may speak or visibly act', payload['instructions'])
 
     def test_mode_switch_decision_parses_enter_combat_and_exit_combat(self) -> None:
         transport = FakeTransport(

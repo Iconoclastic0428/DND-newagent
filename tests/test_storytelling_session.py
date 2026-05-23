@@ -7,6 +7,8 @@ import unittest
 from uuid import uuid4
 
 from shared_types.effects import CheckRequest, ResolutionContext
+from shared_types.encounter_events import StoryActionDeclaredEvent
+from shared_types.errors import EncounterValidationError
 from shared_types.models import Ability
 from shared_types.spellcasting import SpellPerceptibilityProfile
 from shared_types.storytelling import StoryCheckRequestState
@@ -15,6 +17,8 @@ from session_server.story_orchestrator import present_story_snapshot
 from shared_types.storytelling import RuntimeMode, StoryTranscriptEntry, StoryTranscriptVisibility
 from shared_types.travel import TravelStatus
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class QueueTransport:
@@ -38,8 +42,11 @@ class QueueTransport:
 
 class StorytellingSessionTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._tempdir = Path(__file__).resolve().parents[1] / '.story-session-tests' / uuid4().hex
+        self._tempdir = REPO_ROOT / '.story-session-tests' / uuid4().hex
         self._tempdir.mkdir(parents=True, exist_ok=False)
+        self._repo_dm_fingerprints_before = self._repo_dm_fingerprints()
+        self.campaign_root = self._tempdir / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
         self.env_path = self._tempdir / '.env'
         self.env_path.write_text(
             'OPENAI_API_KEY=test-key\n'
@@ -49,13 +56,28 @@ class StorytellingSessionTests(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
+        changed_paths = [
+            str(path)
+            for path, before in self._repo_dm_fingerprints_before.items()
+            if (REPO_ROOT / path).read_bytes() != before
+        ]
         shutil.rmtree(self._tempdir, ignore_errors=True)
+        if changed_paths:
+            self.fail(f'Storytelling session tests wrote shared campaign DM memory: {", ".join(changed_paths)}')
+
+    def _repo_dm_fingerprints(self) -> dict[Path, bytes]:
+        dm_root = REPO_ROOT / 'campaigns' / 'lmop' / 'dm'
+        return {
+            path.relative_to(REPO_ROOT): path.read_bytes()
+            for path in sorted(dm_root.rglob('*.md'))
+        }
 
     def _build_session(self, payloads: list[dict]):
         return build_lmop_story_demo_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport(payloads),
+            campaign_root=self.campaign_root,
         )
 
     def test_demo_bootstrap_starts_in_waterdeep_with_four_players(self) -> None:
@@ -103,6 +125,23 @@ class StorytellingSessionTests(unittest.TestCase):
         self.assertEqual(prompt.prompt_kind, 'story-check')
         self.assertIn('Wisdom (Insight)', prompt.prompt)
 
+    def test_invalid_story_declaration_does_not_append_public_action_event(self) -> None:
+        session = self._build_session([])
+        session.system_open_scene()
+        declaration = (
+            'Gundren, I appreciate the warnings about goblins and rock slides, but what about simpler threats? '
+            'A broken wheel or a sudden storm could be just as dangerous. Do we have spare parts beyond what Sildar mentioned?'
+        )
+        event_count_before = len(session.state.event_log)
+
+        with self.assertRaisesRegex(EncounterValidationError, 'Clarify which NPC'):
+            session.submit_story_action('player-3-controller', declaration)
+
+        self.assertEqual(len(session.state.event_log), event_count_before)
+        self.assertFalse(
+            any(isinstance(event, StoryActionDeclaredEvent) and event.declaration == declaration for event in session.state.event_log)
+        )
+
     def test_story_turn_drops_npc_echo_of_player_declaration(self) -> None:
         session = self._build_session(
             [
@@ -129,6 +168,65 @@ class StorytellingSessionTests(unittest.TestCase):
         ]
         self.assertEqual(echoed_entries, [])
         self.assertTrue(any(entry.speaker == 'DM' and 'waiting for the group' in entry.text for entry in session.story_state.transcript_entries))
+
+    def test_story_turn_drops_quoted_player_speech_subset_echo(self) -> None:
+        session = self._build_session(
+            [
+                {
+                    'output_text': (
+                        '{'
+                        '"public_narration":"A translucent hand yanks the snare line, springing the trap safely ahead of the wagon.",'
+                        '"transcript_entries":[{"speaker":"Player 4","text":"Stand back. I\'ll trip it with Mage Hand no sense giving a goblin a free swing.","visibility":"public"}],'
+                        '"check_request":null,'
+                        '"scene_update":null,'
+                        '"mode_switch_decision":null,'
+                        '"memory_note":"The snare was triggered safely with Mage Hand."'
+                        '}'
+                    )
+                }
+            ]
+        )
+        session.system_open_scene()
+        declaration = (
+            '"Stand back. I\'ll trip it with Mage Hand no sense giving a goblin a free swing." '
+            'I cast the cantrip, sending a spectral hand forward to yank the snare line.'
+        )
+        session.submit_story_action('player-4-controller', declaration)
+
+        echoed_entries = [
+            entry for entry in session.story_state.transcript_entries
+            if entry.speaker == 'Player 4' and 'Stand back' in entry.text
+        ]
+        self.assertEqual(echoed_entries, [])
+        self.assertTrue(any(entry.speaker == 'DM' and 'springing the trap safely' in entry.text for entry in session.story_state.transcript_entries))
+
+    def test_story_turn_drops_dm_authored_player_speaker_paraphrase(self) -> None:
+        session = self._build_session(
+            [
+                {
+                    'output_text': (
+                        '{'
+                        '"public_narration":"The snare snaps harmlessly as the magic pulls the line from a distance.",'
+                        '"transcript_entries":[{"speaker":"Player 4","text":"Stay back. I can trip that from here. Mage Hand should do the trick.","visibility":"public"}],'
+                        '"check_request":null,'
+                        '"scene_update":null,'
+                        '"mode_switch_decision":null,'
+                        '"memory_note":"Mage Hand triggered the snare from a safe distance."'
+                        '}'
+                    )
+                }
+            ]
+        )
+        session.system_open_scene()
+        declaration = 'I could use a touch of magic to trip that snare from here. No need for anyone to get close. Mage Hand should do it.'
+        session.submit_story_action('player-4-controller', declaration)
+
+        player_speaker_entries = [
+            entry for entry in session.story_state.transcript_entries
+            if entry.speaker == 'Player 4'
+        ]
+        self.assertEqual(player_speaker_entries, [])
+        self.assertTrue(any(entry.speaker == 'DM' and 'snare snaps harmlessly' in entry.text for entry in session.story_state.transcript_entries))
 
     def test_story_check_prompt_always_names_the_required_check_and_dc(self) -> None:
         session = self._build_session([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}])

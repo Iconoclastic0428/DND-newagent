@@ -87,12 +87,15 @@ class MemoryWriteResult:
 
 
 class DmMemoryWriter:
-    def __init__(self, root: Path, *, campaign_id: str) -> None:
+    def __init__(self, root: Path, *, campaign_id: str, campaign_root: Path | None = None) -> None:
         self.root = root.resolve()
         self.campaign_id = campaign_id
+        self._campaign_root = campaign_root.resolve() if campaign_root is not None else None
 
     @property
     def campaign_root(self) -> Path:
+        if self._campaign_root is not None:
+            return self._campaign_root
         return self.root / self.campaign_id
 
     @property

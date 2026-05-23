@@ -119,3 +119,13 @@
 - Rule: User-test live-web combat scripts must resolve targets from the current projected combat view and gate commands on live runtime state instead of assuming a fixed damage seed or exact enemy survivorship.
 - Pattern: Demo pacing becomes unusable if one global delay also slows character creation and setup.
 - Rule: Scripted browser demo delays must be applied explicitly to the relevant combat steps only; setup and character creation should stay immediate unless the user asks otherwise.
+
+## 2026-05-21
+- Pattern: A long-running dataset generation job can be disrupted or made harder to audit if branch handoff work happens while the run is still active.
+- Rule: While the DeepSeek dataset runner is active, keep artifacts on local disk or in process memory only and do not run commit, push, fetch, remote, or GitHub connector operations unless the user explicitly reauthorizes them after the run stops.
+
+## 2026-05-22
+- Pattern: Treating DM-owned monster turns as connector auto-passes produces combat transcripts where `[system:dm] /endturn monster-*` replaces actual monster decisions.
+- Rule: Demo and dataset monster turns must route through a DM combat controller when the active monster has an action available, submit legal DM-owned slash commands, and include a regression proving actionable monsters are not silently auto-ended.
+- Pattern: A completed generated conversation can still be unusable if it contains invalid actions or replayed mutable combat text, and rerunning a fixed 100-count plan wastes provider work when good rows already exist.
+- Rule: Dataset generation must persist strict-good conversations into a durable accepted pool as soon as they finish, subtract accepted positive/negative counts from future plans, and render combat event text from immutable event fields with stable event IDs so transcripts remain auditable.

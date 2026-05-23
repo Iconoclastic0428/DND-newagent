@@ -9,11 +9,12 @@ from encounter_runtime import build_default_encounter_runtime
 from player_interface import EncounterSlashCommandInterface, SlashCommandInterface
 from rules_engine.battlefield_loader import DEFAULT_GOBLIN_AMBUSH_MAP_PATH, load_battlefield_state_from_json
 from session_server import EncounterSession
+from session_server.web_projection import project_encounter_session_view
 from shared_types.capabilities import TriggerTiming
 from shared_types.conditions import ConditionInstance, ConditionType
 from shared_types.encounter_control import ControllerBinding, ControllerPrompt, ControllerRole, PromptOption, PromptRecipient
 from shared_types.encounter_intents import ChooseTimingOrderIntent
-from shared_types.encounter_events import ReactionRejectedEvent
+from shared_types.encounter_events import DamageAppliedEvent, ReactionRejectedEvent
 from shared_types.encounter_models import CharacterPlacement, DyingState, DyingStateStatus, GridPosition, MonsterPlacement, PendingTimingQueueState, TimingEntryKind, TimingEntryState
 from shared_types.errors import EncounterOwnershipError, EncounterPermissionError
 
@@ -150,6 +151,83 @@ class EncounterSessionTests(unittest.TestCase):
         session.execute_for_controller('dm', '/endturn monster-mage-1')
         player_view = session.execute_for_controller('player-1-controller', '/endturn player-1').view
         self.assertIn('Active actor: monster-skeleton-1', '\n'.join(player_view.summary_lines))
+
+    def test_recent_damage_events_keep_recorded_hp_after_later_damage(self) -> None:
+        session = self._build_session()
+        target = session.state.actors['monster-skeleton-1']
+        target.current_hit_points = 4
+        session.state.event_log.append(
+            DamageAppliedEvent(
+                source_actor_id='player-1',
+                target_id='monster-skeleton-1',
+                damage_total=6,
+                applied_damage_total=6,
+                target_hit_points_after=4,
+                target_temp_hit_points_after=0,
+                damage_type='force',
+            )
+        )
+        target.current_hit_points = 0
+        session.state.event_log.append(
+            DamageAppliedEvent(
+                source_actor_id='player-1',
+                target_id='monster-skeleton-1',
+                damage_total=4,
+                applied_damage_total=4,
+                target_hit_points_after=0,
+                target_temp_hit_points_after=0,
+                damage_type='fire',
+            )
+        )
+
+        summary = '\n'.join(session.view_for_controller('dm').summary_lines)
+
+        self.assertIn(f'Skeleton takes 6 force damage; HP 4/{target.max_hit_points}, Temp 0.', summary)
+        self.assertIn(f'Skeleton takes 4 fire damage; HP 0/{target.max_hit_points}, Temp 0.', summary)
+        self.assertNotIn(f'Skeleton takes 6 force damage; HP 0/{target.max_hit_points}, Temp 0.', summary)
+
+    def test_combat_chat_entry_ids_stay_stable_when_recent_window_slides(self) -> None:
+        session = self._build_session()
+        target = session.state.actors['monster-skeleton-1']
+        for event_index in range(12):
+            session.state.event_log.append(
+                DamageAppliedEvent(
+                    source_actor_id='player-1',
+                    target_id='monster-skeleton-1',
+                    damage_total=event_index + 1,
+                    applied_damage_total=event_index + 1,
+                    target_hit_points_after=max(0, target.max_hit_points - event_index - 1),
+                    target_temp_hit_points_after=0,
+                    damage_type='force',
+                )
+            )
+        before_entries = [
+            entry
+            for entry in project_encounter_session_view(session, 'dm', session_id='combat-chat-ids').chat_entries
+            if entry.category == 'combat'
+        ]
+        tracked_entry = before_entries[1]
+
+        session.state.event_log.append(
+            DamageAppliedEvent(
+                source_actor_id='player-1',
+                target_id='monster-skeleton-1',
+                damage_total=13,
+                applied_damage_total=13,
+                target_hit_points_after=0,
+                target_temp_hit_points_after=0,
+                damage_type='force',
+            )
+        )
+        after_entries = [
+            entry
+            for entry in project_encounter_session_view(session, 'dm', session_id='combat-chat-ids').chat_entries
+            if entry.category == 'combat'
+        ]
+        after_by_id = {entry.entry_id: entry.text for entry in after_entries}
+
+        self.assertIn(tracked_entry.entry_id, after_by_id)
+        self.assertEqual(after_by_id[tracked_entry.entry_id], tracked_entry.text)
 
     def test_reaction_prompt_only_visible_to_owner(self) -> None:
         session = self._build_session()

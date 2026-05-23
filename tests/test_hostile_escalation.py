@@ -13,11 +13,14 @@ from shared_types.hostile_escalation import (
     AdHocEncounterSceneKind,
     CombatParticipantGoal,
     FallbackNpcCombatArchetype,
+    HostileEscalationOutcome,
     SynthesizedCombatantSourceKind,
     SynthesizedCombatantSpec,
 )
 from shared_types.spellcasting import SpellPerceptibilityProfile
 from shared_types.storytelling import RuntimeMode
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class QueueTransport:
@@ -41,8 +44,11 @@ class QueueTransport:
 
 class HostileEscalationTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._tempdir = Path(__file__).resolve().parents[1] / '.hostile-escalation-tests' / uuid4().hex
+        self._tempdir = REPO_ROOT / '.hostile-escalation-tests' / uuid4().hex
         self._tempdir.mkdir(parents=True, exist_ok=False)
+        self._repo_dm_fingerprints_before = self._repo_dm_fingerprints()
+        self.campaign_root = self._tempdir / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
         self.env_path = self._tempdir / '.env'
         self.env_path.write_text(
             'OPENAI_API_KEY=test-key\n'
@@ -52,14 +58,35 @@ class HostileEscalationTests(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
+        changed_paths = [
+            str(path)
+            for path, before in self._repo_dm_fingerprints_before.items()
+            if (REPO_ROOT / path).read_bytes() != before
+        ]
         shutil.rmtree(self._tempdir, ignore_errors=True)
+        if changed_paths:
+            self.fail(f'Hostile escalation tests wrote shared campaign DM memory: {", ".join(changed_paths)}')
+
+    def _repo_dm_fingerprints(self) -> dict[Path, bytes]:
+        dm_root = REPO_ROOT / 'campaigns' / 'lmop' / 'dm'
+        return {
+            path.relative_to(REPO_ROOT): path.read_bytes()
+            for path in sorted(dm_root.rglob('*.md'))
+        }
 
     def _build_session(self, payloads: list[dict]):
         return build_lmop_story_demo_session(
             base_url=Path('D:/5etools-mirror-2.github.io').resolve().as_uri().rstrip('/') + '/',
             env_path=self.env_path,
             client_transport=QueueTransport(payloads),
+            campaign_root=self.campaign_root,
         )
+
+    def test_test_fixture_uses_isolated_campaign_root(self) -> None:
+        session = self._build_session([])
+        repo_campaign_root = Path(__file__).resolve().parents[1] / 'campaigns' / 'lmop'
+        self.assertNotEqual(session.campaign_root, repo_campaign_root.resolve())
+        self.assertTrue(str(session.campaign_root).startswith(str(self._tempdir.resolve())))
 
     def test_verbal_threat_alone_can_remain_in_story_mode(self) -> None:
         session = self._build_session([
@@ -75,6 +102,68 @@ class HostileEscalationTests(unittest.TestCase):
         session.submit_story_action('player-1-controller', 'I warn Gundren that if he cheats us, I will make him regret it.')
         self.assertEqual(session.story_state.runtime_mode, RuntimeMode.STORYTELLING)
         self.assertEqual(len(session.dm_runtime.client.transport.requests), 1)
+
+    def test_information_request_about_attack_patterns_remains_story_mode(self) -> None:
+        session = self._build_session([])
+        decision = session.hostile_escalation_engine.evaluate_declaration(
+            encounter_state=session.state,
+            story_state=session.story_state,
+            exploration_state=session.story_state.exploration_state,
+            actor_id='player-1',
+            declaration=(
+                'Gundren, I keep hearing tales of goblin ambushes on the Triboar Trail. '
+                "What can you tell us about their numbers or attack patterns? I'd rather not be caught off guard."
+            ),
+            visible_npc_ids=('gundren-rockseeker', 'sildar-hallwinter'),
+        )
+        self.assertEqual(decision.outcome, HostileEscalationOutcome.REMAIN_IN_STORY_MODE)
+        self.assertFalse(decision.clarification_prompt)
+        self.assertFalse(decision.order_now_matters)
+
+    def test_question_about_goblins_attacking_remains_story_mode(self) -> None:
+        session = self._build_session([])
+        decision = session.hostile_escalation_engine.evaluate_declaration(
+            encounter_state=session.state,
+            story_state=session.story_state,
+            exploration_state=session.story_state.exploration_state,
+            actor_id='player-4',
+            declaration="And what about the night? If we're camping, do goblins attack in the dark? Should we set watches?",
+            visible_npc_ids=('gundren-rockseeker', 'sildar-hallwinter'),
+        )
+        self.assertEqual(decision.outcome, HostileEscalationOutcome.REMAIN_IN_STORY_MODE)
+        self.assertFalse(decision.clarification_prompt)
+        self.assertFalse(decision.order_now_matters)
+
+    def test_contextual_attack_aftermath_reference_remains_story_mode(self) -> None:
+        session = self._build_session([])
+        decision = session.hostile_escalation_engine.evaluate_declaration(
+            encounter_state=session.state,
+            story_state=session.story_state,
+            exploration_state=session.story_state.exploration_state,
+            actor_id='player-2',
+            declaration=(
+                'I move carefully toward the riderless horses, eyes scanning the ground for tracks or blood. '
+                'Then I cast Detect Magic, focusing on the area around the torn packs to see if any magical residue lingers from the attack.'
+            ),
+            visible_npc_ids=(),
+        )
+        self.assertEqual(decision.outcome, HostileEscalationOutcome.REMAIN_IN_STORY_MODE)
+        self.assertFalse(decision.clarification_prompt)
+        self.assertFalse(decision.order_now_matters)
+
+    def test_direct_attack_declaration_still_escalates(self) -> None:
+        session = self._build_session([])
+        decision = session.hostile_escalation_engine.evaluate_declaration(
+            encounter_state=session.state,
+            story_state=session.story_state,
+            exploration_state=session.story_state.exploration_state,
+            actor_id='player-1',
+            declaration='I attack Gundren Rockseeker.',
+            visible_npc_ids=('gundren-rockseeker', 'sildar-hallwinter'),
+        )
+        self.assertEqual(decision.outcome, HostileEscalationOutcome.ESCALATE_TO_COMBAT_WITH_REINFORCEMENT_TIMER)
+        self.assertEqual(decision.target_npc_id, 'gundren-rockseeker')
+        self.assertTrue(decision.order_now_matters)
 
     def test_hostile_declaration_synthesizes_tavern_combat_and_bypasses_llm(self) -> None:
         session = self._build_session([])

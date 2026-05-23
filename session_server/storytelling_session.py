@@ -194,13 +194,29 @@ from rules_engine.advancement import CharacterAdvancementEngine
 from shared_types.travel import AdvanceTravelIntent, HexCoord, PlanTravelRouteIntent, ResumeTravelIntent, SetTravelPaceIntent, TravelHookDefinition, TravelPace, TravelState, TravelStatus, unique_strings
 
 
-def _without_echoed_player_declaration(entries: tuple[StoryTranscriptEntry, ...], declaration: str | None) -> tuple[StoryTranscriptEntry, ...]:
-    if not declaration:
+def _without_echoed_player_declaration(
+    entries: tuple[StoryTranscriptEntry, ...],
+    declaration: str | None,
+    *,
+    player_speakers: tuple[str, ...] = (),
+) -> tuple[StoryTranscriptEntry, ...]:
+    player_speaker_keys = {_story_speaker_key(speaker) for speaker in player_speakers if speaker.strip()}
+    if not declaration and not player_speaker_keys:
         return entries
-    declaration_tokens = _story_echo_tokens(declaration)
-    if not declaration_tokens:
+    declaration_tokens = _story_echo_tokens(declaration or '')
+    if not declaration_tokens and not player_speaker_keys:
         return entries
-    return tuple(entry for entry in entries if not _is_echoed_player_declaration(entry, declaration_tokens))
+    return tuple(
+        entry for entry in entries
+        if not _is_player_speaker_transcript_entry(entry, player_speaker_keys)
+        and not (declaration_tokens and _is_echoed_player_declaration(entry, declaration_tokens))
+    )
+
+
+def _is_player_speaker_transcript_entry(entry: StoryTranscriptEntry, player_speaker_keys: set[str]) -> bool:
+    if entry.visibility != StoryTranscriptVisibility.PUBLIC:
+        return False
+    return _story_speaker_key(entry.speaker) in player_speaker_keys
 
 
 def _is_echoed_player_declaration(entry: StoryTranscriptEntry, declaration_tokens: tuple[str, ...]) -> bool:
@@ -211,6 +227,8 @@ def _is_echoed_player_declaration(entry: StoryTranscriptEntry, declaration_token
         return False
     if entry_tokens == declaration_tokens:
         return True
+    if len(entry_tokens) >= 6 and len(entry_tokens) < len(declaration_tokens):
+        return _story_tokens_are_contiguous_subset(entry_tokens, declaration_tokens)
     if len(declaration_tokens) <= 12 and abs(len(entry_tokens) - len(declaration_tokens)) <= 2:
         shared = set(entry_tokens) & set(declaration_tokens)
         return len(shared) / max(1, min(len(set(entry_tokens)), len(set(declaration_tokens)))) >= 0.85
@@ -219,6 +237,17 @@ def _is_echoed_player_declaration(entry: StoryTranscriptEntry, declaration_token
 
 def _story_echo_tokens(text: str) -> tuple[str, ...]:
     return tuple(re.findall(r"[a-z0-9']+", text.lower()))
+
+
+def _story_speaker_key(text: str) -> str:
+    return re.sub(r'[^a-z0-9]+', ' ', text.lower()).strip()
+
+
+def _story_tokens_are_contiguous_subset(candidate: tuple[str, ...], source: tuple[str, ...]) -> bool:
+    if len(candidate) > len(source):
+        return False
+    width = len(candidate)
+    return any(source[index:index + width] == candidate for index in range(0, len(source) - width + 1))
 
 
 @dataclass(frozen=True)
@@ -2216,9 +2245,20 @@ class StorytellingSession:
         if self.dm_runtime is None:
             raise EncounterValidationError('No DM storytelling runtime is configured for this session.')
         actor_id = self._owned_actor_for_controller(controller_id)
-        self.state.event_log.append(StoryActionDeclaredEvent(controller_id=controller_id, actor_id=actor_id, declaration=declaration))
         exploration_state = self.story_state.exploration_state
         if exploration_state is not None and self.exploration_engine is not None:
+            immediate_result = self.exploration_engine.resolve_immediate_declaration(
+                exploration_state,
+                encounter_state=self.state,
+                controller_id=controller_id,
+                actor_id=actor_id,
+                declaration=declaration,
+            )
+            if immediate_result is not None:
+                new_state, events = immediate_result
+                self.state.event_log.append(StoryActionDeclaredEvent(controller_id=controller_id, actor_id=actor_id, declaration=declaration))
+                self._commit_exploration_result(new_state, list(events))
+                return self.view_for_controller(controller_id)
             prompt = self.exploration_engine.interpret_declaration(
                 exploration_state,
                 encounter_state=self.state,
@@ -2228,12 +2268,14 @@ class StorytellingSession:
             if prompt is not None:
                 if self.social_engine is not None and prompt.pending_state.kind.value == 'social':
                     prompt = self.social_engine.adjust_social_prompt(self.story_state.social_state, prompt, now_seconds=self.state.clock_seconds)
+                self.state.event_log.append(StoryActionDeclaredEvent(controller_id=controller_id, actor_id=actor_id, declaration=declaration))
                 self._open_exploration_pending_check(controller_id, prompt)
                 return self.view_for_controller(controller_id)
         escalation = self._evaluate_hostile_story_declaration(actor_id=actor_id, declaration=declaration)
-        self.state.event_log.append(HostileEscalationEvaluatedEvent(decision=escalation))
         if escalation.outcome == HostileEscalationOutcome.CLARIFICATION_REQUIRED:
             raise EncounterClarificationRequiredError(escalation.clarification_prompt or escalation.reason)
+        self.state.event_log.append(StoryActionDeclaredEvent(controller_id=controller_id, actor_id=actor_id, declaration=declaration))
+        self.state.event_log.append(HostileEscalationEvaluatedEvent(decision=escalation))
         if escalation.outcome != HostileEscalationOutcome.REMAIN_IN_STORY_MODE:
             self.state.event_log.append(HostileEscalationTriggeredEvent(decision=escalation))
             self._apply_story_combat_transition(escalation)
@@ -3169,6 +3211,11 @@ class StorytellingSession:
                 interacting_with_actor_id=pending.check_request.interacting_with_actor_id,
             )
         )
+        if pending_adjudication is None:
+            self._apply_story_observation_check_to_exploration(
+                pending,
+                d20_result=resolution.result,
+            )
         if pending_adjudication is not None:
             result = self.adjudication_runtime.resolve_pending_check(
                 self.state,
@@ -3205,10 +3252,35 @@ class StorytellingSession:
         self._apply_story_turn_decision(decision)
         return self.view_for_controller(controller_id)
 
+    def _apply_story_observation_check_to_exploration(self, pending: StoryCheckRequestState, *, d20_result) -> None:
+        if self.exploration_engine is None or self.story_state.exploration_state is None:
+            return
+        new_state, events = self.exploration_engine.apply_story_observation_check(
+            self.story_state.exploration_state,
+            encounter_state=self.state,
+            actor_id=pending.actor_id,
+            check_request=pending.check_request,
+            d20_result=d20_result,
+            prompt=pending.prompt,
+            reason=pending.reason,
+        )
+        if events:
+            self._commit_exploration_result(new_state, list(events))
+
     def _apply_story_turn_decision(self, decision: StoryTurnDecision, *, triggering_declaration: str | None = None) -> None:
         if decision.check_request is not None and decision.mode_switch_decision is not None and decision.mode_switch_decision.decision_type == ModeSwitchAction.ENTER_COMBAT:
             raise EncounterValidationError('A storytelling turn cannot both request a check and enter combat immediately.')
-        transcript_entries = _without_echoed_player_declaration(decision.transcript_entries, triggering_declaration)
+        player_speakers = tuple(
+            label
+            for actor_id, actor in self.state.actors.items()
+            if actor.side == ActorSide.PLAYER
+            for label in (actor_id, actor.name)
+        )
+        transcript_entries = _without_echoed_player_declaration(
+            decision.transcript_entries,
+            triggering_declaration,
+            player_speakers=player_speakers,
+        )
         if transcript_entries:
             self._append_transcript(transcript_entries)
         if decision.scene_update is not None:

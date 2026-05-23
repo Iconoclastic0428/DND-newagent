@@ -243,6 +243,81 @@ def _substantial_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
     return len(meaningful_shared) / max(1, smaller) >= 0.55
 
 
+_OFFSTAGE_NPC_NAMES: dict[str, tuple[str, ...]] = {
+    'gundren-rockseeker': ('Gundren Rockseeker', 'Gundren'),
+    'sildar-hallwinter': ('Sildar Hallwinter', 'Sildar'),
+}
+
+_VISIBLE_NPC_TRANSCRIPT_RULE = (
+    'Only NPC ids listed in visible_npc_ids may speak or visibly act. '
+    'Offstage NPCs may be mentioned only as absent people, captives, clues, targets of open questions, '
+    'or people the party is trying to find; do not give offstage NPCs dialogue, reactions, gestures, '
+    'movement, current-scene observations, or transcript speaker entries. '
+)
+
+_OFFSTAGE_ACTIVE_VERBS = (
+    'answers',
+    'asks',
+    'calls',
+    'clocks',
+    'gestures',
+    'grows',
+    'grumbles',
+    'jerks',
+    'kneels',
+    'leans',
+    'looks',
+    'moves',
+    'mutters',
+    'nods',
+    'notes',
+    'replies',
+    'says',
+    'shifts',
+    'speaks',
+    'stands',
+    'studies',
+    'turns',
+    'waits',
+    'watches',
+    'whispers',
+)
+
+
+def _offstage_active_npc_match(text: str, names: tuple[str, ...]) -> str | None:
+    verbs = '|'.join(_OFFSTAGE_ACTIVE_VERBS)
+    for name in names:
+        match = re.search(rf'\b{re.escape(name)}\b\s+(?:{verbs})\b', text, flags=re.IGNORECASE)
+        if match is not None:
+            return match.group(0)
+    return None
+
+
+def _validate_offstage_npc_entries(
+    entries: tuple[StoryTranscriptEntry, ...],
+    *,
+    visible_npc_ids: tuple[str, ...],
+    current_location_id: str | None,
+) -> None:
+    if current_location_id == 'waterdeep':
+        return
+    visible = set(visible_npc_ids)
+    for npc_id, names in _OFFSTAGE_NPC_NAMES.items():
+        if npc_id in visible:
+            continue
+        display_name = names[0]
+        speaker_names = {name.casefold() for name in names}
+        for entry in entries:
+            if entry.speaker.casefold() in speaker_names:
+                raise DMRuntimeError(f'Offstage NPC {display_name} cannot speak or visibly act unless its npc id is in visible_npc_ids.')
+            active_match = _offstage_active_npc_match(entry.text, names)
+            if active_match is not None:
+                raise DMRuntimeError(
+                    f'Offstage NPC {display_name} cannot speak or visibly act unless its npc id is in visible_npc_ids. '
+                    f'Remove "{active_match}".'
+                )
+
+
 def _serialize_document(document: CampaignDocument) -> dict[str, Any]:
     return {
         'id': document.doc_id,
@@ -471,7 +546,14 @@ class DMStorytellingRuntime:
         events: list[object] = [LLMRequestIssuedEvent(request_type='story_turn', model=self.config.responses_model, selection_count=len(selection.documents))]
         decision = self._request_with_json_retry(
             request,
-            lambda response: self._parse_story_turn_response(response, selection=selection, fallback_actor_id=actor_id, blocked_check_actor_ids=actors_with_resolved_scene_checks),
+            lambda response: self._parse_story_turn_response(
+                response,
+                selection=selection,
+                fallback_actor_id=actor_id,
+                blocked_check_actor_ids=actors_with_resolved_scene_checks,
+                visible_npc_ids=context.visible_npc_ids,
+                current_location_id=context.current_location_id,
+            ),
             stream_handler=stream_handler,
             retry_handler=retry_handler,
         )
@@ -515,7 +597,14 @@ class DMStorytellingRuntime:
         events: list[object] = [LLMRequestIssuedEvent(request_type='story_check_outcome', model=self.config.responses_model, selection_count=len(selection.documents))]
         decision = self._request_with_json_retry(
             request,
-            lambda response: self._parse_story_turn_response(response, selection=selection, fallback_actor_id=pending_check.actor_id, blocked_check_actor_ids=actors_with_resolved_scene_checks),
+            lambda response: self._parse_story_turn_response(
+                response,
+                selection=selection,
+                fallback_actor_id=pending_check.actor_id,
+                blocked_check_actor_ids=actors_with_resolved_scene_checks,
+                visible_npc_ids=context.visible_npc_ids,
+                current_location_id=context.current_location_id,
+            ),
             stream_handler=stream_handler,
             retry_handler=retry_handler,
         )
@@ -704,6 +793,7 @@ class DMStorytellingRuntime:
             + build_json_object_contract(template=_STORY_TURN_JSON_TEMPLATE)
             + ' The root object must contain exactly these keys: public_narration, transcript_entries, check_request, scene_update, mode_switch_decision, memory_note. '
             + 'transcript_entries must be an array of objects with exactly speaker, text, visibility. visibility must be public or dm_only. Never use speaker_id. '
+            + _VISIBLE_NPC_TRANSCRIPT_RULE
             + 'check_request must be null or an object with exactly actor_id, ability, skill_name, dc, prompt, reason, requires_sight, requires_hearing, interacting_with_actor_id. ability must be one of STR, DEX, CON, INT, WIS, CHA. '
             + 'If you issue a check_request during a story turn, actor_id must exactly equal acting_actor_id from the context payload. Do not hand this turn off to another player by assigning a pending check to a different actor. '
             + 'scene_update must be null or an object using only these keys: scene_id, location_id, summary, open_loops, party_goals, party_beliefs. Do not emit status, focus, npc_states, or any other keys. '
@@ -756,6 +846,7 @@ class DMStorytellingRuntime:
             },
             'available_combatant_actor_ids': list(available_combatant_actor_ids),
             'actors_with_resolved_scene_checks': list(actors_with_resolved_scene_checks),
+            'visible_npc_ids': list(context.visible_npc_ids),
             'check_result': {
                 'total': result_total,
                 'success': success,
@@ -777,6 +868,7 @@ class DMStorytellingRuntime:
             + 'You must interpret that result and describe consequences. Do not reroll, alter, or override the roll, DC, modifier, or success state. '
             + 'The root object must contain exactly these keys: public_narration, transcript_entries, check_request, scene_update, mode_switch_decision, memory_note. '
             + 'transcript_entries must be an array of objects with exactly speaker, text, visibility. visibility must be public or dm_only. Never use speaker_id. '
+            + _VISIBLE_NPC_TRANSCRIPT_RULE
             + 'check_request should usually be null here unless an immediate follow-up check is explicitly required; if present it must use exactly actor_id, ability, skill_name, dc, prompt, reason, requires_sight, requires_hearing, interacting_with_actor_id. ability must be one of STR, DEX, CON, INT, WIS, CHA. '
             + 'Do not redirect check resolution to a different player. If a follow-up check is absolutely required here, actor_id must stay equal to pending_check.actor_id from the context payload. '
             + 'scene_update must be null or an object using only scene_id, location_id, summary, open_loops, party_goals, party_beliefs. '
@@ -926,6 +1018,8 @@ class DMStorytellingRuntime:
         selection: RetrievalSelection,
         fallback_actor_id: str,
         blocked_check_actor_ids: tuple[str, ...] = (),
+        visible_npc_ids: tuple[str, ...] = (),
+        current_location_id: str | None = None,
     ) -> StoryTurnDecision:
         raw = response.output_text.strip()
         try:
@@ -936,6 +1030,11 @@ class DMStorytellingRuntime:
             raise DMRuntimeError('LLM response JSON must be an object.')
         public_narration = str(payload.get('public_narration', '')).strip()
         transcript_entries = self._parse_transcript_entries(payload.get('transcript_entries'), public_narration)
+        _validate_offstage_npc_entries(
+            transcript_entries,
+            visible_npc_ids=visible_npc_ids,
+            current_location_id=current_location_id,
+        )
         check_request = self._parse_story_check_request(payload.get('check_request'), fallback_actor_id=fallback_actor_id)
         if check_request is not None and check_request.actor_id != fallback_actor_id:
             raise DMRuntimeError('Story check requests must target the acting actor for this turn.')

@@ -13,9 +13,11 @@ from dm_agent.config import LLMConfig
 from session_server.llm_player import LLMPlayerAgent
 from shared_types.conditions import ConditionInstance, ConditionType
 from shared_types.encounter_models import ActorSide, EncounterPhase
+from shared_types.effects import CheckRequest, ResolutionContext
 from shared_types.errors import EncounterPermissionError
 from shared_types.exploration import PuzzleStatus, TrapStatus
-from shared_types.storytelling import RuntimeMode
+from shared_types.models import Ability
+from shared_types.storytelling import RuntimeMode, StoryCheckRequestState
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 from tests.test_storytelling_session import QueueTransport
 from training.trajectory import TrajectoryRecorder
@@ -33,6 +35,9 @@ class TrajectoryRecorderTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tempdir = REPO_ROOT / '.trajectory-tests' / uuid4().hex
         self._tempdir.mkdir(parents=True, exist_ok=False)
+        self._repo_dm_fingerprints_before = self._repo_dm_fingerprints()
+        self.campaign_root = self._tempdir / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
         self.env_path = self._tempdir / '.env'
         self.env_path.write_text(
             'OPENAI_API_KEY=test-key\n'
@@ -42,7 +47,25 @@ class TrajectoryRecorderTests(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
+        changed_paths = [
+            str(path)
+            for path, before in self._repo_dm_fingerprints_before.items()
+            if (REPO_ROOT / path).read_bytes() != before
+        ]
         shutil.rmtree(self._tempdir, ignore_errors=True)
+        if changed_paths:
+            self.fail(f'Trajectory tests wrote shared campaign DM memory: {", ".join(changed_paths)}')
+
+    def _repo_dm_fingerprints(self) -> dict[Path, bytes]:
+        dm_root = REPO_ROOT / 'campaigns' / 'lmop' / 'dm'
+        return {
+            path.relative_to(REPO_ROOT): path.read_bytes()
+            for path in sorted(dm_root.rglob('*.md'))
+        }
+
+    def _build_full_story_demo_manual_session(self, **kwargs):
+        kwargs.setdefault('campaign_root', self.campaign_root)
+        return build_full_story_demo_manual_session(**kwargs)
 
     def test_full_story_demo_records_story_turn_jsonl(self) -> None:
         recorder = TrajectoryRecorder(
@@ -50,7 +73,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             scenario_id='lmop_gundren_briefing',
             episode_id='episode-test',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport([
@@ -99,7 +122,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             scenario_id='lmop_invalid_action',
             episode_id='episode-invalid-action',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
@@ -124,7 +147,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             scenario_id='lmop_terminal_reward',
             episode_id='episode-terminal-reward',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
@@ -152,7 +175,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertTrue(completion['metadata']['success'])
 
     def test_trajectory_snapshot_exposes_support_and_debuff_metrics(self) -> None:
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
@@ -202,13 +225,78 @@ class TrajectoryRecorderTests(unittest.TestCase):
         self.assertGreaterEqual(snapshot['hidden_subgoal_completion_count'], 2)
         self.assertGreaterEqual(snapshot['scene_goal_completion_count'], 5)
 
+    def test_story_check_trap_detection_records_hidden_subgoal_reward(self) -> None:
+        recorder = TrajectoryRecorder(
+            output_dir=self._tempdir / 'episodes',
+            scenario_id='lmop_high_road_trap_check',
+            episode_id='episode-trap-check',
+        )
+        session = self._build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+            trajectory_recorder=recorder,
+        )
+        assert session.story_session is not None
+        story_session = session.story_session
+        story_session.dm_runtime = None
+        story_session.story_state.current_scene_id = 'scene-00-high-road-journey'
+        story_session.story_state.canonical_location_id = 'high-road'
+        story_session._refresh_exploration_context(sync_memory=False)
+        actor = story_session.state.actors['player-1']
+        actor.skill_bonuses['Perception'] = 20
+        story_session.story_state.pending_check = StoryCheckRequestState(
+            request_id='story-check-player-1',
+            actor_id='player-1',
+            controller_id='player-1-controller',
+            prompt='Roll a Wisdom (Perception) check to notice anything amiss while scouting the road.\nDC: 12.',
+            reason='I scan the road for hidden danger before the wagon advances.',
+            check_request=CheckRequest(
+                context=ResolutionContext(
+                    effect_id='story-check-player-1',
+                    source_actor_id='player-1',
+                    target_actor_id='player-1',
+                    reason='I scan the road for hidden danger before the wagon advances.',
+                ),
+                ability=Ability.WIS,
+                skill_name='Perception',
+                dc=12,
+            ),
+        )
+
+        session.handle_input('player-1-controller', '/check')
+
+        records = [json.loads(line) for line in recorder.path.read_text(encoding='utf-8').splitlines()]
+        turn = records[-1]
+        self.assertEqual(turn['raw_text'], '/check')
+        self.assertEqual(turn['state_before']['hidden_subgoal_completion_count'], 0)
+        self.assertGreaterEqual(turn['state_after']['hidden_subgoal_completion_count'], 1)
+        self.assertGreater(turn['reward_components']['hidden_subgoal_completed'], 0.0)
+        self.assertGreater(turn['reward_components']['discovery_made'], 0.0)
+
+    def test_campaign_root_override_keeps_memory_writes_inside_override(self) -> None:
+        campaign_root = self._tempdir / 'conversation-001' / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', campaign_root)
+
+        build_full_story_demo_manual_session(
+            base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=campaign_root,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+        )
+
+        self.assertTrue((campaign_root / 'dm' / 'summaries' / 'campaign-state.md').exists())
+        self.assertFalse((campaign_root.parent / 'lmop').exists())
+
     def test_real_cure_wounds_action_records_ally_healing_reward(self) -> None:
         recorder = TrajectoryRecorder(
             output_dir=self._tempdir / 'episodes',
             scenario_id='lmop_real_healing_reward',
             episode_id='episode-real-healing',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=LocalDemoLLMTransport(),
@@ -235,7 +323,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             scenario_id='lmop_real_monster_attack_reward',
             episode_id='episode-real-monster-attack',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=LocalDemoLLMTransport(),
@@ -295,7 +383,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             )
             for index in range(1, 5)
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=QueueTransport([
@@ -342,7 +430,7 @@ class TrajectoryRecorderTests(unittest.TestCase):
             scenario_id='lmop_first_combat_smoke',
             episode_id='episode-first-combat-smoke',
         )
-        session = build_full_story_demo_manual_session(
+        session = self._build_full_story_demo_manual_session(
             base_url=LOCAL_MIRROR_BASE_URL,
             env_path=self.env_path,
             client_transport=LocalDemoLLMTransport(),

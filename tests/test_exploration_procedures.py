@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import shutil
 import unittest
@@ -7,9 +8,13 @@ from uuid import uuid4
 
 from session_server import build_lmop_story_demo_session
 from session_server.web_projection import project_story_session_view
-from shared_types.storytelling import RuntimeMode, EnterCombatPlan
+from shared_types.effects import CheckRequest, ResolutionContext
 from shared_types.exploration import DowntimeProjectStatus, PuzzleStatus, TrapStatus
+from shared_types.models import Ability
+from shared_types.storytelling import RuntimeMode, EnterCombatPlan, StoryCheckRequestState
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class QueueTransport:
@@ -33,8 +38,10 @@ class QueueTransport:
 
 class ExplorationProcedureTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._tempdir = Path(__file__).resolve().parents[1] / '.exploration-procedure-tests' / uuid4().hex
+        self._tempdir = REPO_ROOT / '.exploration-procedure-tests' / uuid4().hex
         self._tempdir.mkdir(parents=True, exist_ok=False)
+        self.campaign_root = self._tempdir / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
         self.env_path = self._tempdir / '.env'
         self.env_path.write_text(
             'OPENAI_API_KEY=test-key\n'
@@ -49,6 +56,7 @@ class ExplorationProcedureTests(unittest.TestCase):
     def _build_session(self):
         return build_lmop_story_demo_session(
             base_url=LOCAL_MIRROR_BASE_URL,
+            campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=QueueTransport([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}]),
         )
@@ -122,6 +130,27 @@ class ExplorationProcedureTests(unittest.TestCase):
         self.assertIn('NPC stances:', rendered)
         self.assertIn('Gundren Rockseeker', rendered)
 
+    def test_plain_job_acceptance_does_not_open_social_check(self) -> None:
+        session = self._build_session()
+        exploration = session.story_state.exploration_state
+        assert exploration is not None
+
+        acceptance_prompt = session.exploration_engine.interpret_declaration(
+            exploration,
+            encounter_state=session.state,
+            actor_id='player-1',
+            declaration='Gundren, we accept the job. We will take the wagon to Phandalin.',
+        )
+        bargain_prompt = session.exploration_engine.interpret_declaration(
+            exploration,
+            encounter_state=session.state,
+            actor_id='player-1',
+            declaration='Gundren, can we bargain for a little prepay before we take the job?',
+        )
+
+        self.assertIsNone(acceptance_prompt)
+        self.assertIsNotNone(bargain_prompt)
+
     def test_hidden_trap_is_dm_visible_only_until_revealed(self) -> None:
         session = self._build_session()
         self._set_scene(session, scene_id='scene-00-high-road-journey', location_id='high-road')
@@ -151,6 +180,84 @@ class ExplorationProcedureTests(unittest.TestCase):
         assert exploration is not None
         self.assertEqual(exploration.traps['triboar-snare-line'].status, TrapStatus.DISARMED)
         self.assertTrue(any(event.__class__.__name__ == 'TrapDisarmedEvent' for event in session.state.event_log))
+
+    def test_story_perception_check_can_detect_active_hidden_trap(self) -> None:
+        session = self._build_session()
+        self._set_scene(session, scene_id='scene-00-high-road-journey', location_id='high-road')
+        session.dm_runtime = None
+        actor = session.state.actors['player-1']
+        actor.skill_bonuses['Perception'] = 20
+        session.story_state.pending_check = StoryCheckRequestState(
+            request_id='story-check-player-1',
+            actor_id='player-1',
+            controller_id='player-1-controller',
+            prompt='Roll a Wisdom (Perception) check to notice anything amiss while scouting the road.\nDC: 12.',
+            reason='I scan the road for hidden danger before the wagon advances.',
+            check_request=CheckRequest(
+                context=ResolutionContext(
+                    effect_id='story-check-player-1',
+                    source_actor_id='player-1',
+                    target_actor_id='player-1',
+                    reason='I scan the road for hidden danger before the wagon advances.',
+                ),
+                ability=Ability.WIS,
+                skill_name='Perception',
+                dc=12,
+            ),
+        )
+
+        session.execute_for_controller('player-1-controller', '/check')
+
+        exploration = session.story_state.exploration_state
+        assert exploration is not None
+        trap = exploration.traps['triboar-snare-line']
+        self.assertEqual(trap.status, TrapStatus.DETECTED)
+        self.assertTrue(trap.visible_to_party)
+        self.assertIn('player-1', trap.detected_by_actor_ids)
+        self.assertTrue(any(event.__class__.__name__ == 'TrapDetectedEvent' for event in session.state.event_log))
+
+    def test_detected_trap_can_be_safely_sprung_from_range(self) -> None:
+        session = self._build_session()
+        self._set_scene(session, scene_id='scene-00-high-road-journey', location_id='high-road')
+        exploration = session.story_state.exploration_state
+        assert exploration is not None
+        exploration.traps['triboar-snare-line'] = replace(
+            exploration.traps['triboar-snare-line'],
+            status=TrapStatus.DETECTED,
+            visible_to_party=True,
+        )
+
+        session.handle_input(
+            'player-4-controller',
+            "Hold up, there's a cut trip line ahead. I'll use Mage Hand to snap it before someone takes a fall.",
+        )
+
+        trap = session.story_state.exploration_state.traps['triboar-snare-line']
+        self.assertEqual(trap.status, TrapStatus.RESOLVED)
+        self.assertEqual(trap.triggered_by_actor_id, 'player-4')
+        self.assertTrue(any(event.__class__.__name__ == 'TrapTriggeredEvent' for event in session.state.event_log))
+        self.assertIsNone(session.prompt_for_controller('player-4-controller'))
+
+    def test_detected_trap_can_be_marked_and_bypassed_by_party(self) -> None:
+        session = self._build_session()
+        self._set_scene(session, scene_id='scene-00-high-road-journey', location_id='high-road')
+        exploration = session.story_state.exploration_state
+        assert exploration is not None
+        exploration.traps['triboar-snare-line'] = replace(
+            exploration.traps['triboar-snare-line'],
+            status=TrapStatus.DETECTED,
+            visible_to_party=True,
+        )
+
+        session.handle_input(
+            'player-3-controller',
+            "There's a snare line across the road. Let's mark the trap and steer the wagon clear.",
+        )
+
+        trap = session.story_state.exploration_state.traps['triboar-snare-line']
+        self.assertEqual(trap.status, TrapStatus.BYPASSED)
+        self.assertEqual(set(trap.bypassed_by_actor_ids), {'player-1', 'player-2', 'player-3', 'player-4'})
+        self.assertIsNone(session.prompt_for_controller('player-3-controller'))
 
     def test_internal_trap_trigger_uses_exposed_marcher(self) -> None:
         session = self._build_session()

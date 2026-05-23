@@ -106,14 +106,15 @@ def action_reward_components(
         component_name='open_loop_resolved',
         scale=0.2,
     )
-    if raw_text is not None:
+    required_story_check = _is_required_story_check_response(raw_text)
+    if raw_text is not None and not required_story_check:
         repetitive_words = _repetitive_word_penalty(raw_text)
         if repetitive_words:
             components['repetitive_words'] = repetitive_words
         repetitive_action = _repetitive_action_penalty(raw_text, before)
         if repetitive_action:
             components['repetitive_action'] = repetitive_action
-    if _is_stalled_story_scene_turn(before, after):
+    if not required_story_check and _is_stalled_story_scene_turn(before, after):
         components['stalled_scene_turn'] = -0.06
     if before.get('runtime_mode') == 'combat' or after.get('runtime_mode') == 'combat':
         components['combat_step_cost'] = -0.04
@@ -313,6 +314,10 @@ def _repeated_ngram_count(tokens: list[str], *, n: int) -> int:
         return 0
     grams = Counter(tuple(tokens[index:index + n]) for index in range(0, len(tokens) - n + 1))
     return sum(count - 1 for count in grams.values() if count > 1)
+
+
+def _is_required_story_check_response(raw_text: str | None) -> bool:
+    return isinstance(raw_text, str) and raw_text.strip().lower() == '/check'
 
 
 def _repetitive_action_penalty(raw_text: str, state_before: dict[str, Any]) -> float:

@@ -74,6 +74,10 @@ def parse_args() -> argparse.Namespace:
         help='Directory where per-episode trajectory JSONL logs are written.',
     )
     parser.add_argument(
+        '--trajectory-episode-id',
+        help='Optional stable trajectory episode directory name under --trajectory-dir.',
+    )
+    parser.add_argument(
         '--disable-trajectory-logging',
         action='store_true',
         help='Disable JSONL trajectory logging for this run.',
@@ -180,6 +184,7 @@ def main() -> int:
             trajectory_recorder = TrajectoryRecorder(
                 output_dir=args.trajectory_dir,
                 scenario_id='lmop_full_story_demo',
+                episode_id=args.trajectory_episode_id,
             )
             print(f'[web] Trajectory log: {trajectory_recorder.path}', flush=True)
         session = build_full_story_demo_manual_session(

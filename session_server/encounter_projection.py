@@ -35,6 +35,7 @@ def build_controller_encounter_projection(
     controller_id: str,
     available_choices: dict[str, tuple[ChoiceView, ...]],
     recent_events: tuple[str, ...],
+    recent_event_ids: tuple[str, ...],
 ) -> ControllerEncounterProjection:
     binding = control_runtime.validate_controller(controller_id)
     prompt = control_runtime.build_prompt(state)
@@ -69,6 +70,7 @@ def build_controller_encounter_projection(
         battlefield=battlefield,
         actors=actors,
         recent_events=recent_events,
+        recent_event_ids=recent_event_ids,
         waiting_on_labels=waiting_on_labels,
         choice_groups=choice_groups,
     )

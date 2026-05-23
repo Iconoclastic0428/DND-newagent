@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -79,6 +80,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--connector-timeout-seconds', type=float, default=5400.0)
     parser.add_argument('--negative-intensity', type=float, default=0.5)
     parser.add_argument('--min-transitions', type=int, default=1)
+    parser.add_argument(
+        '--accepted-pool-path',
+        type=Path,
+        help='Durable JSONL pool of strict-good accepted conversations. Defaults to <output-root>/accepted_conversations.jsonl.',
+    )
     parser.add_argument('--dry-run', action='store_true', help='Write plan/report without launching servers or model calls.')
     return parser.parse_args()
 
@@ -94,24 +100,54 @@ def main() -> int:
     return 0
 
 
-def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, Any]:
+def run_dataset(args: argparse.Namespace, *, episode_runner=None, provider_probe=None) -> dict[str, Any]:
     _validate_basic_args(args)
-    run_id = args.run_id or f'deepseek-100-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
-    run_dir = _resolve_output_root(args.output_root) / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    plan = build_episode_plan(
-        episodes=args.episodes,
-        positive_count=args.positive_count,
-        pilot_size=args.pilot_size,
-        http_port_base=args.http_port_base,
-        ws_port_base=args.ws_port_base,
-        negative_intensity=args.negative_intensity,
+    min_transitions = getattr(args, 'min_transitions', 1)
+    output_root = _resolve_output_root(args.output_root)
+    accepted_pool_path = _resolve_accepted_pool_path(args, output_root)
+    accepted_rows = list(_load_accepted_conversations(accepted_pool_path, min_transitions=min_transitions))
+    accepted_keys = {_accepted_conversation_key(row) for row in accepted_rows}
+    accepted_new_count = 0
+    accepted_pool_report = _accepted_pool_report(
+        accepted_pool_path,
+        accepted_rows,
+        args,
+        accepted_new_count=accepted_new_count,
     )
+    remaining_episodes = accepted_pool_report['remaining_episode_count']
+    remaining_positive_count = accepted_pool_report['remaining_positive_count']
+    run_id = args.run_id or f'deepseek-100-{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid4().hex[:8]}'
+    run_dir = output_root / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if remaining_episodes:
+        plan = build_episode_plan(
+            episodes=remaining_episodes,
+            positive_count=remaining_positive_count,
+            pilot_size=min(args.pilot_size, remaining_episodes),
+            http_port_base=args.http_port_base,
+            ws_port_base=args.ws_port_base,
+            negative_intensity=args.negative_intensity,
+            start_index=accepted_pool_report['accepted_for_target_count'] + 1,
+        )
+    else:
+        plan = ()
     plan_path = run_dir / 'episode_plan.json'
-    _write_json(plan_path, {'run_id': run_id, 'episodes': [asdict(spec) for spec in plan]})
+    _write_json(
+        plan_path,
+        {
+            'run_id': run_id,
+            'accepted_pool': accepted_pool_report,
+            'episodes': [asdict(spec) for spec in plan],
+        },
+    )
 
     if args.dry_run:
-        quality = build_dataset_quality_report([], expected_episodes=args.episodes, expected_positive_count=args.positive_count)
+        quality = build_dataset_quality_report(
+            [],
+            expected_episodes=remaining_episodes,
+            expected_positive_count=remaining_positive_count,
+        )
+        quality['accepted_pool'] = accepted_pool_report
         report = {
             'status': 'dry_run',
             'run_id': run_id,
@@ -119,15 +155,44 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, A
             'episode_count': len(plan),
             'label_counts': _label_counts(asdict(spec) for spec in plan),
             'plan_path': str(plan_path),
+            'accepted_pool': accepted_pool_report,
             'quality_report': quality,
         }
         report_path = run_dir / 'dataset_run_report.json'
         report['report_path'] = str(report_path)
         _write_json(report_path, report)
         return report
+    if remaining_episodes == 0:
+        return _write_accepted_target_satisfied_outputs(
+            run_dir=run_dir,
+            run_id=run_id,
+            args=args,
+            plan_path=plan_path,
+            accepted_rows=_accepted_rows_for_target(accepted_rows, args),
+            accepted_pool_report=accepted_pool_report,
+        )
 
+    _assert_episode_ports_available(plan, host=args.host)
     dm_env_path = _resolve_existing(args.env_path, label='DM env file')
     player_env_path = _resolve_existing(args.player_env_path or args.env_path, label='player env file')
+    provider_preflight = _preflight_llm_providers(
+        (('dm', dm_env_path), ('player', player_env_path)),
+        provider_probe=provider_probe or _probe_llm_provider,
+    )
+    provider_preflight_path = run_dir / 'provider_preflight.json'
+    _write_json(provider_preflight_path, provider_preflight)
+    if provider_preflight['status'] != 'pass':
+        return _write_provider_preflight_failed_outputs(
+            run_dir=run_dir,
+            run_id=run_id,
+            args=args,
+            plan_path=plan_path,
+            provider_preflight_path=provider_preflight_path,
+            provider_preflight=provider_preflight,
+            expected_episodes=len(plan),
+            expected_positive_count=sum(1 for spec in plan if spec.label == 'positive'),
+            accepted_pool_report=accepted_pool_report,
+        )
     character_load_path = _resolve_optional(args.character_load_path, label='character party file')
     base_url = _resolve_base_url(args.base_url, args.mirror_root)
     episode_runner = episode_runner or run_episode
@@ -148,9 +213,39 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, A
                 episode_runner=episode_runner,
             )
         )
+        accepted_new = _append_accepted_conversations(
+            accepted_pool_path,
+            results,
+            accepted_keys=accepted_keys,
+            run_id=run_id,
+            min_transitions=min_transitions,
+        )
+        if accepted_new:
+            accepted_rows.extend(accepted_new)
+            accepted_new_count += len(accepted_new)
+            accepted_pool_report = _accepted_pool_report(
+                accepted_pool_path,
+                accepted_rows,
+                args,
+                accepted_new_count=accepted_new_count,
+            )
     control_decision = evaluate_pilot_control(results, current_negative_intensity=args.negative_intensity)
     control_path = run_dir / 'pilot_control_decision.json'
     _write_json(control_path, control_decision)
+    pilot_issues = _pilot_blocking_issues(results, expected_count=len(pilot_plan))
+    if pilot_issues:
+        return _write_run_outputs(
+            run_dir=run_dir,
+            run_id=run_id,
+            results=results,
+            args=args,
+            plan_path=plan_path,
+            control_path=control_path,
+            extra_quality_issues=pilot_issues,
+            expected_episodes=len(pilot_plan),
+            expected_positive_count=sum(1 for spec in pilot_plan if spec.label == 'positive'),
+            accepted_pool_report=accepted_pool_report,
+        )
     adjusted_remaining = tuple(
         replace(spec, negative_intensity=control_decision['negative_intensity'])
         if spec.label == 'negative'
@@ -158,25 +253,74 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, A
         for spec in remaining_plan
     )
     if adjusted_remaining:
-        results.extend(
-            _run_episode_specs(
-                adjusted_remaining,
-                args=args,
-                run_dir=run_dir,
-                dm_env_path=dm_env_path,
-                player_env_path=player_env_path,
-                character_load_path=character_load_path,
-                base_url=base_url,
-                episode_runner=episode_runner,
-            )
+        remaining_results = _run_episode_specs(
+            adjusted_remaining,
+            args=args,
+            run_dir=run_dir,
+            dm_env_path=dm_env_path,
+            player_env_path=player_env_path,
+            character_load_path=character_load_path,
+            base_url=base_url,
+            episode_runner=episode_runner,
         )
+        results.extend(remaining_results)
+        accepted_new = _append_accepted_conversations(
+            accepted_pool_path,
+            remaining_results,
+            accepted_keys=accepted_keys,
+            run_id=run_id,
+            min_transitions=min_transitions,
+        )
+        if accepted_new:
+            accepted_rows.extend(accepted_new)
+            accepted_new_count += len(accepted_new)
+            accepted_pool_report = _accepted_pool_report(
+                accepted_pool_path,
+                accepted_rows,
+                args,
+                accepted_new_count=accepted_new_count,
+            )
 
+    return _write_run_outputs(
+        run_dir=run_dir,
+        run_id=run_id,
+        results=results,
+        args=args,
+        plan_path=plan_path,
+        control_path=control_path,
+        expected_episodes=len(plan),
+        expected_positive_count=sum(1 for spec in plan if spec.label == 'positive'),
+        accepted_pool_report=accepted_pool_report,
+    )
+
+
+def _write_run_outputs(
+    *,
+    run_dir: Path,
+    run_id: str,
+    results: list[dict[str, Any]],
+    args: argparse.Namespace,
+    plan_path: Path,
+    control_path: Path,
+    expected_episodes: int,
+    expected_positive_count: int,
+    accepted_pool_report: dict[str, Any],
+    extra_quality_issues: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
     conversations_path = run_dir / 'conversations.jsonl'
     _write_jsonl(conversations_path, sorted(results, key=lambda item: int(item.get('index', 0))))
     combined = _write_combined_datasets(run_dir, results)
-    quality = build_dataset_quality_report(results, expected_episodes=args.episodes, expected_positive_count=args.positive_count)
+    quality = build_dataset_quality_report(
+        results,
+        expected_episodes=expected_episodes,
+        expected_positive_count=expected_positive_count,
+    )
     quality['transition_dataset_quality'] = combined.get('transition_quality')
     quality['preference_dataset_quality'] = combined.get('preference_quality')
+    quality['accepted_pool'] = accepted_pool_report
+    if extra_quality_issues:
+        quality['issues'].extend(extra_quality_issues)
+        _refresh_quality_counts(quality)
     _add_combined_dataset_quality_issues(quality, combined)
     quality_path = run_dir / 'dataset_quality_report.json'
     _write_json(quality_path, quality)
@@ -190,6 +334,7 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, A
         'control_decision_path': str(control_path),
         'plan_path': str(plan_path),
         'conversations_path': str(conversations_path),
+        'accepted_pool': accepted_pool_report,
         'combined_transition_path': combined.get('transition_path'),
         'combined_preference_path': combined.get('preference_path'),
         'quality_report_path': str(quality_path),
@@ -202,6 +347,356 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None) -> dict[str, A
     return report
 
 
+def _write_accepted_target_satisfied_outputs(
+    *,
+    run_dir: Path,
+    run_id: str,
+    args: argparse.Namespace,
+    plan_path: Path,
+    accepted_rows: list[dict[str, Any]],
+    accepted_pool_report: dict[str, Any],
+) -> dict[str, Any]:
+    conversations_path = run_dir / 'conversations.jsonl'
+    accepted_snapshot_path = run_dir / 'accepted_conversations_snapshot.jsonl'
+    _write_jsonl(conversations_path, [])
+    _write_jsonl(accepted_snapshot_path, accepted_rows)
+    combined = _write_combined_datasets(run_dir, accepted_rows)
+    quality = build_dataset_quality_report(
+        accepted_rows,
+        expected_episodes=args.episodes,
+        expected_positive_count=args.positive_count,
+    )
+    quality['transition_dataset_quality'] = combined.get('transition_quality')
+    quality['preference_dataset_quality'] = combined.get('preference_quality')
+    quality['accepted_pool'] = accepted_pool_report
+    _add_combined_dataset_quality_issues(quality, combined)
+    quality_path = run_dir / 'dataset_quality_report.json'
+    _write_json(quality_path, quality)
+    report = {
+        'status': 'completed' if quality['status'] in {'pass', 'warn'} else 'failed',
+        'run_id': run_id,
+        'run_dir': str(run_dir),
+        'episode_count': 0,
+        'label_counts': {},
+        'completed_count': 0,
+        'plan_path': str(plan_path),
+        'conversations_path': str(conversations_path),
+        'accepted_conversations_snapshot_path': str(accepted_snapshot_path),
+        'accepted_pool': accepted_pool_report,
+        'combined_transition_path': combined.get('transition_path'),
+        'combined_preference_path': combined.get('preference_path'),
+        'quality_report_path': str(quality_path),
+        'quality_status': quality['status'],
+        'reward_summary': quality['reward_summary'],
+    }
+    report_path = run_dir / 'dataset_run_report.json'
+    report['report_path'] = str(report_path)
+    _write_json(report_path, report)
+    return report
+
+
+def _write_provider_preflight_failed_outputs(
+    *,
+    run_dir: Path,
+    run_id: str,
+    args: argparse.Namespace,
+    plan_path: Path,
+    provider_preflight_path: Path,
+    provider_preflight: dict[str, Any],
+    expected_episodes: int,
+    expected_positive_count: int,
+    accepted_pool_report: dict[str, Any],
+) -> dict[str, Any]:
+    conversations_path = run_dir / 'conversations.jsonl'
+    _write_jsonl(conversations_path, [])
+    quality = build_dataset_quality_report(
+        [],
+        expected_episodes=expected_episodes,
+        expected_positive_count=expected_positive_count,
+    )
+    quality['accepted_pool'] = accepted_pool_report
+    quality['issues'].append(
+        _issue(
+            'fail',
+            'llm_provider_preflight_failed',
+            f"LLM provider preflight failed before episode launch: {provider_preflight.get('error', 'unknown error')}",
+        )
+    )
+    _refresh_quality_counts(quality)
+    quality_path = run_dir / 'dataset_quality_report.json'
+    _write_json(quality_path, quality)
+    report = {
+        'status': 'failed',
+        'run_id': run_id,
+        'run_dir': str(run_dir),
+        'episode_count': 0,
+        'label_counts': {},
+        'completed_count': 0,
+        'plan_path': str(plan_path),
+        'conversations_path': str(conversations_path),
+        'accepted_pool': accepted_pool_report,
+        'provider_preflight_path': str(provider_preflight_path),
+        'quality_report_path': str(quality_path),
+        'quality_status': quality['status'],
+        'reward_summary': quality['reward_summary'],
+    }
+    report_path = run_dir / 'dataset_run_report.json'
+    report['report_path'] = str(report_path)
+    _write_json(report_path, report)
+    return report
+
+
+def _resolve_accepted_pool_path(args: argparse.Namespace, output_root: Path) -> Path:
+    raw_path = getattr(args, 'accepted_pool_path', None)
+    if raw_path is None:
+        return output_root / 'accepted_conversations.jsonl'
+    return _resolve_path(Path(raw_path))
+
+
+def _load_accepted_conversations(path: Path, *, min_transitions: int) -> tuple[dict[str, Any], ...]:
+    if not path.exists():
+        return ()
+    rows: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for line_number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise DeepSeekDatasetRunnerError(f'Accepted conversation pool has malformed JSON on line {line_number}: {exc}') from exc
+        if not isinstance(row, dict):
+            raise DeepSeekDatasetRunnerError(f'Accepted conversation pool line {line_number} is not a JSON object.')
+        rejection_reason = _good_conversation_rejection_reason(row, min_transitions=min_transitions)
+        if rejection_reason is not None:
+            raise DeepSeekDatasetRunnerError(f'Accepted conversation pool line {line_number} is not strict-good: {rejection_reason}')
+        key = _accepted_conversation_key(row)
+        if key in seen_keys:
+            raise DeepSeekDatasetRunnerError(f'Accepted conversation pool line {line_number} duplicates acceptance key {key}.')
+        seen_keys.add(key)
+        rows.append(row)
+    return tuple(rows)
+
+
+def _append_accepted_conversations(
+    path: Path,
+    rows: Iterable[dict[str, Any]],
+    *,
+    accepted_keys: set[str],
+    run_id: str,
+    min_transitions: int,
+) -> list[dict[str, Any]]:
+    accepted: list[dict[str, Any]] = []
+    accepted_at = datetime.now(timezone.utc).isoformat()
+    for row in rows:
+        rejection_reason = _good_conversation_rejection_reason(row, min_transitions=min_transitions)
+        if rejection_reason is not None:
+            continue
+        key = _accepted_conversation_key(row)
+        if key in accepted_keys:
+            continue
+        accepted_row = {
+            **row,
+            'acceptance_key': key,
+            'accepted_at': accepted_at,
+            'accepted_from_run_id': run_id,
+        }
+        accepted.append(accepted_row)
+        accepted_keys.add(key)
+    if accepted:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open('a', encoding='utf-8') as handle:
+            for row in accepted:
+                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
+    return accepted
+
+
+def _good_conversation_rejection_reason(row: dict[str, Any], *, min_transitions: int) -> str | None:
+    if row.get('label') not in {'positive', 'negative'}:
+        return 'label is not positive or negative'
+    if row.get('status') != 'completed':
+        return 'status is not completed'
+    if row.get('terminal_reason') != 'demo-complete':
+        return 'terminal reason is not demo-complete'
+    summary = row.get('trajectory_summary')
+    if not isinstance(summary, dict):
+        return 'trajectory summary is missing'
+    if summary.get('success') is not True:
+        return 'trajectory summary is not successful'
+    if summary.get('final_runtime_mode') != 'demo-complete':
+        return 'final runtime mode is not demo-complete'
+    invalid_action_count = row.get('invalid_action_count')
+    if not isinstance(invalid_action_count, int):
+        invalid_action_count = summary.get('invalid_action_count')
+    if invalid_action_count != 0:
+        return 'invalid action count is not zero'
+    transition_count = row.get('transition_count')
+    if not isinstance(transition_count, int) or transition_count < min_transitions:
+        return f'transition count is below {min_transitions}'
+    artifacts = row.get('artifact_paths')
+    if not isinstance(artifacts, dict):
+        return 'artifact paths are missing'
+    for key in ('transcript', 'trajectory', 'raw_interactions', 'transitions', 'preferences'):
+        path = artifacts.get(key)
+        if not isinstance(path, str) or not _artifact_path_exists(path):
+            return f'artifact {key} is missing'
+    return None
+
+
+def _artifact_path_exists(path: str) -> bool:
+    candidate = Path(path)
+    resolved = candidate if candidate.is_absolute() else _resolve_path(candidate)
+    return resolved.exists()
+
+
+def _accepted_conversation_key(row: dict[str, Any]) -> str:
+    acceptance_key = row.get('acceptance_key')
+    if isinstance(acceptance_key, str) and acceptance_key:
+        return acceptance_key
+    result_path = row.get('result_path')
+    if isinstance(result_path, str) and result_path:
+        return f'result:{_resolve_artifact_identity(result_path)}'
+    artifacts = row.get('artifact_paths')
+    if isinstance(artifacts, dict):
+        trajectory_path = artifacts.get('trajectory')
+        if isinstance(trajectory_path, str) and trajectory_path:
+            return f'trajectory:{_resolve_artifact_identity(trajectory_path)}'
+    return f"episode:{row.get('label')}:{row.get('episode_id')}:{row.get('index')}"
+
+
+def _resolve_artifact_identity(path: str) -> str:
+    candidate = Path(path)
+    return str((candidate if candidate.is_absolute() else _resolve_path(candidate)).resolve())
+
+
+def _accepted_pool_report(
+    path: Path,
+    rows: list[dict[str, Any]],
+    args: argparse.Namespace,
+    *,
+    accepted_new_count: int,
+) -> dict[str, Any]:
+    target_negative_count = args.episodes - args.positive_count
+    positive_rows = [row for row in rows if row.get('label') == 'positive']
+    negative_rows = [row for row in rows if row.get('label') == 'negative']
+    accepted_positive_for_target = min(len(positive_rows), args.positive_count)
+    accepted_negative_for_target = min(len(negative_rows), target_negative_count)
+    remaining_positive_count = max(0, args.positive_count - accepted_positive_for_target)
+    remaining_negative_count = max(0, target_negative_count - accepted_negative_for_target)
+    return {
+        'path': str(path),
+        'target_episode_count': args.episodes,
+        'target_positive_count': args.positive_count,
+        'target_negative_count': target_negative_count,
+        'accepted_total_count': len(rows),
+        'accepted_label_counts': _label_counts(rows),
+        'accepted_for_target_count': accepted_positive_for_target + accepted_negative_for_target,
+        'accepted_positive_for_target_count': accepted_positive_for_target,
+        'accepted_negative_for_target_count': accepted_negative_for_target,
+        'accepted_new_count': accepted_new_count,
+        'remaining_episode_count': remaining_positive_count + remaining_negative_count,
+        'remaining_positive_count': remaining_positive_count,
+        'remaining_negative_count': remaining_negative_count,
+    }
+
+
+def _accepted_rows_for_target(rows: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
+    target_negative_count = args.episodes - args.positive_count
+    selected: list[dict[str, Any]] = []
+    positive_count = 0
+    negative_count = 0
+    for row in rows:
+        label = row.get('label')
+        if label == 'positive' and positive_count < args.positive_count:
+            selected.append(row)
+            positive_count += 1
+        elif label == 'negative' and negative_count < target_negative_count:
+            selected.append(row)
+            negative_count += 1
+    return selected
+
+
+def _preflight_llm_providers(
+    env_paths: Iterable[tuple[str, Path]],
+    *,
+    provider_probe,
+) -> dict[str, Any]:
+    checked_paths: set[str] = set()
+    checks: list[dict[str, Any]] = []
+    for label, env_path in env_paths:
+        resolved = str(env_path.resolve())
+        if resolved in checked_paths:
+            continue
+        checked_paths.add(resolved)
+        try:
+            details = provider_probe(env_path)
+        except Exception as exc:
+            return {
+                'status': 'fail',
+                'failed_label': label,
+                'env_path': resolved,
+                'error': str(exc),
+                'checks': checks,
+            }
+        checks.append(
+            {
+                'label': label,
+                'env_path': resolved,
+                'details': details if isinstance(details, dict) else {'result': str(details)},
+            }
+        )
+    return {'status': 'pass', 'checks': checks}
+
+
+def _probe_llm_provider(env_path: Path) -> dict[str, Any]:
+    from dm_agent.client import LLMClient, LLMHttpTransport, ResponsesRequest
+    from dm_agent.config import load_llm_config
+
+    config = load_llm_config(env_path=env_path)
+    client = LLMClient(config=config, transport=LLMHttpTransport(timeout_seconds=45, post_read_retries=0))
+    request = ResponsesRequest(
+        model=config.responses_model,
+        input=({'role': 'user', 'content': 'Reply with exactly: ok'},),
+        instructions='Return plain text only.',
+        temperature=0.0,
+        max_output_tokens=8,
+    )
+    response = client.create_response(request)
+    return {
+        'base_url': config.base_url,
+        'model': config.responses_model,
+        'api_format': config.api_format,
+        'output_preview': response.output_text[:80],
+    }
+
+
+def _pilot_blocking_issues(pilot_results: Iterable[dict[str, Any]], *, expected_count: int) -> list[dict[str, str]]:
+    if expected_count <= 0:
+        return []
+    rows = list(pilot_results)
+    issues: list[dict[str, str]] = []
+    if len(rows) != expected_count:
+        issues.append(
+            _issue(
+                'fail',
+                'pilot_incomplete_before_expansion',
+                f'Expected {expected_count} pilot conversations before expansion, found {len(rows)}.',
+            )
+        )
+    failed = [row for row in rows if row.get('status') != 'completed']
+    if failed:
+        episode_ids = ', '.join(str(row.get('episode_id')) for row in failed[:8])
+        suffix = '' if len(failed) <= 8 else f', and {len(failed) - 8} more'
+        issues.append(
+            _issue(
+                'fail',
+                'pilot_failed_before_expansion',
+                f'{len(failed)} pilot conversations failed before main expansion: {episode_ids}{suffix}.',
+            )
+        )
+    return issues
+
+
 def build_episode_plan(
     *,
     episodes: int,
@@ -210,6 +705,7 @@ def build_episode_plan(
     http_port_base: int,
     ws_port_base: int,
     negative_intensity: float,
+    start_index: int = 1,
 ) -> tuple[EpisodeSpec, ...]:
     if episodes <= 0:
         raise DeepSeekDatasetRunnerError('--episodes must be > 0.')
@@ -219,6 +715,8 @@ def build_episode_plan(
         raise DeepSeekDatasetRunnerError('--pilot-size must be between 0 and --episodes.')
     if negative_intensity < 0 or negative_intensity > 1:
         raise DeepSeekDatasetRunnerError('--negative-intensity must be between 0 and 1.')
+    if start_index <= 0:
+        raise DeepSeekDatasetRunnerError('start_index must be > 0.')
     negative_count = episodes - positive_count
     pilot_positive = min(positive_count, pilot_size // 2 + pilot_size % 2)
     pilot_negative = min(negative_count, pilot_size - pilot_positive)
@@ -231,7 +729,8 @@ def build_episode_plan(
     labels: list[str] = _interleaved_labels(pilot_positive, pilot_negative)
     labels.extend(_interleaved_labels(positive_count - pilot_positive, negative_count - pilot_negative))
     specs = []
-    for index, label in enumerate(labels, start=1):
+    for offset, label in enumerate(labels):
+        index = start_index + offset
         specs.append(
             EpisodeSpec(
                 index=index,
@@ -239,9 +738,9 @@ def build_episode_plan(
                 label=label,
                 behavior_profile=label,
                 negative_intensity=(negative_intensity if label == 'negative' else 0.0),
-                http_port=http_port_base + (index - 1) * 2,
-                ws_port=ws_port_base + (index - 1) * 2,
-                phase='pilot' if index <= pilot_size else 'main',
+                http_port=http_port_base + offset * 2,
+                ws_port=ws_port_base + offset * 2,
+                phase='pilot' if offset < pilot_size else 'main',
             )
         )
     return tuple(specs)
@@ -588,6 +1087,8 @@ def _server_command(
         str(dm_env_path),
         '--trajectory-dir',
         str(paths['web_trajectories']),
+        '--trajectory-episode-id',
+        'web',
     ]
     if character_load_path is not None:
         command.extend(['--load-characters', str(character_load_path)])
@@ -625,6 +1126,23 @@ def _connector_command(args: argparse.Namespace, spec: EpisodeSpec, paths: dict[
         str(spec.negative_intensity),
         '--verbose',
     ]
+
+
+def _assert_episode_ports_available(specs: Iterable[EpisodeSpec], *, host: str) -> None:
+    check_host = '127.0.0.1' if host in {'0.0.0.0', '::'} else host
+    for spec in specs:
+        for kind, port in (('http', spec.http_port), ('ws', spec.ws_port)):
+            if _is_port_listening(check_host, port):
+                raise DeepSeekDatasetRunnerError(
+                    f'{kind} port {port} is already in use for {spec.episode_id}; '
+                    'stop the stale dataset run or choose a different port base.'
+                )
+
+
+def _is_port_listening(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.2)
+        return probe.connect_ex((host, port)) == 0
 
 
 def _episode_paths(episode_dir: Path) -> dict[str, Path]:

@@ -24,6 +24,7 @@ from shared_types.encounter_events import (
 from shared_types.encounter_models import EncounterState
 from shared_types.errors import EncounterValidationError
 from shared_types.exploration import (
+    BypassTrapIntent,
     ExplorationState,
     NpcAttitude,
     PendingExplorationCheckKind,
@@ -39,6 +40,7 @@ from shared_types.exploration import (
     SocialApproachDefinition,
     SocialApproachType,
     TrapStatus,
+    TriggerTrapIntent,
     unique_strings,
 )
 from shared_types.models import Ability, slugify
@@ -64,6 +66,30 @@ class ExplorationDeclarationPrompt:
     skill_name: str | None
     dc: int
     interacting_with_actor_id: str | None
+
+
+def resolve_immediate_declaration(engine, state: ExplorationState, *, encounter_state: EncounterState, controller_id: str, actor_id: str, declaration: str) -> tuple[ExplorationState, list[object]] | None:
+    engine._require_party_actor(encounter_state, actor_id)
+    normalized = slugify(declaration)
+    if not normalized:
+        return None
+    trap_resolution = _match_immediate_trap_resolution(engine, state, normalized=normalized)
+    if trap_resolution is None:
+        return None
+    trap_id, resolution_kind = trap_resolution
+    if resolution_kind == 'safe-trigger':
+        return engine.trigger_trap(
+            state,
+            encounter_state=encounter_state,
+            intent=TriggerTrapIntent(controller_id=controller_id, trap_id=trap_id, actor_id=actor_id, safe=True),
+        )
+    if resolution_kind == 'party-bypass':
+        return engine.bypass_trap(
+            state,
+            encounter_state=encounter_state,
+            intent=BypassTrapIntent(controller_id=controller_id, actor_id=actor_id, trap_id=trap_id, party_wide=True),
+        )
+    raise EncounterValidationError('Unknown immediate trap resolution.')
 
 
 def interpret_declaration(engine, state: ExplorationState, *, encounter_state: EncounterState, actor_id: str, declaration: str) -> ExplorationDeclarationPrompt | None:
@@ -346,6 +372,26 @@ def _match_trap_declaration(engine, state: ExplorationState, *, declaration: str
     return definition.trap_id, attempt_kind, _extract_tool_name_from_declaration(declaration, definition=procedure)
 
 
+def _match_immediate_trap_resolution(engine, state: ExplorationState, *, normalized: str) -> tuple[str, str] | None:
+    if not _mentions_any(normalized, ('trap', 'snare', 'wire', 'line', 'danger', 'hazard')):
+        return None
+    candidates = [
+        definition
+        for definition, runtime in engine.visible_trap_states(state, dm_view=False)
+        if runtime.status in {TrapStatus.DETECTED, TrapStatus.TRIGGERED}
+    ]
+    if not candidates:
+        return None
+    if len(candidates) > 1:
+        raise EncounterValidationError('Clarify which trap or hazard you are trying to resolve.')
+    definition = candidates[0]
+    if _mentions_any(normalized, ('steer clear', 'go around', 'route around', 'guide the wagon clear', 'keep clear', 'mark the trap', 'mark it', 'avoid', 'bypass')):
+        return definition.trap_id, 'party-bypass'
+    if _mentions_any(normalized, ('spring', 'trigger', 'trip it', 'trip the', 'snap it', 'snap the', 'yank', 'pull the line', 'set off')) and _mentions_any(normalized, ('mage hand', 'spectral hand', 'from range', 'from here', 'from a distance', 'safely', 'stand back', 'hold up')):
+        return definition.trap_id, 'safe-trigger'
+    return None
+
+
 def _match_puzzle_declaration(engine, state: ExplorationState, *, declaration: str, normalized: str) -> tuple[str, ProcedureAttemptKind, str | None] | None:
     if not _mentions_any(normalized, ('puzzle', 'clue', 'trail', 'tracks', 'search', 'look', 'check', 'study', 'investigate', 'inspect', 'examine', 'solve', 'follow', 'figure', 'work out')):
         return None
@@ -381,7 +427,7 @@ def _social_approach_from_declaration(normalized: str, profile) -> SocialApproac
         (SocialApproachType.INTIMIDATE, ('intimidate', 'threaten', 'or else', 'warning')),
         (SocialApproachType.DECEIVE, ('deceive', 'bluff', 'lie', 'pretend', 'fake')),
         (SocialApproachType.APPEAL, ('appeal', 'duty', 'honor', 'justice')),
-        (SocialApproachType.PERSUADE, ('persuade', 'convince', 'accept', 'agree', 'listen', 'hear us out')),
+        (SocialApproachType.PERSUADE, ('persuade', 'convince', 'listen', 'hear us out')),
     )
     for approach, terms in checks:
         if approach in supported and _mentions_any(normalized, terms):

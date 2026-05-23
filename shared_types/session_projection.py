@@ -107,5 +107,6 @@ class ControllerEncounterProjection:
     battlefield: SemanticBattlefieldProjection | None
     actors: tuple[EncounterActorProjection, ...]
     recent_events: tuple[str, ...]
+    recent_event_ids: tuple[str, ...]
     waiting_on_labels: tuple[str, ...]
     choice_groups: tuple[EncounterChoiceGroupProjection, ...]
