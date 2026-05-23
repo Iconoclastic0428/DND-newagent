@@ -540,19 +540,67 @@ def _good_conversation_rejection_reason(row: dict[str, Any], *, min_transitions:
         path = artifacts.get(key)
         if not isinstance(path, str) or not _artifact_path_exists(path):
             return f'artifact {key} is missing'
+    acceptance_key = row.get('acceptance_key')
+    if isinstance(acceptance_key, str) and acceptance_key and acceptance_key != _derived_accepted_conversation_key(row):
+        return 'acceptance key does not match derived artifact identity'
+    transcript_rejection = _text_artifact_rejection(artifacts['transcript'], label='transcript')
+    if transcript_rejection is not None:
+        return transcript_rejection
+    trajectory_rows = _jsonl_artifact_rows(artifacts['trajectory'], label='trajectory', allow_empty=False)
+    if isinstance(trajectory_rows, str):
+        return trajectory_rows
+    raw_interaction_rows = _jsonl_artifact_rows(artifacts['raw_interactions'], label='raw interactions', allow_empty=False)
+    if isinstance(raw_interaction_rows, str):
+        return raw_interaction_rows
+    transition_rows = _jsonl_artifact_rows(artifacts['transitions'], label='transitions', allow_empty=False)
+    if isinstance(transition_rows, str):
+        return transition_rows
+    preference_rows = _jsonl_artifact_rows(artifacts['preferences'], label='preferences', allow_empty=True)
+    if isinstance(preference_rows, str):
+        return preference_rows
+    if len(transition_rows) != transition_count:
+        return f'transition count {transition_count} does not match transitions artifact rows {len(transition_rows)}'
     return None
 
 
 def _artifact_path_exists(path: str) -> bool:
     candidate = Path(path)
     resolved = candidate if candidate.is_absolute() else _resolve_path(candidate)
-    return resolved.exists()
+    return resolved.is_file()
+
+
+def _text_artifact_rejection(path: str, *, label: str) -> str | None:
+    candidate = Path(path)
+    resolved = candidate if candidate.is_absolute() else _resolve_path(candidate)
+    if not resolved.read_text(encoding='utf-8').strip():
+        return f'artifact {label} is empty'
+    return None
+
+
+def _jsonl_artifact_rows(path: str, *, label: str, allow_empty: bool) -> list[dict[str, Any]] | str:
+    candidate = Path(path)
+    resolved = candidate if candidate.is_absolute() else _resolve_path(candidate)
+    rows: list[dict[str, Any]] = []
+    for line_number, line in enumerate(resolved.read_text(encoding='utf-8').splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            return f'artifact {label} has malformed JSONL on line {line_number}: {exc}'
+        if not isinstance(row, dict):
+            return f'artifact {label} line {line_number} is not a JSON object'
+        rows.append(row)
+    if not rows and not allow_empty:
+        return f'artifact {label} is empty'
+    return rows
 
 
 def _accepted_conversation_key(row: dict[str, Any]) -> str:
-    acceptance_key = row.get('acceptance_key')
-    if isinstance(acceptance_key, str) and acceptance_key:
-        return acceptance_key
+    return _derived_accepted_conversation_key(row)
+
+
+def _derived_accepted_conversation_key(row: dict[str, Any]) -> str:
     result_path = row.get('result_path')
     if isinstance(result_path, str) and result_path:
         return f'result:{_resolve_artifact_identity(result_path)}'

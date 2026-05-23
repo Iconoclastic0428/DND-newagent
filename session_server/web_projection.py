@@ -119,7 +119,7 @@ def project_story_session_view(session, controller_id: str, *, session_id: str) 
         prompt=_project_ui_prompt(prompt),
         map=(_project_map(session, controller_id) if session.story_state.runtime_mode == RuntimeMode.COMBAT else None),
         travel=_project_travel_map(session, controller_id, binding.role),
-        chat_entries=_project_story_chat_entries(session, controller_id),
+        chat_entries=_project_story_chat_entries(session, controller_id, session_id=session_id),
         character_cards=_project_character_cards(session, controller_id, binding.role),
     )
 
@@ -149,7 +149,7 @@ def project_encounter_session_view(session, controller_id: str, *, session_id: s
         prompt=_project_ui_prompt(prompt),
         map=_project_map(session, controller_id),
         travel=None,
-        chat_entries=_project_encounter_chat_entries(session, controller_id),
+        chat_entries=_project_encounter_chat_entries(session, controller_id, session_id=session_id),
         character_cards=_project_character_cards(session, controller_id, binding.role),
     )
 
@@ -1582,7 +1582,7 @@ def _avatar_label(name: str) -> str:
     if not tokens:
         return '?'
     return ''.join(token[0].upper() for token in tokens[:2])
-def _project_story_chat_entries(session, controller_id: str) -> tuple[WebChatEntryView, ...]:
+def _project_story_chat_entries(session, controller_id: str, *, session_id: str) -> tuple[WebChatEntryView, ...]:
     role = session.encounter_session.control_runtime.validate_controller(controller_id).role
     owned_actor_ids = set(_owned_actor_ids(session, controller_id))
     entries: list[WebChatEntryView] = []
@@ -1716,11 +1716,11 @@ def _project_story_chat_entries(session, controller_id: str) -> tuple[WebChatEnt
                 )
             )
     if session.story_state.runtime_mode == RuntimeMode.COMBAT:
-        entries += list(_project_encounter_chat_entries(session.encounter_session, controller_id))
+        entries += list(_project_encounter_chat_entries(session.encounter_session, controller_id, session_id=session_id))
     return tuple(entries[-80:])
 
 
-def _project_encounter_chat_entries(session, controller_id: str) -> tuple[WebChatEntryView, ...]:
+def _project_encounter_chat_entries(session, controller_id: str, *, session_id: str) -> tuple[WebChatEntryView, ...]:
     view = session.view_for_controller(controller_id)
     recent_event_lines = view.projection.recent_events if view.projection is not None else ()
     recent_event_ids = view.projection.recent_event_ids if view.projection is not None else ()
@@ -1732,7 +1732,7 @@ def _project_encounter_chat_entries(session, controller_id: str) -> tuple[WebCha
     for index, text in enumerate(recent_event_lines):
         entries.append(
             WebChatEntryView(
-                entry_id=recent_event_ids[index],
+                entry_id=f'{session_id}:{recent_event_ids[index]}',
                 speaker='System',
                 text=text,
                 category='combat',

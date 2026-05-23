@@ -15,6 +15,7 @@ if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
 from run_deepseek_100_conversation_dataset import (
+    DeepSeekDatasetRunnerError,
     _add_combined_dataset_quality_issues,
     _episode_paths,
     _server_command,
@@ -510,6 +511,46 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         self.assertEqual(report['accepted_pool']['accepted_new_count'], 0)
         self.assertEqual(report['accepted_pool']['remaining_episode_count'], 1)
 
+    def test_accepted_pool_rejects_tampered_acceptance_key(self) -> None:
+        env_path = self._write_file('dm.env')
+        accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
+        row = {
+            **self._good_conversation_result('accepted-positive', label='positive', index=1),
+            'acceptance_key': 'tampered:key',
+        }
+        accepted_pool_path.write_text(json.dumps(row, sort_keys=True) + '\n', encoding='utf-8')
+        args = self._dataset_args(
+            env_path=env_path,
+            accepted_pool_path=accepted_pool_path,
+            run_id='accepted-pool-tampered-key',
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+        )
+
+        with self.assertRaisesRegex(DeepSeekDatasetRunnerError, 'acceptance key'):
+            run_dataset(args, episode_runner=None, provider_probe=lambda _env_path: {'status': 'ok'})
+
+    def test_accepted_pool_rejects_transition_count_mismatching_artifact(self) -> None:
+        env_path = self._write_file('dm.env')
+        accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
+        row = {
+            **self._good_conversation_result('accepted-positive', label='positive', index=1),
+            'transition_count': 2,
+        }
+        accepted_pool_path.write_text(json.dumps(row, sort_keys=True) + '\n', encoding='utf-8')
+        args = self._dataset_args(
+            env_path=env_path,
+            accepted_pool_path=accepted_pool_path,
+            run_id='accepted-pool-transition-mismatch',
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+        )
+
+        with self.assertRaisesRegex(DeepSeekDatasetRunnerError, 'transition count'):
+            run_dataset(args, episode_runner=None, provider_probe=lambda _env_path: {'status': 'ok'})
+
     def _write_file(self, relative_path: str) -> Path:
         path = self._tempdir / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -565,8 +606,18 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         invalid_action_count: int = 0,
     ) -> dict:
         transcript = self._write_file(f'{episode_id}/transcript.md')
-        trajectory = self._write_file(f'{episode_id}/trajectory.jsonl')
-        raw_io = self._write_file(f'{episode_id}/raw-io.jsonl')
+        raw_io = self._write_jsonl(f'{episode_id}/raw-io.jsonl', [{'request_payload': {}, 'response_payload': {'ok': True}}])
+        trajectory = self._write_jsonl(
+            f'{episode_id}/trajectory.jsonl',
+            [
+                {
+                    'record_type': 'turn',
+                    'scenario_id': 'lmop_full_story_demo',
+                    'episode_id': episode_id,
+                    'reward': 1.0 if label == 'positive' else -0.25,
+                }
+            ],
+        )
         transitions = self._write_jsonl(
             f'{episode_id}/training-transitions.jsonl',
             [self._transition(f'{episode_id}:0', action='advance the scene', reward=(1.0 if label == 'positive' else -0.25))],

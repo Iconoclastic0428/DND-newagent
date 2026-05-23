@@ -229,6 +229,35 @@ class EncounterSessionTests(unittest.TestCase):
         self.assertIn(tracked_entry.entry_id, after_by_id)
         self.assertEqual(after_by_id[tracked_entry.entry_id], tracked_entry.text)
 
+    def test_combat_chat_entry_ids_are_scoped_by_web_session(self) -> None:
+        session = self._build_session()
+        target = session.state.actors['monster-skeleton-1']
+        session.state.event_log.append(
+            DamageAppliedEvent(
+                source_actor_id='player-1',
+                target_id='monster-skeleton-1',
+                damage_total=3,
+                applied_damage_total=3,
+                target_hit_points_after=target.max_hit_points - 3,
+                target_temp_hit_points_after=0,
+                damage_type='force',
+            )
+        )
+
+        first_id = [
+            entry.entry_id
+            for entry in project_encounter_session_view(session, 'dm', session_id='combat-a').chat_entries
+            if entry.category == 'combat'
+        ][0]
+        second_id = [
+            entry.entry_id
+            for entry in project_encounter_session_view(session, 'dm', session_id='combat-b').chat_entries
+            if entry.category == 'combat'
+        ][0]
+
+        self.assertEqual(first_id, 'combat-a:encounter-event:0')
+        self.assertEqual(second_id, 'combat-b:encounter-event:0')
+
     def test_reaction_prompt_only_visible_to_owner(self) -> None:
         session = self._build_session()
         session.system_execute('/encounter start')

@@ -4147,3 +4147,37 @@
 - Fix: recent-event formatting now uses `DamageAppliedEvent.target_hit_points_after` and `target_temp_hit_points_after`, and web combat chat entries use stable `encounter-event:<event-log-index>` IDs. The transcript logger now ignores replayed combat entries with already-seen stable IDs.
 - Accepted-pool logic: `run_deepseek_100_conversation_dataset.py` loads `accepted_conversations.jsonl` from the output root by default, subtracts strict-good accepted positive/negative rows from the target, and appends newly strict-good rows after the pilot and main phases. Strict-good means completed `demo-complete`, successful trajectory summary, zero invalid actions, minimum transitions, and required artifacts.
 - Verification: focused regressions passed, full runner suite passed 15 tests, full encounter suite passed 19 tests, full connector suite passed 72 tests, broad relevant suite passed 207 tests, focused `py_compile` passed, and diff hygiene reported only existing LF/CRLF warnings.
+
+## 2026-05-22 - GPT Pro Review Follow-Up
+
+### Scope
+- Commit and push the local implementation branch to GitHub as requested.
+- Ask ChatGPT Pro through Chrome for another code-review pass.
+- Treat Pro feedback as advisory, verify it against local code, and implement only concrete, scoped correctness fixes.
+
+### Plan
+- [x] Push the current implementation commit to `newdndagents`.
+- [x] Submit a concise review prompt in a fresh ChatGPT Pro conversation.
+- [x] Verify Pro's findings against local code before editing.
+- [x] Add red tests for accepted-pool identity tampering, transition artifact count mismatches, and unscoped combat event IDs.
+- [x] Implement minimal accepted-pool artifact validation and session-scoped projected combat chat IDs.
+- [x] Run focused and relevant broad verification.
+- [x] Commit and push the follow-up fixes.
+
+### Verification
+- [x] Pro could not access the private GitHub commit and reviewed from the supplied summary.
+- [x] Red regressions failed before implementation:
+  - `python -m unittest tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_accepted_pool_rejects_tampered_acceptance_key tests.test_deepseek_100_dataset_runner.DeepSeek100DatasetRunnerTests.test_accepted_pool_rejects_transition_count_mismatching_artifact -v`
+  - `python -m unittest tests.test_encounter_session.EncounterSessionTests.test_combat_chat_entry_ids_are_scoped_by_web_session -v`
+- [x] The same focused regressions passed after implementation.
+- [x] `python -m unittest tests.test_deepseek_100_dataset_runner -v`
+- [x] `python -m unittest tests.test_encounter_session -v`
+- [x] `python -m unittest tests.test_story_demo_party_connector -v`
+- [x] `python -m unittest tests.test_llm_client tests.test_story_demo_party_connector tests.test_deepseek_100_dataset_runner tests.test_hostile_escalation tests.test_exploration_procedures tests.test_storytelling_session tests.test_rewards tests.test_trajectory tests.test_dm_runtime tests.test_encounter_session -v`
+- [x] `python -m py_compile user-test\run_deepseek_100_conversation_dataset.py session_server\web_projection.py tests\test_deepseek_100_dataset_runner.py tests\test_encounter_session.py`
+- [x] `git diff --check -- user-test\run_deepseek_100_conversation_dataset.py session_server\web_projection.py tests\test_deepseek_100_dataset_runner.py tests\test_encounter_session.py tasks\TODO.md tasks\SUMMARIES.md`
+
+### Review
+- Pro's most actionable local findings were valid: accepted-pool dedupe could trust a stored `acceptance_key`, transition artifacts were only checked for existence, and `encounter-event:<index>` was not scoped at the web chat-entry layer.
+- Fix: accepted-pool validation now derives identity from artifacts instead of trusting row-provided keys, rejects tampered keys, parses required JSONL artifacts, checks non-empty transcript/raw/trajectory/transition artifacts, and verifies `transition_count` against the transitions artifact. Web combat chat IDs now include `session_id` before the stable encounter event id.
+- Verification: focused regressions passed, full runner suite passed 17 tests, full encounter suite passed 20 tests, full connector suite passed 72 tests, broad relevant suite passed 210 tests, focused `py_compile` passed, and diff hygiene reported only existing LF/CRLF warnings.
