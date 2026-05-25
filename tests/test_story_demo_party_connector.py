@@ -368,6 +368,9 @@ class PartyConnectorTests(unittest.TestCase):
         self.assertIn('Wisdom (Insight)', context['recent_visible_check_entries'][0])
         self.assertEqual(context['recent_party_actions'][0]['topic_focus'], 'wagon as bait')
         self.assertEqual(context['character']['spells'][0]['name'], 'Magic Missile')
+        self.assertEqual(transport.requests[0]['payload']['max_output_tokens'], 1200)
+        self.assertEqual(transport.requests[0]['payload']['thinking'], {'type': 'enabled'})
+        self.assertEqual(transport.requests[0]['payload']['reasoning_effort'], 'medium')
 
     def test_player_agent_positive_profile_prioritizes_scene_goal_completion(self) -> None:
         transport = QueueTransport(
@@ -492,7 +495,7 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(
             connector.automation_client.submissions,
             [
@@ -502,8 +505,7 @@ class PartyConnectorTests(unittest.TestCase):
                 )
             ],
         )
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('Stale Gundren briefing closure', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_retries_second_briefing_ledger_detour(self) -> None:
         transport = QueueTransport(
@@ -617,7 +619,7 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(
             connector.automation_client.submissions,
             [
@@ -627,8 +629,7 @@ class PartyConnectorTests(unittest.TestCase):
                 )
             ],
         )
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('Gundren, we accept the job. We will take the wagon to Phandalin.', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_routes_after_briefing_acceptance_still_in_scene(self) -> None:
         snapshots = self._story_snapshots()
@@ -688,10 +689,9 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/travel route phandalin')])
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('/travel route phandalin', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_retries_stale_high_road_idle_scene_to_travel_route(self) -> None:
         snapshots = self._story_snapshots()
@@ -753,10 +753,9 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/travel route phandalin')])
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('Stale High Road travel closure', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_routes_high_road_idle_scene_before_any_detour(self) -> None:
         snapshots = self._story_snapshots()
@@ -808,12 +807,11 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/travel route phandalin')])
         first_context = json.loads(transport.requests[0]['payload']['input'][0]['content'][0]['text'])
         self.assertEqual(first_context['scene_progress_pressure'], 'close_scene_now')
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('/travel route phandalin', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_retries_stale_high_road_planned_route_to_travel_advance(self) -> None:
         snapshots = self._story_snapshots()
@@ -876,10 +874,9 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/travel advance 5')])
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('Use /travel advance 5', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_retries_hyphenated_route_planned_status_to_travel_advance(self) -> None:
         snapshots = self._story_snapshots()
@@ -932,10 +929,9 @@ class PartyConnectorTests(unittest.TestCase):
 
         result = connector.run()
 
-        self.assertEqual(result.invalid_action_retries, 1)
+        self.assertEqual(result.invalid_action_retries, 0)
         self.assertEqual(connector.automation_client.submissions, [('player-1-controller', '/travel advance 5')])
-        retry_payload = json.dumps(transport.requests[1]['payload'])
-        self.assertIn('Use /travel advance 5', retry_payload)
+        self.assertEqual(len(transport.requests), 1)
 
     def test_party_connector_retries_malformed_story_slash_commands_before_submit(self) -> None:
         snapshots = self._story_snapshots()
@@ -1223,7 +1219,7 @@ class PartyConnectorTests(unittest.TestCase):
         self.assertIn('stale scene', instructions)
         self.assertIn('move the scene forward', instructions)
 
-    def test_deepseek_json_requests_use_large_completion_budgets_for_reasoning_models(self) -> None:
+    def test_deepseek_json_requests_use_task_specific_completion_budgets(self) -> None:
         vote_payload = {
             'selected_controller_id': 'player-3-controller',
             'reason': 'Mira has the best logistics fit for the wagon job.',
@@ -1265,8 +1261,12 @@ class PartyConnectorTests(unittest.TestCase):
         )
         agents['player-1-controller'].plan_action(snapshot, public_party_memory=[])
 
-        self.assertGreaterEqual(transport.requests[0]['payload']['max_tokens'], 6000)
-        self.assertGreaterEqual(transport.requests[1]['payload']['max_tokens'], 3000)
+        self.assertEqual(transport.requests[0]['payload']['max_tokens'], 700)
+        self.assertEqual(transport.requests[0]['payload']['thinking'], {'type': 'disabled'})
+        self.assertNotIn('reasoning_effort', transport.requests[0]['payload'])
+        self.assertEqual(transport.requests[1]['payload']['max_tokens'], 1200)
+        self.assertEqual(transport.requests[1]['payload']['thinking'], {'type': 'enabled'})
+        self.assertEqual(transport.requests[1]['payload']['reasoning_effort'], 'medium')
 
     def test_raw_interaction_logging_transport_writes_request_and_response_jsonl(self) -> None:
         log_dir = REPO_ROOT / 'tmp' / 'test_party_connector'
@@ -2006,6 +2006,38 @@ class PartyConnectorTests(unittest.TestCase):
         self.assertEqual(request_context['combat']['visible_enemy_target_ids'], ['player-1'])
         self.assertNotIn('[system:dm] /endturn monster-goblin-1', transcript)
         self.assertIn('[dm] /attack monster-goblin-1 shortbow player-1', transcript)
+
+    def test_dm_combat_agent_retry_uses_compact_no_thinking_budget(self) -> None:
+        dm_transport = QueueTransport(
+            [
+                {
+                    'output_text': json.dumps(
+                        {
+                            'decision_type': 'command',
+                            'text': '/attack monster-goblin-1 shortbow player-1',
+                            'option_id': None,
+                            'option_ids': [],
+                            'topic_focus': 'goblin retry attack',
+                            'reason': 'The retry uses a legal ranged attack against a visible player.',
+                        }
+                    )
+                }
+            ]
+        )
+        agent = build_default_dm_combat_agent(config=self._config(), llm_transport=dm_transport)
+
+        agent.plan_monster_action(
+            self._monster_active_combat_snapshots()['dm'],
+            previous_output='/endturn monster-goblin-1',
+            error_message='Do not end the turn while an attack is available.',
+            attempt_number=2,
+        )
+
+        request_payload = dm_transport.requests[0]['payload']
+        self.assertEqual(request_payload['metadata']['request_type'], 'dm_monster_retry')
+        self.assertEqual(request_payload['max_output_tokens'], 700)
+        self.assertEqual(request_payload['thinking'], {'type': 'disabled'})
+        self.assertNotIn('reasoning_effort', request_payload)
 
     def test_party_connector_fallback_uses_dodge_instead_of_endturn_when_actions_remain(self) -> None:
         transport = QueueTransport(
@@ -2873,6 +2905,12 @@ class PartyConnectorTests(unittest.TestCase):
         )
         self.assertEqual([request['payload'].get('metadata', {}).get('request_type') for request in transport.requests[:4]], ['party_speaker_vote'] * 4)
         self.assertEqual(transport.requests[4]['payload'].get('metadata', {}).get('request_type'), 'party_player_turn')
+        first_vote_payload = transport.requests[0]['payload']
+        vote_context = json.loads(first_vote_payload['input'][0]['content'][0]['text'])
+        self.assertEqual(first_vote_payload['max_output_tokens'], 700)
+        self.assertEqual(first_vote_payload['thinking'], {'type': 'disabled'})
+        self.assertNotIn('character', vote_context['speaker_candidates'][0])
+        self.assertLessEqual(len(vote_context['recent_chat_entries']), 6)
 
     def test_party_connector_collects_speaker_votes_concurrently(self) -> None:
         vote_payload = {

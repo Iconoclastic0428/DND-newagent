@@ -34,6 +34,21 @@ PLAYER_CONTROLLER_IDS = (
     'player-3-controller',
     'player-4-controller',
 )
+
+DEEPSEEK_PRICE_PER_1M_USD = {
+    'deepseek-v4-pro': {
+        'input_cache_hit': 0.003625,
+        'input_cache_miss': 0.435,
+        'output': 0.87,
+    },
+    'deepseek-v4-flash': {
+        'input_cache_hit': 0.0028,
+        'input_cache_miss': 0.14,
+        'output': 0.28,
+    },
+}
+_ACCEPTED_TERMINAL_REASONS = {'demo-complete', 'max-actions-or-unprocessed', 'connector-timeout-with-trajectory'}
+_ACCEPTED_PARTIAL_FINAL_MODES = {'storytelling', 'combat', 'demo-complete'}
 SCENARIO_ID = 'lmop_full_story_demo'
 
 
@@ -73,7 +88,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--max-actions', type=int, default=90)
     parser.add_argument('--poll-interval-seconds', type=float, default=0.5)
     parser.add_argument('--monster-turn-delay-seconds', type=float, default=0.1)
-    parser.add_argument('--request-timeout-seconds', type=float, default=0.0)
+    parser.add_argument('--request-timeout-seconds', type=float, default=300.0)
     parser.add_argument('--llm-timeout-seconds', type=float, default=300.0)
     parser.add_argument('--server-start-timeout-seconds', type=float, default=90.0)
     parser.add_argument('--pre-connector-delay-seconds', type=float, default=0.5)
@@ -107,6 +122,7 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None, provider_probe
     accepted_pool_path = _resolve_accepted_pool_path(args, output_root)
     accepted_rows = list(_load_accepted_conversations(accepted_pool_path, min_transitions=min_transitions))
     accepted_keys = {_accepted_conversation_key(row) for row in accepted_rows}
+    accepted_transition_sample_ids = _accepted_transition_sample_ids(accepted_rows)
     accepted_new_count = 0
     accepted_pool_report = _accepted_pool_report(
         accepted_pool_path,
@@ -127,7 +143,10 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None, provider_probe
             http_port_base=args.http_port_base,
             ws_port_base=args.ws_port_base,
             negative_intensity=args.negative_intensity,
-            start_index=accepted_pool_report['accepted_for_target_count'] + 1,
+            start_index=max(
+                accepted_pool_report['accepted_for_target_count'] + 1,
+                _max_accepted_episode_index(accepted_rows) + 1,
+            ),
         )
     else:
         plan = ()
@@ -217,6 +236,7 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None, provider_probe
             accepted_pool_path,
             results,
             accepted_keys=accepted_keys,
+            accepted_transition_sample_ids=accepted_transition_sample_ids,
             run_id=run_id,
             min_transitions=min_transitions,
         )
@@ -268,6 +288,7 @@ def run_dataset(args: argparse.Namespace, *, episode_runner=None, provider_probe
             accepted_pool_path,
             remaining_results,
             accepted_keys=accepted_keys,
+            accepted_transition_sample_ids=accepted_transition_sample_ids,
             run_id=run_id,
             min_transitions=min_transitions,
         )
@@ -322,6 +343,7 @@ def _write_run_outputs(
         quality['issues'].extend(extra_quality_issues)
         _refresh_quality_counts(quality)
     _add_combined_dataset_quality_issues(quality, combined)
+    usage_report_path = _write_llm_usage_report(run_dir, results)
     quality_path = run_dir / 'dataset_quality_report.json'
     _write_json(quality_path, quality)
     report = {
@@ -339,6 +361,7 @@ def _write_run_outputs(
         'combined_preference_path': combined.get('preference_path'),
         'quality_report_path': str(quality_path),
         'quality_status': quality['status'],
+        'llm_usage_report_path': str(usage_report_path) if usage_report_path is not None else None,
         'reward_summary': quality['reward_summary'],
     }
     report_path = run_dir / 'dataset_run_report.json'
@@ -458,6 +481,7 @@ def _load_accepted_conversations(path: Path, *, min_transitions: int) -> tuple[d
         return ()
     rows: list[dict[str, Any]] = []
     seen_keys: set[str] = set()
+    seen_sample_ids: set[str] = set()
     for line_number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1):
         if not line.strip():
             continue
@@ -473,6 +497,13 @@ def _load_accepted_conversations(path: Path, *, min_transitions: int) -> tuple[d
         key = _accepted_conversation_key(row)
         if key in seen_keys:
             raise DeepSeekDatasetRunnerError(f'Accepted conversation pool line {line_number} duplicates acceptance key {key}.')
+        sample_ids = _transition_sample_ids(row)
+        duplicates = sorted(sample_ids.intersection(seen_sample_ids))
+        if duplicates:
+            raise DeepSeekDatasetRunnerError(
+                f'Accepted conversation pool line {line_number} duplicates transition sample ids: {", ".join(duplicates[:5])}.'
+            )
+        seen_sample_ids.update(sample_ids)
         seen_keys.add(key)
         rows.append(row)
     return tuple(rows)
@@ -483,6 +514,7 @@ def _append_accepted_conversations(
     rows: Iterable[dict[str, Any]],
     *,
     accepted_keys: set[str],
+    accepted_transition_sample_ids: set[str],
     run_id: str,
     min_transitions: int,
 ) -> list[dict[str, Any]]:
@@ -495,6 +527,9 @@ def _append_accepted_conversations(
         key = _accepted_conversation_key(row)
         if key in accepted_keys:
             continue
+        sample_ids = _transition_sample_ids(row)
+        if sample_ids.intersection(accepted_transition_sample_ids):
+            continue
         accepted_row = {
             **row,
             'acceptance_key': key,
@@ -503,6 +538,7 @@ def _append_accepted_conversations(
         }
         accepted.append(accepted_row)
         accepted_keys.add(key)
+        accepted_transition_sample_ids.update(sample_ids)
     if accepted:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open('a', encoding='utf-8') as handle:
@@ -511,20 +547,58 @@ def _append_accepted_conversations(
     return accepted
 
 
+def _accepted_transition_sample_ids(rows: Iterable[dict[str, Any]]) -> set[str]:
+    sample_ids: set[str] = set()
+    for row in rows:
+        sample_ids.update(_transition_sample_ids(row))
+    return sample_ids
+
+
+def _max_accepted_episode_index(rows: Iterable[dict[str, Any]]) -> int:
+    indexes = [index for row in rows if isinstance((index := row.get('index')), int)]
+    return max(indexes, default=0)
+
+
+def _transition_sample_ids(row: dict[str, Any]) -> set[str]:
+    artifacts = row.get('artifact_paths')
+    if not isinstance(artifacts, dict):
+        return set()
+    transitions_path = artifacts.get('transitions')
+    if not isinstance(transitions_path, str):
+        return set()
+    transition_rows = _jsonl_artifact_rows(transitions_path, label='transitions', allow_empty=False)
+    if isinstance(transition_rows, str):
+        return set()
+    return {
+        sample_id
+        for transition in transition_rows
+        if isinstance((sample_id := transition.get('sample_id')), str) and sample_id
+    }
+
+
 def _good_conversation_rejection_reason(row: dict[str, Any], *, min_transitions: int) -> str | None:
     if row.get('label') not in {'positive', 'negative'}:
         return 'label is not positive or negative'
     if row.get('status') != 'completed':
         return 'status is not completed'
-    if row.get('terminal_reason') != 'demo-complete':
-        return 'terminal reason is not demo-complete'
+    terminal_reason = row.get('terminal_reason')
+    if terminal_reason not in _ACCEPTED_TERMINAL_REASONS:
+        return 'terminal reason is not accepted'
     summary = row.get('trajectory_summary')
     if not isinstance(summary, dict):
         return 'trajectory summary is missing'
-    if summary.get('success') is not True:
-        return 'trajectory summary is not successful'
-    if summary.get('final_runtime_mode') != 'demo-complete':
-        return 'final runtime mode is not demo-complete'
+    final_runtime_mode = summary.get('final_runtime_mode')
+    if terminal_reason == 'demo-complete':
+        if summary.get('success') is not True:
+            return 'trajectory summary is not successful'
+        if final_runtime_mode != 'demo-complete':
+            return 'final runtime mode is not demo-complete'
+    else:
+        if final_runtime_mode not in _ACCEPTED_PARTIAL_FINAL_MODES:
+            return 'partial trajectory final runtime mode is not accepted'
+        error_messages = summary.get('error_messages')
+        if isinstance(error_messages, list) and error_messages:
+            return 'partial trajectory has error messages'
     invalid_action_count = row.get('invalid_action_count')
     if not isinstance(invalid_action_count, int):
         invalid_action_count = summary.get('invalid_action_count')
@@ -707,7 +781,8 @@ def _probe_llm_provider(env_path: Path) -> dict[str, Any]:
         input=({'role': 'user', 'content': 'Reply with exactly: ok'},),
         instructions='Return plain text only.',
         temperature=0.0,
-        max_output_tokens=8,
+        max_output_tokens=4,
+        thinking_enabled=False,
     )
     response = client.create_response(request)
     return {
@@ -972,13 +1047,20 @@ def run_episode(
         )
         if args.pre_connector_delay_seconds > 0:
             time.sleep(args.pre_connector_delay_seconds)
-        connector_return_code = _run_logged_process(
-            connector_command,
-            cwd=REPO_ROOT,
-            stdout_path=paths['logs'] / 'party-connector.stdout.log',
-            stderr_path=paths['logs'] / 'party-connector.stderr.log',
-            timeout_seconds=args.connector_timeout_seconds,
-        )
+        connector_warning: str | None = None
+        try:
+            connector_return_code = _run_logged_process(
+                connector_command,
+                cwd=REPO_ROOT,
+                stdout_path=paths['logs'] / 'party-connector.stdout.log',
+                stderr_path=paths['logs'] / 'party-connector.stderr.log',
+                timeout_seconds=args.connector_timeout_seconds,
+            )
+        except DeepSeekDatasetRunnerError as exc:
+            connector_warning = str(exc)
+            if not connector_warning.startswith('process timed out after '):
+                raise
+            connector_return_code = 0
         if connector_return_code != 0:
             raise DeepSeekDatasetRunnerError(f'party connector exited with code {connector_return_code}')
         trajectory_path = _latest_trajectory(paths['web_trajectories'])
@@ -987,7 +1069,7 @@ def run_episode(
         result.update(
             {
                 'status': 'completed',
-                'terminal_reason': _terminal_reason(summary),
+                'terminal_reason': 'connector-timeout-with-trajectory' if connector_warning else _terminal_reason(summary),
                 'trajectory_summary': summary,
                 'record_count': summary.get('record_count', 0),
                 'turn_count': summary.get('turn_count', 0),
@@ -1004,6 +1086,8 @@ def run_episode(
                 },
             }
         )
+        if connector_warning:
+            result['connector_warning'] = connector_warning
         if result['transition_count'] < args.min_transitions:
             result['status'] = 'failed'
             result['terminal_reason'] = 'insufficient-transitions'
@@ -1056,6 +1140,10 @@ def _write_episode_datasets(spec: EpisodeSpec, *, trajectory_path: Path, episode
     dataset_dir = episode_dir / 'datasets'
     transitions = build_training_transitions(trajectory_path)
     for transition in transitions:
+        sample_id = transition.get('sample_id')
+        if isinstance(sample_id, str) and sample_id:
+            transition['source_sample_id'] = sample_id
+            transition['sample_id'] = f'{spec.episode_id}:{sample_id}'
         transition['conversation_id'] = spec.episode_id
         transition['conversation_label'] = spec.label
         transition['behavior_profile'] = spec.behavior_profile
@@ -1111,6 +1199,173 @@ def _write_combined_datasets(run_dir: Path, results: list[dict[str, Any]]) -> di
         'transition_quality': transition_quality,
         'preference_quality': preference_quality,
     }
+
+
+def _write_llm_usage_report(run_dir: Path, results: list[dict[str, Any]]) -> Path | None:
+    raw_paths = [
+        Path(row['artifact_paths']['raw_interactions'])
+        for row in results
+        if isinstance(row.get('artifact_paths'), dict) and row['artifact_paths'].get('raw_interactions')
+    ]
+    rows = [_llm_usage_row(path, interaction) for path in raw_paths for interaction in _read_jsonl_objects(path)]
+    if not rows:
+        return None
+    totals = _aggregate_llm_usage(rows)
+    report = {
+        'created_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'schema_version': 'dnd-agents-llm-usage-v1',
+        'source_paths': [str(path) for path in raw_paths],
+        'pricing': {
+            'currency': 'USD',
+            'unit': 'per_1m_tokens',
+            'models': DEEPSEEK_PRICE_PER_1M_USD,
+            'note': 'Estimated from provider usage fields; unknown models/tokens are counted but not priced.',
+        },
+        'totals': totals,
+        'by_request_type': {
+            request_type: _aggregate_llm_usage([row for row in rows if row['request_type'] == request_type])
+            for request_type in sorted({row['request_type'] for row in rows})
+        },
+        'by_model': {
+            model: _aggregate_llm_usage([row for row in rows if row['model'] == model])
+            for model in sorted({row['model'] for row in rows})
+        },
+    }
+    output_path = run_dir / 'llm_usage_report.json'
+    _write_json(output_path, report)
+    return output_path
+
+
+def _llm_usage_row(path: Path, interaction: dict[str, Any]) -> dict[str, Any]:
+    request_payload = interaction.get('request_payload') if isinstance(interaction.get('request_payload'), dict) else {}
+    response_payload = interaction.get('response_payload') if isinstance(interaction.get('response_payload'), dict) else {}
+    usage = response_payload.get('usage') if isinstance(response_payload.get('usage'), dict) else {}
+    completion_details = usage.get('completion_tokens_details') if isinstance(usage.get('completion_tokens_details'), dict) else {}
+    prompt_details = usage.get('prompt_tokens_details') if isinstance(usage.get('prompt_tokens_details'), dict) else {}
+    model = str(response_payload.get('model') or request_payload.get('model') or 'unknown')
+    prompt_tokens = _usage_int(usage.get('prompt_tokens'))
+    cache_hit_tokens = _usage_int(usage.get('prompt_cache_hit_tokens')) or _usage_int(prompt_details.get('cached_tokens'))
+    cache_miss_tokens = _usage_int(usage.get('prompt_cache_miss_tokens'))
+    if cache_miss_tokens == 0 and prompt_tokens > 0:
+        cache_miss_tokens = max(prompt_tokens - cache_hit_tokens, 0)
+    completion_tokens = _usage_int(usage.get('completion_tokens'))
+    return {
+        'source_path': str(path),
+        'request_type': _request_type(interaction, request_payload),
+        'model': model,
+        'errored': interaction.get('error') is not None,
+        'prompt_tokens': prompt_tokens,
+        'prompt_cache_hit_tokens': cache_hit_tokens,
+        'prompt_cache_miss_tokens': cache_miss_tokens,
+        'completion_tokens': completion_tokens,
+        'reasoning_tokens': _usage_int(completion_details.get('reasoning_tokens')),
+        'estimated_cost_usd': _estimated_deepseek_cost_usd(
+            model=model,
+            cache_hit_tokens=cache_hit_tokens,
+            cache_miss_tokens=cache_miss_tokens,
+            output_tokens=completion_tokens,
+        ),
+    }
+
+
+def _aggregate_llm_usage(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        'call_count': len(rows),
+        'errored_call_count': sum(1 for row in rows if row.get('errored')),
+        'prompt_tokens': sum(_usage_int(row.get('prompt_tokens')) for row in rows),
+        'prompt_cache_hit_tokens': sum(_usage_int(row.get('prompt_cache_hit_tokens')) for row in rows),
+        'prompt_cache_miss_tokens': sum(_usage_int(row.get('prompt_cache_miss_tokens')) for row in rows),
+        'completion_tokens': sum(_usage_int(row.get('completion_tokens')) for row in rows),
+        'reasoning_tokens': sum(_usage_int(row.get('reasoning_tokens')) for row in rows),
+        'estimated_cost_usd': round(sum(float(row.get('estimated_cost_usd') or 0.0) for row in rows), 6),
+    }
+
+
+def _request_type(interaction: dict[str, Any], request_payload: dict[str, Any]) -> str:
+    metadata = interaction.get('request_metadata')
+    if not isinstance(metadata, dict):
+        metadata = request_payload.get('metadata')
+    if isinstance(metadata, dict):
+        request_type = metadata.get('request_type')
+        if isinstance(request_type, str) and request_type:
+            return request_type
+    inferred = _infer_request_type_from_payload(request_payload)
+    if inferred is not None:
+        return inferred
+    return 'unknown'
+
+
+def _infer_request_type_from_payload(request_payload: dict[str, Any]) -> str | None:
+    text_parts: list[str] = []
+    messages = request_payload.get('messages')
+    if isinstance(messages, list):
+        for message in messages[:2]:
+            if not isinstance(message, dict):
+                continue
+            content = message.get('content')
+            if isinstance(content, str):
+                text_parts.append(content)
+    input_messages = request_payload.get('input')
+    if isinstance(input_messages, list):
+        for message in input_messages[:2]:
+            if not isinstance(message, dict):
+                continue
+            content = message.get('content')
+            if isinstance(content, str):
+                text_parts.append(content)
+            elif isinstance(content, list):
+                for entry in content:
+                    if isinstance(entry, dict) and isinstance(entry.get('text'), str):
+                        text_parts.append(entry['text'])
+    lowered = '\n'.join(text_parts).casefold()
+    if 'retrying a d&d player action after deterministic validation failed' in lowered:
+        return 'party_player_retry'
+    if 'retrying a dm monster combat command after deterministic validation failed' in lowered:
+        return 'dm_monster_retry'
+    if 'voting for which one party member should speak next' in lowered:
+        return 'party_speaker_vote'
+    if 'one autonomous d&d player' in lowered:
+        return 'party_player_turn'
+    if 'dungeon master controlling the active monster' in lowered:
+        return 'dm_monster_turn'
+    if 'reply with exactly: ok' in lowered:
+        return 'llm_provider_preflight'
+    return None
+
+
+def _estimated_deepseek_cost_usd(*, model: str, cache_hit_tokens: int, cache_miss_tokens: int, output_tokens: int) -> float:
+    price = DEEPSEEK_PRICE_PER_1M_USD.get(model.strip().lower())
+    if price is None:
+        return 0.0
+    return round(
+        (
+            cache_hit_tokens * price['input_cache_hit']
+            + cache_miss_tokens * price['input_cache_miss']
+            + output_tokens * price['output']
+        )
+        / 1_000_000,
+        8,
+    )
+
+
+def _usage_int(value: Any) -> int:
+    return value if isinstance(value, int) and value > 0 else 0
+
+
+def _read_jsonl_objects(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding='utf-8-sig').splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
 
 
 def _server_command(

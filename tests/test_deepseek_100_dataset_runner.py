@@ -7,6 +7,7 @@ import socket
 import sys
 import unittest
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,16 +15,20 @@ USER_TEST_ROOT = REPO_ROOT / 'user-test'
 if str(USER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(USER_TEST_ROOT))
 
+import run_deepseek_100_conversation_dataset as dataset_runner
 from run_deepseek_100_conversation_dataset import (
     DeepSeekDatasetRunnerError,
     _add_combined_dataset_quality_issues,
     _episode_paths,
     _server_command,
     _write_combined_datasets,
+    _write_episode_datasets,
+    _write_llm_usage_report,
     build_dataset_quality_report,
     build_episode_plan,
     evaluate_pilot_control,
     run_dataset,
+    run_episode,
 )
 
 
@@ -155,6 +160,34 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         self.assertEqual(len(preference_rows), 1)
         self.assertEqual(preference_rows[0]['context_strategy'], 'scene')
 
+    def test_episode_datasets_prefix_web_sample_ids_with_conversation_id(self) -> None:
+        trajectory_path = self._write_jsonl('trajectory.jsonl', [{'record_type': 'turn'}])
+        spec = build_episode_plan(
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+            http_port_base=9300,
+            ws_port_base=9400,
+            negative_intensity=0.5,
+        )[0]
+        transition = self._transition('web:2', action='advance the scene', reward=0.25)
+
+        with patch.object(dataset_runner, 'build_training_transitions', return_value=[transition]):
+            episode_dataset = _write_episode_datasets(
+                spec,
+                trajectory_path=trajectory_path,
+                episode_dir=self._tempdir / 'episode',
+            )
+
+        rows = [
+            json.loads(line)
+            for line in Path(episode_dataset['transition_path']).read_text(encoding='utf-8').splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(rows[0]['source_sample_id'], 'web:2')
+        self.assertEqual(rows[0]['sample_id'], f'{spec.episode_id}:web:2')
+        self.assertEqual(rows[0]['conversation_id'], spec.episode_id)
+
     def test_server_command_uses_isolated_episode_campaign_copy(self) -> None:
         source_campaign_root = self._tempdir / 'source-campaigns'
         source_maps = source_campaign_root / 'maps'
@@ -242,6 +275,173 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
 
         timeout_index = command.index('--llm-timeout-seconds') + 1
         self.assertEqual(command[timeout_index], '180.0')
+
+    def test_run_episode_salvages_timed_out_connector_with_trajectory(self) -> None:
+        run_dir = self._tempdir / 'run'
+        trajectory = self._write_jsonl('episode/trajectory.jsonl', [{'record_type': 'turn'}])
+        spec = build_episode_plan(
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+            http_port_base=9300,
+            ws_port_base=9400,
+            negative_intensity=0.5,
+        )[0]
+        args = SimpleNamespace(
+            host='127.0.0.1',
+            campaign_root=None,
+            max_actions=90,
+            poll_interval_seconds=0.5,
+            monster_turn_delay_seconds=0.1,
+            request_timeout_seconds=300.0,
+            llm_timeout_seconds=180.0,
+            server_start_timeout_seconds=120.0,
+            pre_connector_delay_seconds=0.0,
+            connector_timeout_seconds=1.0,
+        )
+
+        with (
+            patch.object(dataset_runner, '_start_logged_process', return_value=Mock()),
+            patch.object(dataset_runner, '_wait_for_server'),
+            patch.object(
+                dataset_runner,
+                '_run_logged_process',
+                side_effect=DeepSeekDatasetRunnerError('process timed out after 1.0 seconds: connector'),
+            ),
+            patch.object(dataset_runner, '_stop_process'),
+            patch.object(dataset_runner, '_latest_trajectory', return_value=trajectory),
+            patch.object(
+                dataset_runner,
+                '_write_episode_datasets',
+                return_value={
+                    'transition_path': str(self._tempdir / 'transitions.jsonl'),
+                    'preference_path': str(self._tempdir / 'preferences.jsonl'),
+                    'transition_count': 3,
+                    'preference_pair_count': 1,
+                    'reward_channels': {'progress': 0.5},
+                },
+            ),
+            patch.object(
+                dataset_runner,
+                'summarize_trajectory',
+                return_value={
+                    'success': True,
+                    'record_count': 3,
+                    'turn_count': 3,
+                    'invalid_action_count': 0,
+                    'total_reward': 0.5,
+                },
+            ),
+        ):
+            result = run_episode(
+                spec,
+                args=args,
+                run_dir=run_dir,
+                dm_env_path=self._tempdir / 'dm.env',
+                player_env_path=self._tempdir / 'player.env',
+                character_load_path=None,
+                base_url='file:///mirror/',
+            )
+
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(result['terminal_reason'], 'connector-timeout-with-trajectory')
+        self.assertEqual(result['transition_count'], 3)
+        self.assertEqual(result['preference_pair_count'], 1)
+        self.assertIn('process timed out after 1.0 seconds', result['connector_warning'])
+        self.assertEqual(result['artifact_paths']['trajectory'], str(trajectory))
+
+    def test_llm_usage_report_aggregates_deepseek_token_costs(self) -> None:
+        raw_interactions = self._write_jsonl(
+            'episode/raw-llm-interactions.jsonl',
+            [
+                {
+                    'request_metadata': {'request_type': 'party_speaker_vote'},
+                    'request_payload': {'model': 'deepseek-v4-pro'},
+                    'response_payload': {
+                        'model': 'deepseek-v4-pro',
+                        'usage': {
+                            'prompt_tokens': 1000,
+                            'prompt_cache_hit_tokens': 900,
+                            'prompt_cache_miss_tokens': 100,
+                            'completion_tokens': 50,
+                            'completion_tokens_details': {'reasoning_tokens': 10},
+                        },
+                    },
+                },
+                {
+                    'request_metadata': {'request_type': 'party_player_turn'},
+                    'request_payload': {'model': 'deepseek-v4-flash'},
+                    'response_payload': {
+                        'model': 'deepseek-v4-flash',
+                        'usage': {
+                            'prompt_tokens': 2000,
+                            'prompt_tokens_details': {'cached_tokens': 1500},
+                            'completion_tokens': 100,
+                        },
+                    },
+                },
+                {
+                    'request_payload': {
+                        'model': 'deepseek-v4-pro',
+                        'messages': [
+                            {
+                                'role': 'system',
+                                'content': (
+                                    'You are voting for which one party member should speak next '
+                                    'in the current D&D scene.'
+                                ),
+                            },
+                        ],
+                    },
+                    'response_payload': {
+                        'model': 'deepseek-v4-pro',
+                        'usage': {
+                            'prompt_tokens': 500,
+                            'prompt_cache_hit_tokens': 400,
+                            'prompt_cache_miss_tokens': 100,
+                            'completion_tokens': 25,
+                        },
+                    },
+                },
+                {
+                    'request_payload': {
+                        'model': 'deepseek-v4-pro',
+                        'messages': [
+                            {
+                                'role': 'system',
+                                'content': (
+                                    'You are retrying a D&D player action after deterministic '
+                                    'validation failed.'
+                                ),
+                            },
+                        ],
+                    },
+                    'response_payload': {
+                        'model': 'deepseek-v4-pro',
+                        'usage': {
+                            'prompt_tokens': 400,
+                            'prompt_cache_hit_tokens': 250,
+                            'prompt_cache_miss_tokens': 150,
+                            'completion_tokens': 20,
+                        },
+                    },
+                },
+            ],
+        )
+        results = [{'artifact_paths': {'raw_interactions': str(raw_interactions)}}]
+
+        report_path = _write_llm_usage_report(self._tempdir / 'run', results)
+
+        self.assertIsNotNone(report_path)
+        report = json.loads(Path(report_path).read_text(encoding='utf-8'))
+        self.assertEqual(report['totals']['call_count'], 4)
+        self.assertEqual(report['totals']['prompt_cache_hit_tokens'], 3050)
+        self.assertEqual(report['totals']['prompt_cache_miss_tokens'], 850)
+        self.assertEqual(report['totals']['completion_tokens'], 195)
+        self.assertEqual(report['by_request_type']['party_player_retry']['call_count'], 1)
+        self.assertEqual(report['by_request_type']['party_speaker_vote']['call_count'], 2)
+        self.assertEqual(report['by_request_type']['party_speaker_vote']['reasoning_tokens'], 10)
+        self.assertGreater(report['totals']['estimated_cost_usd'], 0)
 
     def test_port_preflight_rejects_occupied_websocket_port(self) -> None:
         from run_deepseek_100_conversation_dataset import _assert_episode_ports_available
@@ -449,6 +649,32 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         accepted_rows = [json.loads(line) for line in accepted_pool_path.read_text(encoding='utf-8').splitlines() if line.strip()]
         self.assertEqual(len(accepted_rows), 4)
 
+    def test_run_dataset_continues_episode_indexes_after_high_pool_indexes(self) -> None:
+        env_path = self._write_file('dm.env')
+        accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
+        prior_rows = [
+            self._good_conversation_result('conversation-009-positive', label='positive', index=9),
+            self._good_conversation_result('conversation-010-negative', label='negative', index=10),
+        ]
+        accepted_pool_path.write_text(
+            ''.join(json.dumps(row, sort_keys=True) + '\n' for row in prior_rows),
+            encoding='utf-8',
+        )
+        args = self._dataset_args(
+            env_path=env_path,
+            accepted_pool_path=accepted_pool_path,
+            run_id='accepted-pool-high-index-plan',
+            episodes=4,
+            positive_count=2,
+            pilot_size=2,
+        )
+        args.dry_run = True
+
+        report = run_dataset(args, episode_runner=None, provider_probe=lambda _env_path: {'status': 'ok'})
+
+        plan = json.loads(Path(report['plan_path']).read_text(encoding='utf-8'))
+        self.assertEqual([row['index'] for row in plan['episodes']], [11, 12])
+
     def test_run_dataset_persists_good_pilot_before_failed_pilot_halt(self) -> None:
         env_path = self._write_file('dm.env')
         accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
@@ -511,6 +737,38 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         self.assertEqual(report['accepted_pool']['accepted_new_count'], 0)
         self.assertEqual(report['accepted_pool']['remaining_episode_count'], 1)
 
+    def test_run_dataset_accepts_clean_partial_conversation_for_reuse(self) -> None:
+        env_path = self._write_file('dm.env')
+        accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
+
+        def fake_episode_runner(spec, **_kwargs):
+            return self._good_conversation_result(
+                spec.episode_id,
+                label=spec.label,
+                index=spec.index,
+                terminal_reason='max-actions-or-unprocessed',
+                trajectory_success=False,
+                final_runtime_mode='combat',
+            )
+
+        args = self._dataset_args(
+            env_path=env_path,
+            accepted_pool_path=accepted_pool_path,
+            run_id='accepted-pool-clean-partial',
+            episodes=1,
+            positive_count=1,
+            pilot_size=1,
+        )
+
+        report = run_dataset(args, episode_runner=fake_episode_runner, provider_probe=lambda _env_path: {'status': 'ok'})
+
+        self.assertTrue(accepted_pool_path.exists())
+        accepted_rows = [json.loads(line) for line in accepted_pool_path.read_text(encoding='utf-8').splitlines() if line.strip()]
+        self.assertEqual(len(accepted_rows), 1)
+        self.assertEqual(accepted_rows[0]['terminal_reason'], 'max-actions-or-unprocessed')
+        self.assertEqual(report['accepted_pool']['accepted_new_count'], 1)
+        self.assertEqual(report['accepted_pool']['accepted_for_target_count'], 1)
+
     def test_accepted_pool_rejects_tampered_acceptance_key(self) -> None:
         env_path = self._write_file('dm.env')
         accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
@@ -549,6 +807,34 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(DeepSeekDatasetRunnerError, 'transition count'):
+            run_dataset(args, episode_runner=None, provider_probe=lambda _env_path: {'status': 'ok'})
+
+    def test_accepted_pool_rejects_duplicate_transition_sample_ids(self) -> None:
+        env_path = self._write_file('dm.env')
+        accepted_pool_path = self._tempdir / 'accepted-conversations.jsonl'
+        first = self._good_conversation_result('accepted-positive-a', label='positive', index=1)
+        second = {
+            **self._good_conversation_result('accepted-positive-b', label='positive', index=2),
+            'artifact_paths': {
+                **self._good_conversation_result('accepted-positive-b', label='positive', index=2)['artifact_paths'],
+                'transitions': first['artifact_paths']['transitions'],
+            },
+            'result_path': str(self._write_file('accepted-positive-b/other-result.json')),
+        }
+        accepted_pool_path.write_text(
+            json.dumps(first, sort_keys=True) + '\n' + json.dumps(second, sort_keys=True) + '\n',
+            encoding='utf-8',
+        )
+        args = self._dataset_args(
+            env_path=env_path,
+            accepted_pool_path=accepted_pool_path,
+            run_id='accepted-pool-duplicate-samples',
+            episodes=2,
+            positive_count=2,
+            pilot_size=1,
+        )
+
+        with self.assertRaisesRegex(DeepSeekDatasetRunnerError, 'duplicates transition sample ids'):
             run_dataset(args, episode_runner=None, provider_probe=lambda _env_path: {'status': 'ok'})
 
     def _write_file(self, relative_path: str) -> Path:
@@ -604,6 +890,9 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
         label: str,
         index: int,
         invalid_action_count: int = 0,
+        terminal_reason: str = 'demo-complete',
+        trajectory_success: bool = True,
+        final_runtime_mode: str = 'demo-complete',
     ) -> dict:
         transcript = self._write_file(f'{episode_id}/transcript.md')
         raw_io = self._write_jsonl(f'{episode_id}/raw-io.jsonl', [{'request_payload': {}, 'response_payload': {'ok': True}}])
@@ -630,13 +919,14 @@ class DeepSeek100DatasetRunnerTests(unittest.TestCase):
             'label': label,
             'phase': 'pilot',
             'status': 'completed',
-            'terminal_reason': 'demo-complete',
+            'terminal_reason': terminal_reason,
             'total_reward': 1.0 if label == 'positive' else -0.25,
             'reward_channels': {'progress': 1.0 if label == 'positive' else -0.25},
             'trajectory_summary': {
-                'success': True,
-                'final_runtime_mode': 'demo-complete',
+                'success': trajectory_success,
+                'final_runtime_mode': final_runtime_mode,
                 'invalid_action_count': invalid_action_count,
+                'error_messages': [],
             },
             'invalid_action_count': invalid_action_count,
             'transition_count': 1,

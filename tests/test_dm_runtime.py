@@ -214,6 +214,51 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertNotIn('thinking', recorded['payload'])
         self.assertNotIn('reasoning_effort', recorded['payload'])
 
+    def test_chat_completions_json_request_can_disable_deepseek_thinking(self) -> None:
+        transport = FakeTransport({'choices': [{'message': {'role': 'assistant', 'content': '{"ok": true}'}}]})
+        client = LLMClient(
+            LLMConfig(
+                api_key='k',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            transport=transport,
+        )
+        request = client.build_request(
+            instructions='Return JSON.',
+            input_messages=({'role': 'user', 'content': [{'type': 'input_text', 'text': 'ping'}]},),
+            response_format={'type': 'json_object'},
+            thinking_enabled=False,
+            max_output_tokens=64,
+        )
+        client.create_response(request)
+        recorded = transport.requests[0]
+        self.assertEqual(recorded['payload']['thinking'], {'type': 'disabled'})
+        self.assertNotIn('reasoning_effort', recorded['payload'])
+
+    def test_chat_completions_plain_request_can_disable_deepseek_thinking(self) -> None:
+        transport = FakeTransport({'choices': [{'message': {'role': 'assistant', 'content': 'ok'}}]})
+        client = LLMClient(
+            LLMConfig(
+                api_key='k',
+                base_url='https://api.deepseek.com',
+                responses_model='deepseek-v4-pro',
+                api_format='chat_completions',
+            ),
+            transport=transport,
+        )
+        request = client.build_request(
+            instructions='Answer plainly.',
+            input_messages=({'role': 'user', 'content': [{'type': 'input_text', 'text': 'ping'}]},),
+            thinking_enabled=False,
+            max_output_tokens=4,
+        )
+        client.create_response(request)
+        recorded = transport.requests[0]
+        self.assertEqual(recorded['payload']['thinking'], {'type': 'disabled'})
+        self.assertNotIn('reasoning_effort', recorded['payload'])
+
     def test_chat_completions_stream_accumulates_output_and_reasoning(self) -> None:
         transport = FakeTransport(
             {'unused': True},

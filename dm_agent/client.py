@@ -33,6 +33,8 @@ class ResponsesRequest:
     max_output_tokens: int = 512
     metadata: dict[str, str] | None = None
     response_format: dict[str, Any] | None = None
+    thinking_enabled: bool | None = None
+    reasoning_effort: str | None = None
 
     def to_payload(self, *, stream: bool = False) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -46,6 +48,10 @@ class ResponsesRequest:
             payload['metadata'] = dict(self.metadata)
         if self.response_format is not None:
             payload['response_format'] = dict(self.response_format)
+        if self.thinking_enabled is not None:
+            payload['thinking'] = {'type': 'enabled' if self.thinking_enabled else 'disabled'}
+        if self.reasoning_effort is not None:
+            payload['reasoning_effort'] = self.reasoning_effort
         if stream:
             payload['stream'] = True
         return payload
@@ -195,6 +201,8 @@ class LLMClient:
         temperature: float = 0.0,
         max_output_tokens: int = 512,
         response_format: dict[str, Any] | None = None,
+        thinking_enabled: bool | None = None,
+        reasoning_effort: str | None = None,
     ) -> ResponsesRequest:
         return ResponsesRequest(
             model=self.config.responses_model,
@@ -204,6 +212,8 @@ class LLMClient:
             max_output_tokens=max_output_tokens,
             metadata=metadata,
             response_format=response_format,
+            thinking_enabled=thinking_enabled,
+            reasoning_effort=reasoning_effort,
         )
 
     def create_response(
@@ -260,9 +270,16 @@ class LLMClient:
             'temperature': request_spec.temperature,
             'max_tokens': request_spec.max_output_tokens,
         }
-        if json_object_request and self._is_deepseek_v4_model(request_spec.model):
-            payload['thinking'] = {'type': 'enabled'}
-            payload['reasoning_effort'] = 'high'
+        if self._is_deepseek_v4_model(request_spec.model) and (
+            json_object_request or request_spec.thinking_enabled is not None or request_spec.reasoning_effort is not None
+        ):
+            thinking_enabled = True if request_spec.thinking_enabled is None else request_spec.thinking_enabled
+            payload['thinking'] = {'type': 'enabled' if thinking_enabled else 'disabled'}
+            if thinking_enabled:
+                if request_spec.reasoning_effort is not None or json_object_request:
+                    payload['reasoning_effort'] = request_spec.reasoning_effort or 'high'
+            elif request_spec.reasoning_effort is not None:
+                payload['reasoning_effort'] = request_spec.reasoning_effort
         if request_spec.response_format is not None:
             payload['response_format'] = dict(request_spec.response_format)
         if stream:

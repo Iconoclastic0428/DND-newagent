@@ -127,6 +127,14 @@ _STALE_BRIEFING_FORBIDDEN_RE = re.compile(
     re.IGNORECASE,
 )
 _SAFE_BRIEFING_ACCEPTANCE_TEXT = 'Gundren, we accept the job. We will take the wagon to Phandalin.'
+_PLAYER_ACTION_MAX_OUTPUT_TOKENS = 1200
+_PLAYER_RETRY_MAX_OUTPUT_TOKENS = 800
+_SPEAKER_VOTE_MAX_OUTPUT_TOKENS = 700
+_DM_COMBAT_MAX_OUTPUT_TOKENS = 900
+_DM_COMBAT_RETRY_MAX_OUTPUT_TOKENS = 700
+_RECENT_CHAT_TEXT_LIMIT = 420
+_SPEAKER_RECENT_CHAT_TEXT_LIMIT = 260
+_RETRY_OUTPUT_PREVIEW_LIMIT = 1200
 
 _DIRECT_ADDRESS_RE = re.compile(r'^[A-Z][A-Za-z\' -]{2,},\s+\S+')
 _KNOWN_SCENE_NPC_NAMES = {
@@ -523,8 +531,8 @@ class PlayerAgent:
             'round_number': view.get('round_number'),
             'active_actor_id': view.get('active_actor_id'),
             'owned_actor_ids': list(view.get('owned_actor_ids', [])),
-            'summary_lines': list(view.get('summary_lines', [])[-24:]),
-            'recent_chat_entries': _recent_chat_entries(view),
+            'summary_lines': _compact_summary_lines(view, limit=16),
+            'recent_chat_entries': _recent_chat_entries(view, limit=10, text_limit=_RECENT_CHAT_TEXT_LIMIT),
             'recent_visible_check_entries': _recent_check_entries(view),
             'action_groups': _summarize_action_groups(view),
             'character': _summarize_character_card(view),
@@ -601,7 +609,7 @@ class PlayerAgent:
                                 {
                                     'retry_reason': error_message,
                                     'required_json_template': _ACTION_DECISION_TEMPLATE,
-                                    'previous_invalid_output': (previous_output or '')[:4000],
+                                    'previous_invalid_output': _truncate_text(previous_output or '', _RETRY_OUTPUT_PREVIEW_LIMIT),
                                     'task': 'Re-emit one corrected JSON action.',
                                 },
                                 sort_keys=True,
@@ -613,10 +621,15 @@ class PlayerAgent:
         return self.client.build_request(
             instructions=instructions,
             input_messages=input_messages,
-            metadata={'request_type': 'party_player_turn', 'controller_id': self.persona.controller_id},
+            metadata={
+                'request_type': 'party_player_retry' if error_message is not None else 'party_player_turn',
+                'controller_id': self.persona.controller_id,
+            },
             temperature=0.7,
-            max_output_tokens=3000,
+            max_output_tokens=_PLAYER_RETRY_MAX_OUTPUT_TOKENS if error_message is not None else _PLAYER_ACTION_MAX_OUTPUT_TOKENS,
             response_format={'type': 'json_object'},
+            thinking_enabled=error_message is None,
+            reasoning_effort='medium' if error_message is None else None,
         )
 
     def _behavior_profile_instruction(self, *, scene_progress_pressure: str = 'normal') -> str:
@@ -673,20 +686,20 @@ class PlayerAgent:
             },
             'runtime_mode': view.get('runtime_mode'),
             'current_scene_id': view.get('current_scene_id'),
-            'summary_lines': list(view.get('summary_lines', [])[-24:]),
-            'recent_chat_entries': _recent_chat_entries(view),
+            'summary_lines': _compact_summary_lines(view, limit=10),
+            'recent_chat_entries': _recent_chat_entries(view, limit=6, text_limit=_SPEAKER_RECENT_CHAT_TEXT_LIMIT),
             'recent_visible_check_entries': _recent_check_entries(view),
             'recent_party_actions': [
                 {
                     'controller_id': record.controller_id,
                     'scene_id': record.scene_id,
                     'runtime_mode': record.runtime_mode,
-                    'text': record.text,
+                    'text': _truncate_text(record.text, _SPEAKER_RECENT_CHAT_TEXT_LIMIT),
                     'topic_focus': record.topic_focus,
                 }
-                for record in public_party_memory[-8:]
+                for record in public_party_memory[-4:]
             ],
-            'speaker_candidates': list(speaker_candidates),
+            'speaker_candidates': [_compact_speaker_candidate(candidate) for candidate in speaker_candidates],
             'allowed_controller_ids': candidate_ids,
         }
         if error_message is None:
@@ -698,9 +711,9 @@ class PlayerAgent:
                 + 'Choose the candidate with the best current advantage for this exact moment, using visible player data only: '
                 + 'current HP/status/conditions, relevant skill and ability bonuses, remaining resources, spell/item fit, persona focus, recent checks, and unresolved scene goals. '
                 + 'Do not vote merely by round-robin order. Do not vote for yourself unless your candidate profile is actually the best fit. '
-                + 'reason must briefly explain the concrete advantage, not generic preference. '
-                + 'advantage_factors must list one to four short evidence strings from the candidate profiles or visible scene. '
-                + 'confidence must be a number from 0 to 1.'
+                + 'Use the compact candidate summaries; do not ask for more context. '
+                + 'reason must briefly explain the concrete advantage. '
+                + 'advantage_factors must list one to three short evidence strings. confidence must be a number from 0 to 1.'
             )
             input_messages = (
                 {
@@ -729,7 +742,7 @@ class PlayerAgent:
                                     'retry_reason': error_message,
                                     'allowed_controller_ids': candidate_ids,
                                     'required_json_template': _SPEAKER_VOTE_TEMPLATE,
-                                    'previous_invalid_output': (previous_output or '')[:4000],
+                                    'previous_invalid_output': _truncate_text(previous_output or '', _RETRY_OUTPUT_PREVIEW_LIMIT),
                                     'task': 'Re-emit one corrected JSON speaker vote.',
                                 },
                                 sort_keys=True,
@@ -743,8 +756,9 @@ class PlayerAgent:
             input_messages=input_messages,
             metadata={'request_type': 'party_speaker_vote', 'controller_id': self.persona.controller_id},
             temperature=0.2,
-            max_output_tokens=6000,
+            max_output_tokens=_SPEAKER_VOTE_MAX_OUTPUT_TOKENS,
             response_format={'type': 'json_object'},
+            thinking_enabled=False,
         )
 
 
@@ -790,8 +804,8 @@ class DMCombatAgent:
             'round_number': view.get('round_number'),
             'active_actor_id': view.get('active_actor_id'),
             'owned_actor_ids': list(view.get('owned_actor_ids', [])),
-            'summary_lines': list(view.get('summary_lines', [])[-30:]),
-            'recent_chat_entries': _recent_chat_entries(view),
+            'summary_lines': _compact_summary_lines(view, limit=18),
+            'recent_chat_entries': _recent_chat_entries(view, limit=8, text_limit=_RECENT_CHAT_TEXT_LIMIT),
             'action_groups': _summarize_action_groups(view),
             'combat': _summarize_combat_view(view),
         }
@@ -834,7 +848,7 @@ class DMCombatAgent:
                                 {
                                     'retry_reason': error_message,
                                     'required_json_template': _DM_COMBAT_DECISION_TEMPLATE,
-                                    'previous_invalid_output': (previous_output or '')[:4000],
+                                    'previous_invalid_output': _truncate_text(previous_output or '', _RETRY_OUTPUT_PREVIEW_LIMIT),
                                     'task': 'Re-emit one corrected JSON DM monster combat action.',
                                 },
                                 sort_keys=True,
@@ -846,10 +860,15 @@ class DMCombatAgent:
         return self.client.build_request(
             instructions=instructions,
             input_messages=input_messages,
-            metadata={'request_type': 'dm_monster_turn', 'controller_id': 'dm'},
+            metadata={
+                'request_type': 'dm_monster_retry' if error_message is not None else 'dm_monster_turn',
+                'controller_id': 'dm',
+            },
             temperature=0.35,
-            max_output_tokens=1800,
+            max_output_tokens=_DM_COMBAT_RETRY_MAX_OUTPUT_TOKENS if error_message is not None else _DM_COMBAT_MAX_OUTPUT_TOKENS,
             response_format={'type': 'json_object'},
+            thinking_enabled=error_message is None,
+            reasoning_effort='medium' if error_message is None else None,
         )
 
 
@@ -1203,6 +1222,7 @@ class PartyConnector:
                     error_message=error_message,
                     attempt_number=attempt,
                 )
+                decision = self._normalize_decision(controller_id, current_snapshot, decision)
                 self._validate_decision(controller_id, current_snapshot, decision, count_for_story_rotation=count_for_story_rotation)
                 self._apply_decision(controller_id, current_snapshot, decision)
                 if self.transcript_logger is not None:
@@ -1229,6 +1249,48 @@ class PartyConnector:
                     return
                 current_snapshot = self.automation_client.state(controller_id)
         raise PartyConnectorError(f'Unable to obtain a valid action for {controller_id}.')
+
+    def _normalize_decision(
+        self,
+        controller_id: str,
+        snapshot: dict[str, Any],
+        decision: PartyActionDecision,
+    ) -> PartyActionDecision:
+        view = _view_from_snapshot(snapshot)
+        prompt = snapshot.get('prompt')
+        if isinstance(prompt, dict):
+            prompt_kind = _string_or_none(prompt.get('prompt_kind'))
+            if prompt_kind in {'reaction', 'timing-order'} and decision.decision_type == 'command':
+                option_id = _prompt_option_id_matching_text(prompt, decision.text)
+                if option_id is not None:
+                    return PartyActionDecision(
+                        decision_type='prompt_response',
+                        text='',
+                        option_id=option_id,
+                        option_ids=(),
+                        topic_focus=decision.topic_focus or f'{prompt_kind} prompt response',
+                        reason=f'{decision.reason} Normalized clear {prompt_kind} intent to a prompt option.',
+                    )
+            if prompt_kind == 'story-check' and decision.decision_type == 'command' and _looks_like_check_response(decision.text):
+                return PartyActionDecision(
+                    decision_type='command',
+                    text='/check',
+                    option_id=None,
+                    option_ids=(),
+                    topic_focus=decision.topic_focus or 'resolve requested check',
+                    reason=f'{decision.reason} Normalized clear check intent to /check.',
+                )
+            return decision
+        if _string_or_none(view.get('runtime_mode')) != 'storytelling':
+            return decision
+        scene_id = _string_or_none(view.get('current_scene_id'))
+        if _scene_progress_pressure(scene_id, self._current_scene_story_turn_count(snapshot)) != 'close_scene_now':
+            return decision
+        if scene_id == 'scene-waterdeep-gundren-briefing':
+            return _normalize_stale_briefing_decision(view, decision)
+        if scene_id == 'scene-00-high-road-journey':
+            return _normalize_stale_high_road_decision(view, decision)
+        return decision
 
     def _execute_fallback_action(
         self,
@@ -2211,20 +2273,108 @@ def _recent_speaker_distance(controller_id: str, public_party_memory: tuple[Part
     return 999
 
 
-def _recent_chat_entries(view: dict[str, Any]) -> list[dict[str, Any]]:
+def _recent_chat_entries(view: dict[str, Any], *, limit: int = 18, text_limit: int = 600) -> list[dict[str, Any]]:
     entries = []
-    for entry in list(view.get('chat_entries', []))[-18:]:
+    for entry in list(view.get('chat_entries', []))[-limit:]:
         if not isinstance(entry, dict):
             continue
+        text = entry.get('text')
         entries.append(
             {
                 'speaker': entry.get('speaker'),
-                'text': entry.get('text'),
+                'text': _truncate_text(text, text_limit) if isinstance(text, str) else text,
                 'category': entry.get('category'),
                 'visibility': entry.get('visibility'),
             }
         )
     return entries
+
+
+def _compact_summary_lines(view: dict[str, Any], *, limit: int) -> list[str]:
+    lines = [line for line in view.get('summary_lines', []) if isinstance(line, str)]
+    important_prefixes = (
+        'Runtime mode:',
+        'Campaign:',
+        'Current scene:',
+        'Location:',
+        'Party goals:',
+        'Open loops:',
+        'Travel status:',
+        'Travel route:',
+        'Travel interruption:',
+        'Exploration mode:',
+        'Story check pending:',
+        'Active combatant:',
+        'Round ',
+        'Recent events:',
+    )
+    compact: list[str] = []
+    for line in lines:
+        if line.startswith(important_prefixes) and line not in compact:
+            compact.append(_truncate_text(line, 320))
+    for line in lines[-limit:]:
+        truncated = _truncate_text(line, 320)
+        if truncated not in compact:
+            compact.append(truncated)
+    return compact[-limit:]
+
+
+def _compact_speaker_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    advantage_factors = candidate.get('advantage_factors')
+    if isinstance(advantage_factors, (list, tuple)):
+        compact_factors = list(advantage_factors)[:4]
+    else:
+        compact_factors = []
+    return {
+        'controller_id': candidate.get('controller_id'),
+        'persona_codename': candidate.get('persona_codename'),
+        'persona_story_focus': candidate.get('persona_story_focus'),
+        'advantage_score': candidate.get('advantage_score'),
+        'advantage_factors': compact_factors,
+        'recently_spoke_distance': candidate.get('recently_spoke_distance'),
+        'status': _compact_candidate_status(candidate.get('status')),
+        'skill_bonuses': _top_numeric_items(candidate.get('skill_bonuses'), limit=5),
+        'ability_modifiers': _top_numeric_items(candidate.get('ability_modifiers'), limit=6),
+    }
+
+
+def _compact_candidate_status(status: Any) -> dict[str, Any]:
+    if not isinstance(status, dict):
+        return {}
+    resources = status.get('resources')
+    compact_resources = []
+    if isinstance(resources, list):
+        for resource in resources[:4]:
+            if not isinstance(resource, dict):
+                continue
+            compact_resources.append(
+                {
+                    'label': resource.get('label'),
+                    'remaining_uses': resource.get('remaining_uses'),
+                }
+            )
+    return {
+        'hit_point_ratio': status.get('hit_point_ratio'),
+        'conditions': list(status.get('conditions', []))[:3] if isinstance(status.get('conditions'), list) else [],
+        'resources': compact_resources,
+        'cantrips': list(status.get('cantrips', []))[:5] if isinstance(status.get('cantrips'), list) else [],
+        'spells': list(status.get('spells', []))[:6] if isinstance(status.get('spells'), list) else [],
+    }
+
+
+def _top_numeric_items(value: Any, *, limit: int) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    items = [(str(key), item) for key, item in value.items() if isinstance(item, int)]
+    items.sort(key=lambda item: (-abs(item[1]), item[0]))
+    return dict(items[:limit])
+
+
+def _truncate_text(value: Any, limit: int) -> str:
+    text = '' if value is None else str(value)
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + '...'
 
 
 def _recent_check_entries(view: dict[str, Any]) -> list[str]:
@@ -2379,6 +2529,87 @@ def _first_prompt_option_id(prompt: dict[str, Any]) -> str | None:
         if isinstance(option_id, str):
             return option_id
     return None
+
+
+def _prompt_option_id_matching_text(prompt: dict[str, Any], text: str) -> str | None:
+    options = [option for option in prompt.get('options', []) if isinstance(option, dict)]
+    if len(options) == 1:
+        option_id = options[0].get('option_id')
+        return option_id if isinstance(option_id, str) else None
+    normalized_text = _normalize_text(text)
+    for option in options:
+        option_id = option.get('option_id')
+        if not isinstance(option_id, str):
+            continue
+        candidates = [
+            option_id,
+            str(option.get('label') or ''),
+            str(option.get('detail') or ''),
+        ]
+        if any(candidate and _normalize_text(candidate) in normalized_text for candidate in candidates):
+            return option_id
+        option_tail = option_id.split(':')[-1]
+        if option_tail and _normalize_text(option_tail) in normalized_text:
+            return option_id
+    return None
+
+
+def _looks_like_check_response(text: str) -> bool:
+    normalized = _normalize_text(text)
+    return normalized in {'check', 'roll check', 'make check'} or normalized.startswith('i roll')
+
+
+def _normalize_stale_briefing_decision(view: dict[str, Any], decision: PartyActionDecision) -> PartyActionDecision:
+    text = decision.text.strip()
+    if _briefing_ready_for_travel(view):
+        if text.startswith('/') and _is_travel_route_phandalin(text):
+            return decision
+        if not text.startswith('/'):
+            return PartyActionDecision(
+                decision_type='command',
+                text='/travel route phandalin',
+                option_id=None,
+                option_ids=(),
+                topic_focus=decision.topic_focus or 'route travel to phandalin',
+                reason=f'{decision.reason} Normalized stale accepted briefing to route travel.',
+            )
+        return decision
+    if text.startswith('/'):
+        return decision
+    normalized = _normalize_text(text)
+    if 'accept' in normalized or 'accepted' in normalized or 'guard' in normalized and 'wagon' in normalized:
+        return PartyActionDecision(
+            decision_type='command',
+            text=_SAFE_BRIEFING_ACCEPTANCE_TEXT,
+            option_id=None,
+            option_ids=(),
+            topic_focus=decision.topic_focus or 'accept job and depart',
+            reason=f'{decision.reason} Normalized stale briefing closure to the safe acceptance wording.',
+        )
+    return decision
+
+
+def _normalize_stale_high_road_decision(view: dict[str, Any], decision: PartyActionDecision) -> PartyActionDecision:
+    travel_status = _travel_status(view)
+    if travel_status in {None, 'idle'}:
+        return PartyActionDecision(
+            decision_type='command',
+            text='/travel route phandalin',
+            option_id=None,
+            option_ids=(),
+            topic_focus=decision.topic_focus or 'route travel to phandalin',
+            reason=f'{decision.reason} Normalized stale High Road turn to route travel.',
+        )
+    if travel_status in {'route_planned', 'traveling'}:
+        return PartyActionDecision(
+            decision_type='command',
+            text='/travel advance 5',
+            option_id=None,
+            option_ids=(),
+            topic_focus=decision.topic_focus or 'advance planned travel',
+            reason=f'{decision.reason} Normalized stale High Road turn to advance travel.',
+        )
+    return decision
 
 
 def _available_choice_ids(view: dict[str, Any], group_id: str) -> tuple[str, ...]:
