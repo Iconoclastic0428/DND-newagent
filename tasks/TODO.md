@@ -11,7 +11,7 @@
 - [x] Update runtime defaults and example configuration to use `https://5e.kiwee.top/`.
 - [x] Add a focused regression for the default mirror configuration.
 - [x] Run focused loader/manual-harness verification against `https://5e.kiwee.top/`.
-- [ ] Commit and push the branch back to GitHub.
+- [x] Commit and push the branch back to GitHub.
 
 ### Verification Plan
 - Fetch representative mirror paths from `https://5e.kiwee.top/`.
@@ -27,6 +27,7 @@
   - `python -m unittest tests.test_service_defaults -v`
   - default real-catalog load: 10 species, 12 classes, 95 backgrounds, 391 character spells; 3158 monsters and 391 monster-runtime spells
   - `python user-test\character_creation_manual_test.py --command "/create policy show"`
+- Pushed branch `switch-kiwee-mirror` to `https://github.com/Iconoclastic0428/DND-newagent`.
 
 ## 2026-05-04 - Initial Git Commit And Remote Push
 
