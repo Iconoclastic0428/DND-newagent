@@ -1,3 +1,10 @@
+## 2026-05-27 - Switch Default Mirror To 5e.kiwee.top
+
+- Request: start from a fresh clone of `https://github.com/Iconoclastic0428/DND-newagent`, avoid the dirty local checkout, and make the local runtime fetch 5etools data from `https://5e.kiwee.top/` instead of the old local `D:/5etools-mirror-2.github.io` mirror.
+- Solution: created a clean `switch-kiwee-mirror` branch, verified the live `5e.kiwee.top` JSON layout matches the loader paths, changed the character-creation and monster-runtime defaults plus `.env.example` to `https://5e.kiwee.top/`, and updated the active mirror-source docs and manual harness wording from "local mirror" to "configured mirror".
+- Coverage: added [tests/test_service_defaults.py](/d:/DND-newagent-kiwee/tests/test_service_defaults.py) to assert the default character and monster service builders use `https://5e.kiwee.top/` when `.env` does not override `FIVEETOOLS_MIRROR_BASE_URL`.
+- Verification: `python -m py_compile character_creation\service.py monster_runtime\service.py user-test\monster_manual_test.py user-test\encounter_manual_test.py tests\test_service_defaults.py` passed; `python -m unittest tests.test_service_defaults -v` passed; default real-catalog loading from `https://5e.kiwee.top/` produced 10 species, 12 classes, 95 backgrounds, 391 character spells, 3158 monsters, and 391 monster-runtime spells; `python user-test\character_creation_manual_test.py --command "/create policy show"` passed.
+
 ## 2026-04-17 - Live Four-Subagent Test Run And Transcript Logging
 
 - Request: run the current user-test/web verification, then use four real spawned subagents as the four players in a live browser-demo session and save the resulting player/DM exchange to a local log file.

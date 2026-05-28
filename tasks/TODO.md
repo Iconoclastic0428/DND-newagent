@@ -1,3 +1,33 @@
+## 2026-05-27 - Switch Default 5etools Mirror To 5e.kiwee.top
+
+### Scope
+- Work from a clean clone of `https://github.com/Iconoclastic0428/DND-newagent` instead of the existing dirty local checkout.
+- Change the default rules-data mirror from the old local `D:/5etools-mirror-2.github.io` source to `https://5e.kiwee.top/`.
+- Keep the change scoped to mirror configuration, docs, and verification for the active fetch path.
+
+### Steps
+- [x] Clone the remote repository into a fresh working directory and create a dedicated branch.
+- [x] Verify that `https://5e.kiwee.top/` serves the JSON paths used by the loaders.
+- [x] Update runtime defaults and example configuration to use `https://5e.kiwee.top/`.
+- [x] Add a focused regression for the default mirror configuration.
+- [x] Run focused loader/manual-harness verification against `https://5e.kiwee.top/`.
+- [ ] Commit and push the branch back to GitHub.
+
+### Verification Plan
+- Fetch representative mirror paths from `https://5e.kiwee.top/`.
+- Build the character-creation and monster runtime catalogs with the default mirror.
+- Run focused unit coverage for service defaults.
+
+### Review
+- Confirmed `https://5e.kiwee.top/` returns HTTP 200 JSON for `data/class/index.json`, `data/races.json`, `data/backgrounds.json`, `data/spells/spells-xphb.json`, and `data/bestiary/index.json`.
+- Changed the character-creation and monster-runtime service defaults, `.env.example`, and mirror-source docs from the old local `file:///D:/5etools-mirror-2.github.io/` default to `https://5e.kiwee.top/`.
+- Added `tests.test_service_defaults` coverage so the default character and monster services are wired to `https://5e.kiwee.top/` when `.env` does not override the mirror.
+- Verification passed:
+  - `python -m py_compile character_creation\service.py monster_runtime\service.py user-test\monster_manual_test.py user-test\encounter_manual_test.py tests\test_service_defaults.py`
+  - `python -m unittest tests.test_service_defaults -v`
+  - default real-catalog load: 10 species, 12 classes, 95 backgrounds, 391 character spells; 3158 monsters and 391 monster-runtime spells
+  - `python user-test\character_creation_manual_test.py --command "/create policy show"`
+
 ## 2026-05-04 - Initial Git Commit And Remote Push
 
 ### Scope

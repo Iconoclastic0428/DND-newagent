@@ -17,10 +17,10 @@ This repository now includes the first deterministic subsystem for the D&D 2024 
 
 ## Mirror Source
 - Runtime content is loaded from `FIVEETOOLS_MIRROR_BASE_URL` in `.env`.
-- The default base URL is `file:///D:/5etools-mirror-2.github.io/`.
-- Loader requests are built relative to that base URL, so the kernel links to the local mirror instead of copying a repo fixture.
-- The loader now supports local `file://` URLs directly and reads the actual mirror JSON documents from disk.
-- Manual user-path testing uses the configured local mirror directly, with no embedded fallback dataset.
+- The default base URL is `https://5e.kiwee.top/`.
+- Loader requests are built relative to that base URL, so the kernel links to the configured 5etools mirror instead of copying a repo fixture.
+- The loader supports remote HTTP(S) mirrors and local `file://` URLs for explicit overrides.
+- Manual user-path testing uses the configured mirror directly, with no embedded fallback dataset.
 
 ## 2024 Enforcement
 - The active default policy allows only `XPHB` records.
@@ -72,15 +72,15 @@ The implemented guided flow is:
 
 ## Verification
 Current verification covers:
-- local production-mirror loading from `D:/5etools-mirror-2.github.io` with no embedded fallback dataset
-- production-data tests that build the kernel from the local mirror and complete a real slash-command creation flow
+- production-mirror loading from `https://5e.kiwee.top/` with no embedded fallback dataset
+- production-data tests that build the kernel from the configured mirror and complete a real slash-command creation flow
 - compile verification across `shared_types`, `rules_engine`, `character_creation`, `player_interface`, `tests`, and `user-test`
-- a real user-path manual harness run through `/create confirm` against the local mirror
+- a real user-path manual harness run through `/create confirm` against the configured mirror
 
 ## Encounter Runtime
 
 ### Purpose
-The repository now also includes a deterministic single-encounter runtime slice that consumes canonical player `CharacterRecord` output from the character-creation subsystem and monster/spell content from the local 5etools mirror.
+The repository now also includes a deterministic single-encounter runtime slice that consumes canonical player `CharacterRecord` output from the character-creation subsystem and monster/spell content from the configured 5etools mirror.
 
 ### Boundary
 - The encounter runtime does not perform DM narration or NPC dialogue.
@@ -91,20 +91,20 @@ The repository now also includes a deterministic single-encounter runtime slice 
 - `shared_types/encounter_models.py`: encounter content records, runtime actor state, snapshots, and policy.
 - `shared_types/encounter_intents.py`: typed encounter intents.
 - `shared_types/encounter_events.py`: typed encounter events.
-- `rules_engine/encounter_loader.py`: local-mirror-backed monster and spell normalization.
+- `rules_engine/encounter_loader.py`: mirror-backed monster and spell normalization.
 - `encounter_runtime/compiler.py`: compiles player characters and monsters into runtime actor state.
 - `encounter_runtime/kernel.py`: deterministic intent validation, event generation, and event application.
 - `player_interface/encounter_commands.py`: slash-command surface for user-facing interaction.
 
 ### Source Policy
-- Encounter content is loaded from `FIVEETOOLS_MIRROR_BASE_URL` and currently defaults to `file:///D:/5etools-mirror-2.github.io/`.
+- Encounter content is loaded from `FIVEETOOLS_MIRROR_BASE_URL` and currently defaults to `https://5e.kiwee.top/`.
 - Legacy `PHB` content is excluded.
 - Homebrew and third-party content are rejected.
 - Official first-party extension monster and spell sources are allowed.
 
 ### Supported Mechanical Slice
 1. Load a `CharacterRecord` and compile it into a player runtime actor.
-2. Load normalized monsters from the local bestiary mirror and compile them into monster runtime actors.
+2. Load normalized monsters from the configured bestiary mirror and compile them into monster runtime actors.
 3. Start an encounter with deterministic initiative rolls from the shared seed.
 4. Resolve movement using grid distance and remaining speed.
 5. Resolve `Dash` and `Dodge` as deterministic basic actions.
@@ -113,12 +113,12 @@ The repository now also includes a deterministic single-encounter runtime slice 
 8. Advance turn order and round count deterministically.
 
 ### Verification
-The encounter runtime is verified with production-data tests against the local mirror and a direct user-style manual harness in `user-test/encounter_manual_test.py`.
+The encounter runtime is verified with production-data tests against the configured mirror and a direct user-style manual harness in `user-test/encounter_manual_test.py`.
 
 ## Monster Runtime
 
 ### Purpose
-The repository now includes a standalone monster data pipeline and monster runtime service that loads official monster and supported spell data from the local 5etools mirror and compiles monsters or player records into shared runtime actor state.
+The repository now includes a standalone monster data pipeline and monster runtime service that loads official monster and supported spell data from the configured 5etools mirror and compiles monsters or player records into shared runtime actor state.
 
 ### Boundary
 - The monster runtime does not start encounters by itself.
@@ -126,13 +126,13 @@ The repository now includes a standalone monster data pipeline and monster runti
 - The monster runtime is responsible for content loading, policy filtering, inspection, and deterministic actor compilation only.
 
 ### Module Layout
-- `rules_engine/monster_loader.py`: local-mirror-backed monster and supported-spell normalization.
+- `rules_engine/monster_loader.py`: mirror-backed monster and supported-spell normalization.
 - `monster_runtime/compiler.py`: runtime actor compilation for monsters and players.
 - `monster_runtime/service.py`: direct list, inspect, and compile APIs used by both manual tests and the encounter runtime.
 - `player_interface/monster_commands.py`: deterministic command surface for monster inspection and compilation.
 
 ### Source Policy
-- Content is loaded from `FIVEETOOLS_MIRROR_BASE_URL`, which defaults to `file:///D:/5etools-mirror-2.github.io/`.
+- Content is loaded from `FIVEETOOLS_MIRROR_BASE_URL`, which defaults to `https://5e.kiwee.top/`.
 - Legacy `PHB`, homebrew, and third-party monster content are excluded.
 - Official first-party extension sources remain allowed.
 

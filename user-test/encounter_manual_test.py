@@ -188,11 +188,11 @@ def main() -> int:
         session = build_session()
     except (ContentLoadError, CharacterCreationError, EncounterError) as exc:
         print(f'ERROR: {exc}')
-        print('The encounter harness only uses the configured local mirror and a real CharacterRecord built through the character-creation subsystem.')
+        print('The encounter harness only uses the configured mirror and a real CharacterRecord built through the character-creation subsystem.')
         return 1
 
     print('Encounter manual test harness')
-    print('Mode: configured local mirror')
+    print('Mode: configured mirror')
     print('Data source: FIVEETOOLS_MIRROR_BASE_URL from .env through the real loaders.')
     print('Controllers: system, dm, player-1-controller')
     print('Ownership: DM owns all monsters; Player 1 owns player-1; system starts the encounter and routes prompts.')

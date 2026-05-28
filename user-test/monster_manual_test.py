@@ -76,13 +76,13 @@ def main() -> int:
         player_record = build_character_record()
     except (ContentLoadError, CharacterCreationError, MonsterRuntimeError) as exc:
         print(f"ERROR: {exc}")
-        print("The monster harness only uses the configured local mirror and a real CharacterRecord built through the character-creation subsystem.")
+        print("The monster harness only uses the configured mirror and a real CharacterRecord built through the character-creation subsystem.")
         return 1
 
     ui = MonsterSlashCommandInterface(runtime, player_record=player_record)
 
     print("Monster manual test harness")
-    print("Mode: configured local mirror")
+    print("Mode: configured mirror")
     print("Data source: FIVEETOOLS_MIRROR_BASE_URL from .env through the real loaders.")
     print("Type monster commands, 'example' to print a flow, or 'exit' to quit.")
     print()

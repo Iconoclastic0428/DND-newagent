@@ -14,7 +14,7 @@ from rules_engine.monster_loader import load_monster_catalog
 from .compiler import compile_monster_actor, compile_player_actor
 
 
-DEFAULT_MIRROR_BASE_URL = "file:///D:/5etools-mirror-2.github.io/"
+DEFAULT_MIRROR_BASE_URL = "https://5e.kiwee.top/"
 
 
 @dataclass

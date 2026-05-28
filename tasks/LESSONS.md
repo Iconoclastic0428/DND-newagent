@@ -1,5 +1,9 @@
 # Lessons
 
+## 2026-05-27
+- Pattern: When the existing local checkout contains unrelated dirty work and the user wants a remote-only change pushed back, do not modify the dirty checkout.
+- Rule: Clone the requested GitHub repository into a fresh working directory, make the scoped change there, and push from that clean branch.
+
 ## 2026-04-01
 - Pattern: When the user specifies an upstream D&D rules database, do not preserve a local runtime fixture as the source of truth.
 - Rule: Character-creation runtime data must link through the configured mirror base URL and fail explicitly if that mirror cannot satisfy the active 2024 policy.

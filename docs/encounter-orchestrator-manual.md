@@ -33,7 +33,7 @@ python user-test/encounter_system_server.py --port 8765
 
 What this does:
 - starts the authoritative server on `127.0.0.1:8765`
-- builds the local-mirror-backed encounter session
+- builds the configured-mirror-backed encounter session
 - loads the authored goblin ambush battlefield into canonical encounter state
 - auto-starts the encounter unless `--no-auto-start` is passed
 
