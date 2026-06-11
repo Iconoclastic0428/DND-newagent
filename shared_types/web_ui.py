@@ -20,6 +20,12 @@ class WebHexCoordinate:
 
 
 @dataclass(frozen=True)
+class WebHexRenderCoordinate:
+    col: int
+    row: int
+
+
+@dataclass(frozen=True)
 class WebActionChoiceView:
     group_id: str
     option_id: str
@@ -198,6 +204,7 @@ class WebTokenView:
     is_active: bool
     is_owner: bool
     visibility_state: str = 'visible'
+    token_image_url: str | None = None
     hit_points: int | None = None
     max_hit_points: int | None = None
     temp_hit_points: int | None = None
@@ -231,6 +238,8 @@ class WebMapCellView:
     apparent_blocked: bool = False
     apparent_cover: str | None = None
     apparent_tags: tuple[str, ...] = ()
+    visible: bool = True
+    vision_mode: str = 'normal'
 
 
 @dataclass(frozen=True)
@@ -269,6 +278,18 @@ class WebMapGridView:
 
 
 @dataclass(frozen=True)
+class WebMapBackgroundView:
+    url: str
+    width_px: int
+    height_px: int
+    grid_type: str
+    grid_size_px: int
+    grid_offset_x_px: int
+    grid_offset_y_px: int
+    source_internal_path: str
+
+
+@dataclass(frozen=True)
 class WebMapView:
     map_id: str | None
     name: str
@@ -276,6 +297,9 @@ class WebMapView:
     cells: tuple[WebMapCellView, ...]
     features: tuple[WebMapFeatureView, ...]
     tokens: tuple[WebTokenView, ...]
+    background: WebMapBackgroundView | None = None
+    vision_time_of_day: str = 'day'
+    vision_actor_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -288,6 +312,31 @@ class WebTravelLandmarkView:
     scene_id: str | None
     tags: tuple[str, ...]
     hidden: bool = False
+
+
+@dataclass(frozen=True)
+class WebTravelGridBoundsView:
+    min_col: int
+    min_row: int
+    max_col: int
+    max_row: int
+
+
+@dataclass(frozen=True)
+class WebTravelMapBackgroundView:
+    url: str
+    width_px: int
+    height_px: int
+    grid_type: str
+    grid_size_px: int
+    effective_grid_size_px: int
+    grid_offset_x_px: int
+    grid_offset_y_px: int
+    grid_scale: int
+    units: str
+    source_internal_path: str
+    grid_bounds: WebTravelGridBoundsView | None = None
+    grid_cell_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -316,6 +365,7 @@ class WebTravelHexView:
     coord: WebHexCoordinate
     terrain_id: str
     travel_cost_units: int
+    render_coord: WebHexRenderCoordinate | None
     route_kind: str | None
     traversable: bool
     discovered: bool
@@ -340,6 +390,7 @@ class WebTravelMapView:
     elapsed_minutes: int
     hexes: tuple[WebTravelHexView, ...]
     landmarks: tuple[WebTravelLandmarkView, ...]
+    background: WebTravelMapBackgroundView | None = None
     planned_route: WebTravelRouteView | None = None
     pending_hook: WebTravelHookView | None = None
 

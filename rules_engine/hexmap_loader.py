@@ -10,7 +10,10 @@ from shared_types.travel import (
     HexCoord,
     HexLandmarkDefinition,
     HexMapDefinition,
+    HexRenderCoord,
     HexTerrainType,
+    TravelMapGridBounds,
+    TravelMapImageSpec,
     TravelHookDefinition,
     TravelHookTrigger,
     TravelHookType,
@@ -40,6 +43,7 @@ class HexMapLoader:
             name=HexMapLoader._require_str(payload, 'name'),
             coord_system=coord_system,
             hex_scale_miles=HexMapLoader._require_int(payload, 'hex_scale_miles'),
+            background_image=HexMapLoader._parse_background_image(payload.get('background_image')),
             cells=cells,
             landmarks=landmarks,
             hooks=hooks,
@@ -49,10 +53,17 @@ class HexMapLoader:
     def _parse_cell(item: object) -> HexCellDefinition:
         if not isinstance(item, dict):
             raise EncounterValidationError('Hex map cell entries must be objects.')
+        render_coord = None
+        if 'render_col' in item or 'render_row' in item:
+            render_coord = HexRenderCoord(
+                col=HexMapLoader._require_int(item, 'render_col'),
+                row=HexMapLoader._require_int(item, 'render_row'),
+            )
         return HexCellDefinition(
             coord=HexCoord(q=HexMapLoader._require_int(item, 'q'), r=HexMapLoader._require_int(item, 'r')),
             terrain=HexTerrainType(HexMapLoader._require_str(item, 'terrain')),
             travel_cost_units=HexMapLoader._require_int(item, 'travel_cost_units'),
+            render_coord=render_coord,
             route_kind=HexMapLoader._optional_str(item, 'route_kind'),
             route_cost_adjustment_units=HexMapLoader._optional_int(item, 'route_cost_adjustment_units', default=0),
             landmark_ids=tuple(HexMapLoader._require_str_list(item, 'landmark_ids')),
@@ -101,7 +112,52 @@ class HexMapLoader:
             interrupts_travel=HexMapLoader._optional_bool(item, 'interrupts_travel', default=False),
             suggested_open_loops=tuple(HexMapLoader._require_str_list(item, 'suggested_open_loops')),
             suggested_party_goals=tuple(HexMapLoader._require_str_list(item, 'suggested_party_goals')),
+            suggested_visible_npc_ids=HexMapLoader._optional_str_list(item, 'suggested_visible_npc_ids'),
         )
+
+    @staticmethod
+    def _parse_background_image(item: object) -> TravelMapImageSpec | None:
+        if item is None:
+            return None
+        if not isinstance(item, dict):
+            raise EncounterValidationError('Hex map background_image must be an object when present.')
+        grid_size_px = HexMapLoader._require_int(item, 'grid_size_px')
+        grid_scale = HexMapLoader._optional_int(item, 'grid_scale', default=1)
+        if grid_size_px <= 0:
+            raise EncounterValidationError('Hex map background_image grid_size_px must be positive.')
+        if grid_scale <= 0:
+            raise EncounterValidationError('Hex map background_image grid_scale must be positive.')
+        if grid_size_px % grid_scale != 0:
+            raise EncounterValidationError('Hex map background_image grid_size_px must divide evenly by grid_scale.')
+        return TravelMapImageSpec(
+            url=HexMapLoader._require_str(item, 'url'),
+            width_px=HexMapLoader._require_int(item, 'width_px'),
+            height_px=HexMapLoader._require_int(item, 'height_px'),
+            grid_type=HexMapLoader._require_str(item, 'grid_type'),
+            grid_size_px=grid_size_px,
+            grid_offset_x_px=HexMapLoader._require_int(item, 'grid_offset_x_px'),
+            grid_offset_y_px=HexMapLoader._require_int(item, 'grid_offset_y_px'),
+            grid_scale=grid_scale,
+            units=HexMapLoader._optional_str(item, 'units', default='') or '',
+            source_internal_path=HexMapLoader._require_str(item, 'source_internal_path'),
+            grid_bounds=HexMapLoader._parse_grid_bounds(item.get('grid_bounds')),
+        )
+
+    @staticmethod
+    def _parse_grid_bounds(item: object) -> TravelMapGridBounds | None:
+        if item is None:
+            return None
+        if not isinstance(item, dict):
+            raise EncounterValidationError('Hex map background_image grid_bounds must be an object when present.')
+        bounds = TravelMapGridBounds(
+            min_col=HexMapLoader._require_int(item, 'min_col'),
+            min_row=HexMapLoader._require_int(item, 'min_row'),
+            max_col=HexMapLoader._require_int(item, 'max_col'),
+            max_row=HexMapLoader._require_int(item, 'max_row'),
+        )
+        if bounds.max_col < bounds.min_col or bounds.max_row < bounds.min_row:
+            raise EncounterValidationError('Hex map background_image grid_bounds max values must be >= min values.')
+        return bounds
 
     @staticmethod
     def _require_list(payload: dict[str, object], key: str) -> list[object]:
@@ -116,6 +172,15 @@ class HexMapLoader:
         if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
             raise EncounterValidationError(f'Hex map payload field `{key}` must be a list of strings.')
         return list(value)
+
+    @staticmethod
+    def _optional_str_list(payload: dict[str, object], key: str) -> tuple[str, ...] | None:
+        if key not in payload:
+            return None
+        value = payload.get(key)
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            raise EncounterValidationError(f'Hex map payload field `{key}` must be a list of strings when present.')
+        return tuple(value)
 
     @staticmethod
     def _require_str(payload: dict[str, object], key: str) -> str:

@@ -59,6 +59,53 @@ class HexCoord:
         return HexCoord(self.q + dq, self.r + dr)
 
 
+@dataclass(frozen=True)
+class HexRenderCoord:
+    col: int
+    row: int
+
+    def as_tuple(self) -> tuple[int, int]:
+        return (self.col, self.row)
+
+
+@dataclass(frozen=True)
+class TravelMapGridBounds:
+    min_col: int
+    min_row: int
+    max_col: int
+    max_row: int
+
+    def as_tuple(self) -> tuple[int, int, int, int]:
+        return (self.min_col, self.min_row, self.max_col, self.max_row)
+
+    @property
+    def cell_count(self) -> int:
+        return (self.max_col - self.min_col + 1) * (self.max_row - self.min_row + 1)
+
+
+@dataclass(frozen=True)
+class TravelMapImageSpec:
+    url: str
+    width_px: int
+    height_px: int
+    grid_type: str
+    grid_size_px: int
+    grid_offset_x_px: int
+    grid_offset_y_px: int
+    grid_scale: int = 1
+    units: str = ''
+    source_internal_path: str = ''
+    grid_bounds: TravelMapGridBounds | None = None
+
+    @property
+    def effective_grid_size_px(self) -> int:
+        return self.grid_size_px // self.grid_scale
+
+    @property
+    def grid_cell_count(self) -> int:
+        return 0 if self.grid_bounds is None else self.grid_bounds.cell_count
+
+
 AXIAL_DIRECTIONS: tuple[tuple[int, int], ...] = (
     (1, 0),
     (1, -1),
@@ -108,6 +155,7 @@ class HexCellDefinition:
     coord: HexCoord
     terrain: HexTerrainType
     travel_cost_units: int
+    render_coord: HexRenderCoord | None = None
     route_kind: str | None = None
     route_cost_adjustment_units: int = 0
     landmark_ids: tuple[str, ...] = ()
@@ -147,6 +195,7 @@ class TravelHookDefinition:
     interrupts_travel: bool = False
     suggested_open_loops: tuple[str, ...] = ()
     suggested_party_goals: tuple[str, ...] = ()
+    suggested_visible_npc_ids: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -157,6 +206,7 @@ class HexMapDefinition:
     name: str
     coord_system: HexCoordinateSystem = HexCoordinateSystem.AXIAL
     hex_scale_miles: int = 6
+    background_image: TravelMapImageSpec | None = None
     cells: tuple[HexCellDefinition, ...] = ()
     landmarks: tuple[HexLandmarkDefinition, ...] = ()
     hooks: tuple[TravelHookDefinition, ...] = ()

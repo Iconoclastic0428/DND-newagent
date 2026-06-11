@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from typing import Any
+from urllib.parse import quote
 
 from shared_types.battlefield import CoverLevel, MovementIntentMode
 from shared_types.encounter_control import ControllerRole
@@ -40,6 +41,7 @@ from shared_types.web_session import (
 from shared_types.web_ui import (
     WebActionChoiceView,
     WebActionGroupView,
+    WebMapBackgroundView,
     WebCellInspectionView,
     WebCellTraversalView,
     WebCharacterAbilityView,
@@ -54,6 +56,7 @@ from shared_types.web_ui import (
     WebChatEntryView,
     WebCoordinate,
     WebHexCoordinate,
+    WebHexRenderCoordinate,
     WebMapCellView,
     WebMapFeatureView,
     WebMapGridView,
@@ -62,7 +65,9 @@ from shared_types.web_ui import (
     WebTravelHexInspectionView,
     WebTravelHexView,
     WebTravelHookView,
+    WebTravelGridBoundsView,
     WebTravelLandmarkView,
+    WebTravelMapBackgroundView,
     WebTravelMapView,
     WebTravelRoutePreviewView,
     WebTravelRouteView,
@@ -75,7 +80,8 @@ from shared_types.web_ui import (
 
 from .encounter_session import _recent_event_lines
 from encounter_runtime.equipment import derived_stowed_counts
-from encounter_runtime.visibility import controller_can_see_position, controller_visibility_state
+from encounter_runtime.visibility import controller_can_see_position, controller_visibility_state, position_light_level, position_obscurement
+from encounter_runtime.vision import awareness_cells_for_actors, normalize_time_of_day, visible_cells_for_actors, vision_modes_for_actors
 from encounter_runtime.persistent_effects import illusion_observer_state, illusion_projects_apparent_state, illusion_visible_to_observer, persistent_area_contains_position
 
 
@@ -252,8 +258,8 @@ def inspect_cell(session, controller_id: str, *, x: int, y: int, z: int | None =
         occupiable=tile.occupiable,
         movement_cost_feet_per_5ft=tile.movement_cost_feet_per_5ft,
         difficult_terrain=tile.difficult_terrain,
-        lighting=tile.lighting.value,
-        obscurement=tile.obscurement.value,
+        lighting=position_light_level(session.state, position).value,
+        obscurement=position_obscurement(session.state, position).value,
         blocks_los=tile.blocks_los,
         blocks_loe=tile.blocks_loe,
         base_cover=tile.base_cover.value,
@@ -548,6 +554,23 @@ def _hex_coord(coord: HexCoord) -> WebHexCoordinate:
     return WebHexCoordinate(q=coord.q, r=coord.r)
 
 
+def _hex_render_coord(coord) -> WebHexRenderCoordinate | None:
+    if coord is None:
+        return None
+    return WebHexRenderCoordinate(col=coord.col, row=coord.row)
+
+
+def _travel_grid_bounds(bounds) -> WebTravelGridBoundsView | None:
+    if bounds is None:
+        return None
+    return WebTravelGridBoundsView(
+        min_col=bounds.min_col,
+        min_row=bounds.min_row,
+        max_col=bounds.max_col,
+        max_row=bounds.max_row,
+    )
+
+
 def _ground_item_ids_at(session, *, x: int, y: int) -> tuple[str, ...]:
     return tuple(
         ground_item.ground_item_id
@@ -619,8 +642,34 @@ def _controller_can_inspect_position(session, controller_id: str, position: Grid
     binding = _control_runtime(session).validate_controller(controller_id)
     if binding.role == ControllerRole.DM:
         return True
+    if position.horizontal() not in _controller_visible_cells(session, controller_id):
+        return False
     observer_actor_ids = _observer_actor_ids(session, controller_id)
     return controller_can_see_position(session.state, observer_actor_ids, position)
+
+
+def _map_time_of_day(session) -> str:
+    metadata = getattr(getattr(session, 'story_state', None), 'metadata', {})
+    if isinstance(metadata, dict) and metadata.get('time_of_day') is not None:
+        return normalize_time_of_day(str(metadata['time_of_day']))
+    return normalize_time_of_day(getattr(session.state.battlefield, 'vision_time_of_day', 'day'))
+
+
+def _controller_visible_cells(session, controller_id: str) -> frozenset[GridPosition]:
+    observer_actor_ids = _observer_actor_ids(session, controller_id)
+    return visible_cells_for_actors(session.state, observer_actor_ids, time_of_day=_map_time_of_day(session))
+
+
+def _controller_awareness_cells(session, controller_id: str) -> frozenset[GridPosition]:
+    observer_actor_ids = _observer_actor_ids(session, controller_id)
+    return awareness_cells_for_actors(session.state, observer_actor_ids, time_of_day=_map_time_of_day(session))
+
+
+def _controller_vision_modes(session, controller_id: str, role: ControllerRole) -> dict[GridPosition, str]:
+    if role == ControllerRole.DM:
+        return {position.horizontal(): 'normal' for position in session.state.battlefield.tiles}
+    observer_actor_ids = _observer_actor_ids(session, controller_id)
+    return vision_modes_for_actors(session.state, observer_actor_ids, time_of_day=_map_time_of_day(session))
 
 
 def _required_prompt_kind(prompt) -> str:
@@ -895,8 +944,14 @@ def _persistent_feature_projection(session, controller_id: str, role: Controller
         cells = _persistent_area_cells(session, area)
         if not cells:
             continue
-        if role != ControllerRole.DM and not any(_controller_can_inspect_position(session, controller_id, cell) for cell in cells):
-            continue
+        if role != ControllerRole.DM:
+            if area.definition.apparent_only:
+                if not any(_controller_can_inspect_position(session, controller_id, cell) for cell in cells):
+                    continue
+            else:
+                awareness_cells = _controller_awareness_cells(session, controller_id)
+                if not any(cell.horizontal() in awareness_cells for cell in cells):
+                    continue
         features.append(
             WebMapFeatureView(
                 feature_id=area.area_id,
@@ -968,6 +1023,7 @@ def _project_travel_map(session, controller_id: str, role: ControllerRole) -> We
                 coord=_hex_coord(cell.coord),
                 terrain_id=cell.terrain.value,
                 travel_cost_units=max(1, cell.travel_cost_units + cell.route_cost_adjustment_units),
+                render_coord=_hex_render_coord(cell.render_coord),
                 route_kind=cell.route_kind,
                 traversable=cell.traversable,
                 discovered=discovered,
@@ -1015,6 +1071,22 @@ def _project_travel_map(session, controller_id: str, role: ControllerRole) -> We
             battlefield_map_id=(state.pending_hook.battlefield_map_id if dm_view else None),
             interrupts_travel=state.pending_hook.interrupts_travel,
         )
+    image = travel_map.background_image
+    background = None if image is None else WebTravelMapBackgroundView(
+        url=image.url,
+        width_px=image.width_px,
+        height_px=image.height_px,
+        grid_type=image.grid_type,
+        grid_size_px=image.grid_size_px,
+        effective_grid_size_px=image.effective_grid_size_px,
+        grid_offset_x_px=image.grid_offset_x_px,
+        grid_offset_y_px=image.grid_offset_y_px,
+        grid_scale=image.grid_scale,
+        units=image.units,
+        source_internal_path=image.source_internal_path,
+        grid_bounds=_travel_grid_bounds(image.grid_bounds),
+        grid_cell_count=image.grid_cell_count,
+    )
     return WebTravelMapView(
         map_id=travel_map.map_id,
         name=travel_map.name,
@@ -1028,6 +1100,7 @@ def _project_travel_map(session, controller_id: str, role: ControllerRole) -> We
         elapsed_minutes=state.elapsed_minutes,
         hexes=tuple(hexes),
         landmarks=tuple(landmarks),
+        background=background,
         planned_route=route_view,
         pending_hook=pending_hook,
     )
@@ -1038,12 +1111,18 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
     if battlefield.grid is None:
         return None
     binding = _control_runtime(session).validate_controller(controller_id)
+    vision_time_of_day = _map_time_of_day(session)
+    vision_actor_ids = () if binding.role == ControllerRole.DM else _observer_actor_ids(session, controller_id)
+    vision_modes = _controller_vision_modes(session, controller_id, binding.role)
+    visible_cells = frozenset(vision_modes.keys())
     persistent_features, apparent_overlays = _persistent_feature_projection(session, controller_id, binding.role)
     sorted_tiles = sorted(battlefield.tiles.values(), key=lambda item: (item.position.y, item.position.x))
     cells = []
     for tile in sorted_tiles:
         position = GridPosition(tile.position.x, tile.position.y, tile.elevation_ft)
-        inspectable = _controller_can_inspect_position(session, controller_id, position)
+        vision_mode = vision_modes.get(position.horizontal(), 'none')
+        visible = vision_mode != 'none'
+        inspectable = binding.role == ControllerRole.DM or (visible and _controller_can_inspect_position(session, controller_id, position))
         overlay = apparent_overlays.get((tile.position.x, tile.position.y, tile.elevation_ft), {'blocked': False, 'cover': None, 'tags': ()})
         cells.append(
             WebMapCellView(
@@ -1055,8 +1134,8 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
                 occupiable=tile.occupiable,
                 movement_cost_feet_per_5ft=tile.movement_cost_feet_per_5ft,
                 difficult_terrain=tile.difficult_terrain,
-                lighting=tile.lighting.value,
-                obscurement=tile.obscurement.value,
+                lighting=position_light_level(session.state, position).value,
+                obscurement=position_obscurement(session.state, position).value,
                 blocks_los=tile.blocks_los,
                 blocks_loe=tile.blocks_loe,
                 base_cover=tile.base_cover.value,
@@ -1067,6 +1146,8 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
                 apparent_blocked=bool(overlay['blocked']) if binding.role != ControllerRole.DM else False,
                 apparent_cover=(overlay['cover'] if binding.role != ControllerRole.DM else None),
                 apparent_tags=(tuple(overlay['tags']) if binding.role != ControllerRole.DM else ()),
+                visible=visible,
+                vision_mode=vision_mode,
             )
         )
     actual_features = tuple(
@@ -1085,12 +1166,23 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
             tags=feature.tags,
         )
         for feature in battlefield.features.values()
-        if binding.role == ControllerRole.DM or any(_controller_can_inspect_position(session, controller_id, GridPosition(cell.x, cell.y, feature.elevation_ft)) for cell in feature.cells)
+        if binding.role == ControllerRole.DM or any(GridPosition(cell.x, cell.y).horizontal() in visible_cells for cell in feature.cells)
     )
     features = actual_features + persistent_features
     actor_ids = session.state.initiative_order or tuple(session.state.actors.keys())
     projected_tokens = [_project_token(session, controller_id, binding.role, actor_id) for actor_id in actor_ids]
     tokens = tuple(token for token in projected_tokens if token is not None)
+    image = battlefield.background_image
+    background = None if image is None else WebMapBackgroundView(
+        url=image.url,
+        width_px=image.width_px,
+        height_px=image.height_px,
+        grid_type=image.grid_type,
+        grid_size_px=image.grid_size_px,
+        grid_offset_x_px=image.grid_offset_x_px,
+        grid_offset_y_px=image.grid_offset_y_px,
+        source_internal_path=image.source_internal_path,
+    )
     return WebMapView(
         map_id=battlefield.map_id,
         name=battlefield.name,
@@ -1106,6 +1198,9 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
         cells=tuple(cells),
         features=features,
         tokens=tokens,
+        background=background,
+        vision_time_of_day=vision_time_of_day,
+        vision_actor_ids=vision_actor_ids,
     )
 
 def _project_token_status(actor) -> str:
@@ -1118,6 +1213,16 @@ def _project_token_status(actor) -> str:
     return 'active'
 
 
+def _token_image_url(session, actor, *, identity_visible: bool) -> str | None:
+    if not identity_visible or actor.side != ActorSide.MONSTER or actor.monster_record_id is None:
+        return None
+    record = session.runtime_services.encounter_catalog.monsters.get(actor.monster_record_id)
+    if record is None or record.token_image_path is None:
+        return None
+    token_image_path = record.token_image_path.replace('\\', '/')
+    return f"/mirror/{quote(token_image_path, safe='/')}"
+
+
 def _project_token(session, controller_id: str, role: ControllerRole, actor_id: str) -> WebTokenView | None:
     control_runtime = _control_runtime(session)
     actor = session.state.actors[actor_id]
@@ -1126,18 +1231,23 @@ def _project_token(session, controller_id: str, role: ControllerRole, actor_id: 
     sees_private = is_owner or role == ControllerRole.DM
     visibility_state = ObserverVisibilityState.VISIBLE
     if role != ControllerRole.DM and not is_owner:
+        cell_visible = actor.position.horizontal() in _controller_visible_cells(session, controller_id)
+        cell_known = actor.position.horizontal() in _controller_awareness_cells(session, controller_id)
         visibility_state = controller_visibility_state(session.state, _observer_actor_ids(session, controller_id), actor)
         if visibility_state == ObserverVisibilityState.HIDDEN:
+            return None
+        if not cell_visible and (not cell_known or visibility_state != ObserverVisibilityState.UNSEEN):
             return None
     status = _project_token_status(actor)
     if actor.actor_id == session.state.active_actor_id:
         status = f'{status}-turn'
     conditions = tuple(instance.condition_type.value for instance in actor.condition_instances) if sees_private else ()
-    label = actor.name if visibility_state == ObserverVisibilityState.VISIBLE or sees_private else 'Unseen contact'
+    identity_visible = visibility_state == ObserverVisibilityState.VISIBLE or sees_private
+    label = actor.name if identity_visible else 'Unseen contact'
     return WebTokenView(
         actor_id=actor.actor_id,
         name=label,
-        side=(actor.side.value if visibility_state == ObserverVisibilityState.VISIBLE or sees_private else 'unknown'),
+        side=(actor.side.value if identity_visible else 'unknown'),
         position=_coord(actor.position),
         occupied_height_ft=actor.occupied_height_ft,
         support_state=actor.support_state.value,
@@ -1145,6 +1255,7 @@ def _project_token(session, controller_id: str, role: ControllerRole, actor_id: 
         is_active=actor.actor_id == session.state.active_actor_id,
         is_owner=is_owner,
         visibility_state=visibility_state.value,
+        token_image_url=_token_image_url(session, actor, identity_visible=identity_visible),
         hit_points=(actor.current_hit_points if sees_private else None),
         max_hit_points=(actor.max_hit_points if sees_private else None),
         temp_hit_points=(actor.temp_hit_points if sees_private else None),
@@ -1873,8 +1984,10 @@ def _edge_summaries(session, position: GridPosition) -> tuple[str, ...]:
         except EncounterValidationError:
             continue
         edge = rules.get_edge_transition(battlefield, position, GridPosition(neighbor_xy.x, neighbor_xy.y, neighbor_tile.elevation_ft))
+        los_text = 'blocks LOS' if edge.blocks_los else 'LOS open'
+        elevation_text = 'confirm elevation' if edge.requires_vertical_confirmation and edge.height_change_ft != 0 else 'normal elevation'
         summaries.append(
-            f'{label}: {edge.transition_type.value}; requirement {edge.traversal_requirement.value}; height {edge.height_change_ft} ft'
+            f'{label}: {edge.transition_type.value}; requirement {edge.traversal_requirement.value}; height {edge.height_change_ft} ft; {los_text}; {elevation_text}'
         )
     return tuple(summaries)
 

@@ -129,3 +129,67 @@
 - Rule: Demo and dataset monster turns must route through a DM combat controller when the active monster has an action available, submit legal DM-owned slash commands, and include a regression proving actionable monsters are not silently auto-ended.
 - Pattern: A completed generated conversation can still be unusable if it contains invalid actions or replayed mutable combat text, and rerunning a fixed 100-count plan wastes provider work when good rows already exist.
 - Rule: Dataset generation must persist strict-good conversations into a durable accepted pool as soon as they finish, subtract accepted positive/negative counts from future plans, and render combat event text from immutable event fields with stable event IDs so transcripts remain auditable.
+
+## 2026-05-14
+- Pattern: A live manual/subagent run is not auditable if only a summary is written after the fact.
+- Rule: Whenever running an input-output structured workflow, persist the original inputs and raw outputs in a repo-local artifact unless the user explicitly says not to; summaries are secondary and never replace the raw transcript.
+
+## 2026-05-21
+- Pattern: A DeepSeek v4 JSON-mode call can return empty final content when the reasoning budget is too tight, even though the HTTP request reaches the provider.
+- Rule: When testing reasoning-enabled JSON calls, retry with enough `max_output_tokens` for both reasoning and final JSON, then preserve the raw output and deterministic reward record as UTF-8 JSONL before declaring the live LLM path broken or fixed.
+- Pattern: Generic keyword overlap can make story reward look objective while still missing whether the scene is actually moving through its concrete goals.
+- Rule: Reward scoring for story play should keep LLMs out of the judge path and encode scene-specific subgoals plus stagnation penalties as explicit deterministic evidence, with `reward_version` bumped whenever numeric meaning changes.
+- Pattern: Single broad terms inside a scene subgoal can create reward false positives, such as treating `extra supplies` as payment negotiation or `road` as road-danger investigation.
+- Rule: Scene subgoals that represent semantic objectives must require discriminating evidence terms, not just broad modifiers or setting nouns.
+- Pattern: Clamping story reward totals to zero hides whether bad LLM outputs are mildly weak or actively harmful.
+- Rule: Dataset reward records should store raw signed `total_reward` values and use the component breakdown for interpretation; do not add compensating positive components for invalid or empty actions.
+
+## 2026-06-02
+- Pattern: A transient browser status like `DM is thinking...` can be routed through an `info` event and stored as a persistent system chat entry even though it is only a placeholder.
+- Rule: Frontend chat state must classify DM thinking placeholders as transient regardless of whether they arrive as `thinking` or system/info entries, and must expire them when authoritative DM chat advances.
+- Pattern: A playable D&D map demo is misleading if it uses a semantic grid while the user asked for the actual adventure map.
+- Rule: Manual map demos must bind the browser grid to verified player-map image metadata, including square size and offset, and must project rules-owned wall and vision masks before presenting the URL.
+- Pattern: Map fog can look correct for static walls while still being wrong for D&D play if dynamic effects and created objects are not part of the same visibility path.
+- Rule: Vision changes must test active bright/dim light, darkness/darkvision, heavy obscurement such as Fog Cloud, and physical created blockers such as crates through the runtime projection before calling the map slice complete.
+
+## 2026-06-03
+- Pattern: Fixing one inspected water cell on an image-backed battle map can leave the visible river/path broken because the image, not the initial hand-authored cell list, is the source of truth for terrain.
+- Rule: For image-backed tactical maps, author terrain from a full image-first pass over all visible terrain of that type, then verify representative movement across the whole continuous feature instead of only the originally clicked square.
+- Pattern: A map-vision bug can look like terrain blocking when the real failure is a manual fixture mutating a derived actor field that the rules kernel later recomputes.
+- Rule: Manual visual fixtures must grant derived senses such as darkvision through authoritative active effects or base actor data, and verification must check the rendered projection after at least one typed action or move.
+- Pattern: Mixed-art map cells can contain both traversable space and a wall boundary, so whole-cell wall/water choices can make movement or visibility inconsistent.
+- Rule: For grid-aligned image maps, model partial wall boundaries as explicit edge overrides with separate movement and LOS/LOE flags; keep the cell terrain passable when the playable part of the square is passable.
+- Pattern: Adding elevation to a previously flat image-backed map can silently break continuous terrain such as rivers if nonzero neighboring surfaces lack explicit transition edges.
+- Rule: Treat image-backed height as typed geometry: author tile elevation, raised features, normal-elevation edges, climbable edges, and LOS/LOE edge blockers separately; then re-verify representative movement across every continuous terrain feature that crosses a height change.
+- Pattern: A default `/move x y` into an elevated authored surface can fail if omitted z is interpreted as the actor's old height instead of the destination surface.
+- Rule: For ground movement commands, omitted z should resolve to the destination tile's authored surface while edge rules decide whether vertical confirmation, climb, or normal movement is required.
+- Pattern: Whole-cell visibility fixes still miss image-map artifacts when the printed wall is only on one side of a playable square.
+- Rule: For image-backed maps, author side-specific LOS/LOE edge blockers for visible wall faces and verify the exact coordinate-to-coordinate sight examples the user reports.
+- Pattern: Recomputing every actor vision ray on each unchanged web projection makes manual map testing feel broken even when the visible cells are correct.
+- Rule: Cache deterministic actor grid-vision projections with a conservative signature over actor senses, tile lighting/obscurement, features, edge blockers, active lights, and persistent areas; add a performance regression with a measured budget.
+- Pattern: Treating every grid square as having only one walkable tile elevation breaks bridges and overpasses where a lower floor and an upper deck share the same x/y coordinate.
+- Rule: Movement resolution must enumerate supported ground surfaces, prefer the actor's current height when that height exists at the destination, and record movement segments at the chosen z rather than the tile's base elevation.
+- Pattern: Verifying one representative bridge/entrance coordinate can miss the user's actual failing route when they name a full coordinate sequence.
+- Rule: When the user provides explicit map coordinates, add regressions for every named coordinate and the exact omitted-z/explicit-z commands they report before calling the route fixed.
+- Pattern: Preview can resolve a legal surface while movement events still commit the raw requested coordinate, creating impossible walking heights such as `(16,5,0)` under a 10 ft floor.
+- Rule: For ground movement with explicit z on multi-surface squares, resolve the destination to an authored supported surface before validation and event construction, and commit `preview.destination`, not the raw requested coordinate. `/fly` is the path that may keep unsupported airspace.
+- Pattern: An obvious persistent area can hide its own player-map overlay if projection visibility requires inspecting a cell that the area makes heavily obscured.
+- Rule: For non-apparent physical area effects such as Fog Cloud, project the area feature when any area cell is in the observer's map awareness, while keeping cell contents hidden according to normal visibility/obscurement rules.
+- Pattern: A requested coordinate on an image-backed map can satisfy the typed fixture while still landing on a visually awkward part of the image, such as printed legend or stream art instead of the intended grass.
+- Rule: For manual visual fixture placement, verify the exact coordinate with both authored cell metadata and an in-browser screenshot, and report when the requested coordinate does not visually match the intended map feature.
+- Pattern: Rendering monster art from a frontend name lookup can leak hidden creature identity and drift from the authoritative content database.
+- Rule: Monster map icons must be projected from the rules-owned catalog record id, served from the configured local mirror, and redacted whenever the viewer cannot identify the token.
+
+## 2026-06-04
+- Pattern: Treating Fog Cloud only as target-cell heavy obscurement lets sight leak through or out of the cloud, especially for adjacent cells because line traces usually skip origin and destination cells.
+- Rule: Persistent areas with `blocks_vision` must participate as LOS ray blockers, and an observer standing inside such an area cannot see out through normal vision; seeing into a cloud should still be classified through heavy obscurement rather than as a hard wall target.
+- Pattern: Warming movement vision at an intermediate movement-spent event can leave the first rendered projection tied to the pre-commit position.
+- Rule: Movement-side vision warming must happen after the final `PositionChangedEvent` so the cached first projection uses the committed actor position and remains under the measured latency budget.
+- Pattern: Marking only the centerline of an image-backed stream can leave the visually continuous river edge or exit as cave floor or default wall.
+- Rule: When the user reports a passability issue on an image-backed terrain feature, verify actual movement along both visible sides of the feature and the exit cells, not just representative terrain metadata.
+- Pattern: Tree or briar art left as normal floor silently changes movement economics even when it looks visually dense in the browser.
+- Rule: Image-backed thickets should have their own authored terrain type with difficult-terrain movement and explicit LOS/cover behavior, then be verified in both API terrain projection and rendered browser classes.
+- Pattern: 5e.tools map metadata can use `scale` to make the visible grid cell size different from the raw `grid.size`, as in PaBTSO Goblin Ambush `150 / 3 = 50 px`.
+- Rule: When binding a map to 5e.tools metadata, preserve the raw source values in notes/types, but render with the effective grid size and effective offset after scale so overlays line up with the actual image grid.
+- Pattern: Putting an official map image behind only authored route cells can look like a partial map implementation even when the route cells align correctly.
+- Rule: For image-backed regional hex maps, render the full source grid as a visual layer across the whole image, and keep the smaller rules-owned travel graph as a separate semantic overlay.

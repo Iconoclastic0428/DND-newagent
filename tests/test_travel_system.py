@@ -22,6 +22,31 @@ class TravelSystemTests(unittest.TestCase):
         self.assertEqual(len(self.travel_map.cells), 10)
         self.assertEqual(len(self.travel_map.landmarks), 8)
         self.assertEqual(len(self.travel_map.hooks), 3)
+        high_road_hook = next(hook for hook in self.travel_map.hooks if hook.hook_id == 'hook-high-road-journey')
+        self.assertEqual(high_road_hook.suggested_visible_npc_ids, ())
+
+    def test_lmop_fixture_loads_pabtso_player_region_background_and_render_grid(self) -> None:
+        background = self.travel_map.background_image
+        self.assertIsNotNone(background)
+        assert background is not None
+        self.assertEqual(background.url, 'assets/maps/pabtso-phandalin-region-player.webp')
+        self.assertEqual(background.source_internal_path, 'adventure/PaBTSO/004-map-0.01-phandalin-region-player.webp')
+        self.assertEqual((background.width_px, background.height_px), (1700, 2216))
+        self.assertEqual(background.grid_type, 'hexColsOdd')
+        self.assertEqual(background.grid_size_px, 240)
+        self.assertEqual((background.grid_offset_x_px, background.grid_offset_y_px), (17, -35))
+        self.assertEqual(background.grid_scale, 3)
+        self.assertEqual(background.effective_grid_size_px, 80)
+        self.assertEqual(background.units, 'miles')
+        self.assertEqual(background.grid_bounds.as_tuple(), (0, 0, 28, 27))
+        self.assertEqual(background.grid_cell_count, 812)
+        self.assertEqual(self.travel_map.hex_scale_miles, 5)
+
+        cells = {(cell.coord.q, cell.coord.r): cell for cell in self.travel_map.cells}
+        self.assertEqual(cells[(0, 0)].render_coord.as_tuple(), (6, 13))
+        self.assertEqual(cells[(4, 0)].render_coord.as_tuple(), (11, 19))
+        self.assertEqual(cells[(5, 0)].render_coord.as_tuple(), (13, 20))
+        self.assertEqual(cells[(6, 0)].render_coord.as_tuple(), (15, 21))
 
     def test_route_planning_to_phandalin_uses_lmop_fixture(self) -> None:
         state, _events = self.engine.initial_state(

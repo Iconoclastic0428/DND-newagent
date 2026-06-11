@@ -6,12 +6,24 @@
         "moduleHint": "Lost Mine of Phandelver / Phandalin area",
         "authoringMethod": "manual semantic transcription from provided image",
         "notes": [
+            "Uses the player-version Goblin Ambush image from Phandelver and Below: The Shattered Obelisk in the local 5e.tools mirror.",
+            "5e.tools map metadata: width 1002 px, height 1369 px, square grid size 150 px, offset (84, 31), scale 3. The browser overlay uses the effective 50 px grid size and offset (28, 10).",
             "Decorative border, title text, compass rose, and direction arrows are excluded from playable terrain.",
             "Grid interpreted as 5-foot squares with an 18 x 26 playable battle area.",
             "Road/trail bed is modeled at elevation 0 ft.",
             "North and south wooded shelves are modeled at elevation 10 ft unless overridden.",
             "The northeastern side path ramps from the lower road to the upper shelf using 5-ft intermediate ramp tiles."
         ]
+    },
+    "backgroundImage": {
+        "url": "assets/maps/pabtso-goblin-ambush-player.webp",
+        "widthPx": 1002,
+        "heightPx": 1369,
+        "gridType": "square",
+        "gridSizePx": 50,
+        "gridOffsetXPx": 28,
+        "gridOffsetYPx": 10,
+        "sourceInternalPath": "adventure/PaBTSO/010-map-1.01-goblin-ambush-player.webp"
     },
     "grid": {
         "cellSizeFeet": 5,

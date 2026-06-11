@@ -305,6 +305,10 @@ function renderLegend() {
         ['difficult', 'Difficult'],
         ['active', 'Active token'],
       ];
+  if (view?.map?.grid) {
+    items.push(['not-visible', 'Unseen']);
+    items.push(['vision-night', 'Night vision']);
+  }
   for (const [css, label] of items) {
     const item = create('div');
     const swatch = create('span', 'swatch');
@@ -335,6 +339,7 @@ function renderMapToolbar() {
       });
       els.mapToolbar.appendChild(button);
     }
+    appendMapNudgeControls(view.map);
     return;
   }
   if (!view.travel) return;
@@ -387,8 +392,18 @@ function renderMap() {
 }
 
 function renderBattlefieldMap(map) {
+  const cellSizePx = 42;
   const grid = create('div', 'map-grid');
-  grid.style.gridTemplateColumns = `repeat(${map.grid.width}, 42px)`;
+  grid.style.setProperty('--map-cell-size', `${cellSizePx}px`);
+  grid.style.gridTemplateColumns = `repeat(${map.grid.width}, var(--map-cell-size))`;
+  if (map.background) {
+    const background = map.background;
+    const imageScale = cellSizePx / background.grid_size_px;
+    grid.classList.add('has-background');
+    grid.style.backgroundImage = `url("${background.url}")`;
+    grid.style.backgroundSize = `${background.width_px * imageScale}px ${background.height_px * imageScale}px`;
+    grid.style.backgroundPosition = `${-background.grid_offset_x_px * imageScale}px ${-background.grid_offset_y_px * imageScale}px`;
+  }
   const tokenMap = new Map();
   const featureMap = new Map();
   for (const token of map.tokens || []) {
@@ -412,13 +427,16 @@ function renderBattlefieldMap(map) {
     tile.classList.add(`lighting-${String(cell.lighting || 'bright').replace(/[^a-z0-9_-]/gi, '_')}`);
     tile.classList.add(`obscurement-${String(cell.obscurement || 'none').replace(/[^a-z0-9_-]/gi, '_')}`);
     if (!cell.traversable || !cell.occupiable) tile.classList.add('blocked');
+    tile.classList.add(`vision-${String(cell.vision_mode || 'none').replace(/[^a-z0-9_-]/gi, '_')}`);
+    tile.classList.add(cell.visible === false ? 'not-visible' : 'visible');
     if (cell.apparent_blocked) tile.classList.add('apparent-blocked');
     if (cell.difficult_terrain) tile.classList.add('difficult');
+    if (Number(cell.elevation_ft || 0) !== 0) tile.classList.add('elevated');
     if (selectedKey === `${cell.position.x},${cell.position.y},${cell.position.z}`) tile.classList.add('selected');
     if (previewPath.has(`${cell.position.x},${cell.position.y},${cell.position.z}`)) tile.classList.add('preview');
     tile.appendChild(create('div', 'cell-coord', `${cell.position.x},${cell.position.y}`));
     tile.appendChild(create('div', 'cell-elevation', `${cell.elevation_ft}ft`));
-    tile.title = `(${cell.position.x},${cell.position.y},${cell.position.z}) | ${cell.terrain_id} | light ${cell.lighting} | obscurement ${cell.obscurement}`;
+    tile.title = `(${cell.position.x},${cell.position.y},${cell.position.z}) | ${cell.terrain_id} | light ${cell.lighting} | obscurement ${cell.obscurement} | vision ${cell.vision_mode || 'none'} | visible ${cell.visible !== false}`;
     const featureStack = create('div', 'feature-stack');
     for (const feature of featureMap.get(`${cell.position.x},${cell.position.y}`) || []) {
       const pill = create('div', 'feature-badge', String(feature.display_name || feature.feature_id).slice(0, 18));
@@ -431,11 +449,22 @@ function renderBattlefieldMap(map) {
       const badgeText = token.visibility_state === 'visible'
         ? (token.name.replace(/[^0-9A-Z]/gi, '').slice(0, 2) || token.name.slice(0, 2))
         : '?';
-      const badge = create('button', `token-badge ${token.side}`, badgeText);
+      const badge = create('button', `token-badge ${token.side}`);
       badge.type = 'button';
       badge.classList.add(`visibility-${token.visibility_state || 'visible'}`);
+      if (token.token_image_url) {
+        badge.classList.add('has-token-image');
+        const image = create('img', 'token-image');
+        image.src = token.token_image_url;
+        image.alt = '';
+        image.decoding = 'async';
+        badge.appendChild(image);
+      } else {
+        badge.textContent = badgeText;
+      }
       if (token.is_active) badge.classList.add('active');
       badge.title = `${token.name} @ (${token.position.x},${token.position.y},${token.position.z})`;
+      badge.setAttribute('aria-label', badge.title);
       badge.addEventListener('click', event => {
         event.stopPropagation();
         if (state.pendingAction && state.pendingAction.target_kind === 'creature') {
@@ -465,16 +494,46 @@ function renderBattlefieldMap(map) {
   els.mapContainer.appendChild(grid);
 }
 
+function appendMapNudgeControls(map) {
+  const controls = create('div', 'map-nudge-controls');
+  for (const [label, dx, dy, title] of [
+    ['^', 0, -1, 'Move up'],
+    ['<', -1, 0, 'Move left'],
+    ['v', 0, 1, 'Move down'],
+    ['>', 1, 0, 'Move right'],
+  ]) {
+    const button = create('button', 'secondary', label);
+    button.type = 'button';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.disabled = !activeOwnedMapToken(map);
+    button.addEventListener('click', () => nudgeMapToken(dx, dy));
+    controls.appendChild(button);
+  }
+  els.mapToolbar.appendChild(controls);
+}
+
 function renderTravelMap(travel) {
-  const layout = computeTravelLayout(travel.hexes || []);
+  const layout = computeTravelLayout(travel);
   const shell = create('div', 'travel-hexmap');
   shell.style.width = `${layout.width}px`;
   shell.style.height = `${layout.height}px`;
+  if (layout.background) {
+    const background = layout.background;
+    shell.classList.add('has-background');
+    shell.style.backgroundImage = `url("${background.url}")`;
+    shell.style.backgroundSize = `${layout.width}px ${layout.height}px`;
+    shell.style.setProperty('--travel-hex-width', `${layout.nodeWidth}px`);
+    shell.style.setProperty('--travel-hex-height', `${layout.nodeHeight}px`);
+    shell.style.setProperty('--travel-grid-hex-width', `${layout.gridNodeWidth}px`);
+    shell.style.setProperty('--travel-grid-hex-height', `${layout.gridNodeHeight}px`);
+    appendTravelGridLayer(shell, layout);
+  }
   const landmarkNames = new Map((travel.landmarks || []).map(landmark => [landmark.landmark_id, landmark.name]));
   const selectedKey = state.inspection?.coord ? `${state.inspection.coord.q},${state.inspection.coord.r}` : null;
   const routeKeys = new Set((travel.planned_route?.path || []).map(coord => `${coord.q},${coord.r}`));
   for (const hex of travel.hexes || []) {
-    const point = travelHexPixel(hex.coord, layout.minX, layout.minY);
+    const point = travelHexPixel(hex, layout);
     const node = create('button', 'travel-hex');
     node.type = 'button';
     node.style.left = `${point.left}px`;
@@ -511,7 +570,42 @@ function renderTravelMap(travel) {
   els.mapContainer.appendChild(shell);
 }
 
-function computeTravelLayout(hexes) {
+function appendTravelGridLayer(shell, layout) {
+  const bounds = layout.background?.grid_bounds;
+  if (!bounds) return;
+  const layer = create('div', 'travel-grid-layer');
+  for (let col = Number(bounds.min_col); col <= Number(bounds.max_col); col += 1) {
+    for (let row = Number(bounds.min_row); row <= Number(bounds.max_row); row += 1) {
+      const point = travelRenderGridPixel({ col, row }, layout, layout.gridNodeWidth, layout.gridNodeHeight);
+      const visualHex = create('div', 'travel-grid-hex');
+      visualHex.style.left = `${point.left}px`;
+      visualHex.style.top = `${point.top}px`;
+      visualHex.setAttribute('aria-hidden', 'true');
+      layer.appendChild(visualHex);
+    }
+  }
+  shell.appendChild(layer);
+}
+
+function computeTravelLayout(travel) {
+  const background = travel?.background || null;
+  if (background) {
+    const effectiveGridSize = Number(background.effective_grid_size_px || background.grid_size_px || 80);
+    const displayGridSize = 48;
+    const imageScale = displayGridSize / effectiveGridSize;
+    return {
+      background,
+      imageScale,
+      displayGridSize,
+      nodeWidth: Math.round(displayGridSize * 0.92),
+      nodeHeight: Math.round(displayGridSize * 0.86),
+      gridNodeWidth: Math.round(displayGridSize * 0.96),
+      gridNodeHeight: Math.round(displayGridSize * 0.96),
+      width: Math.round(Number(background.width_px || 0) * imageScale),
+      height: Math.round(Number(background.height_px || 0) * imageScale),
+    };
+  }
+  const hexes = travel?.hexes || [];
   const size = 34;
   const rawPoints = (hexes || []).map(hex => ({
     coord: hex.coord,
@@ -526,17 +620,45 @@ function computeTravelLayout(hexes) {
     size,
     minX,
     minY,
+    nodeWidth: 60,
+    nodeHeight: 68,
     width: Math.max(480, maxX - minX + 24),
     height: Math.max(320, maxY - minY + 24),
   };
 }
 
-function travelHexPixel(coord, minX, minY) {
+function travelHexPixel(hex, layout) {
+  if (layout.background && hex.render_coord) {
+    return travelRenderGridPixel(hex.render_coord, layout, layout.nodeWidth, layout.nodeHeight);
+  }
+  const coord = hex.coord;
   const size = 34;
   return {
-    left: Math.sqrt(3) * size * (coord.q + coord.r / 2) - minX,
-    top: size * 1.5 * coord.r - minY,
+    left: Math.sqrt(3) * size * (coord.q + coord.r / 2) - layout.minX,
+    top: size * 1.5 * coord.r - layout.minY,
   };
+}
+
+function travelRenderGridPixel(renderCoord, layout, nodeWidth, nodeHeight) {
+    const background = layout.background;
+    const gridScale = Number(background.grid_scale || 1);
+    const offsetX = Number(background.grid_offset_x_px || 0) / gridScale * layout.imageScale;
+    const offsetY = Number(background.grid_offset_y_px || 0) / gridScale * layout.imageScale;
+    const col = Number(renderCoord.col);
+    const row = Number(renderCoord.row);
+    let centerX = offsetX;
+    let centerY = offsetY;
+    if (background.grid_type === 'hexColsOdd') {
+      centerX += col * layout.displayGridSize * 0.75;
+      centerY += row * layout.displayGridSize + (col % 2 ? layout.displayGridSize / 2 : 0);
+    } else {
+      centerX += col * layout.displayGridSize;
+      centerY += row * layout.displayGridSize;
+    }
+    return {
+      left: centerX - nodeWidth / 2,
+      top: centerY - nodeHeight / 2,
+    };
 }
 
 function renderInspection() {
@@ -1103,6 +1225,53 @@ function renderSummary() {
   }
 }
 
+function activeOwnedMapToken(map = state.view?.map) {
+  if (!map) return null;
+  return (map.tokens || []).find(token => token.is_owner && token.is_active)
+    || (map.tokens || []).find(token => token.is_owner)
+    || null;
+}
+
+function mapCellAt(map, x, y, z) {
+  return (map.cells || []).find(cell => cell.position.x === x && cell.position.y === y && cell.position.z === z) || null;
+}
+
+function nudgeMapToken(dx, dy) {
+  const map = state.view?.map;
+  const token = activeOwnedMapToken(map);
+  if (!map || !token) {
+    appendSystemEntry('error', 'No controlled active token is available on this map.');
+    return;
+  }
+  const target = {
+    x: token.position.x + dx,
+    y: token.position.y + dy,
+    z: token.position.z,
+  };
+  if (!mapCellAt(map, target.x, target.y, target.z)) {
+    appendSystemEntry('error', `No map cell exists at (${target.x}, ${target.y}, ${target.z}).`);
+    return;
+  }
+  sendJson({ type: 'move_proposal', x: target.x, y: target.y, z: target.z, mode: 'walk' });
+}
+
+function handleMapKeyboardMove(event) {
+  if (!state.view?.map?.grid) return;
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const activeElement = document.activeElement;
+  if (activeElement?.matches?.('input, textarea, select') || activeElement?.isContentEditable) return;
+  const deltas = {
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+  };
+  const delta = deltas[event.key];
+  if (!delta) return;
+  event.preventDefault();
+  nudgeMapToken(delta[0], delta[1]);
+}
+
 function canPreviewMove() {
   const view = state.view;
   if (!view) return false;
@@ -1176,6 +1345,7 @@ els.commandInput.addEventListener('keydown', event => {
     sendCommand(els.commandInput.value);
   }
 });
+window.addEventListener('keydown', handleMapKeyboardMove);
 
 initializeMapPanning();
 loadConfig()

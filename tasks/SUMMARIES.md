@@ -1398,3 +1398,307 @@ Verification for the level-2 defense-buff trio completed: Barkskin, Enhance Abil
 - Finding: the actionable feedback that held up locally was accepted-pool identity hardening and combat event ID scoping. The pool already rejected duplicate derived keys, but a row-provided `acceptance_key` could bypass derived-artifact identity, transition artifacts were only existence-checked, and projected combat chat IDs were not scoped by web session.
 - Fix: added red/green tests for tampered accepted keys, transition-count/artifact mismatches, and session-scoped combat chat IDs. Accepted-pool validation now derives identity from artifacts, rejects mismatched stored keys, parses required JSONL artifacts, checks non-empty text/JSONL artifacts where required, and verifies `transition_count` against the transitions file. Web combat chat entry IDs now use `<session_id>:encounter-event:<event-index>`.
 - Verification: focused red regressions failed before implementation and passed after; full runner suite passed 17 tests, full encounter suite passed 20 tests, full connector suite passed 72 tests, broad relevant suite passed 210 tests, focused `py_compile` passed, and `git diff --check` reported only LF/CRLF warnings. Follow-up commit/push remains next.
+
+## 2026-05-21 - Scene Subgoal Rewards And Stagnation Penalty
+
+- Request: clarify whether `StoryRewardGrader` is LLM-scored or deterministic, then finish the scene-subgoal and no-progress penalty work for the reward function.
+- Clarification: rewards are assigned by deterministic code, not by the LLM. The LLM emits the player action; the grader evaluates action text plus before/after snapshots and typed events.
+- Implementation: updated [user-test/reward_grader.py](/d:/DND-newagent/user-test/reward_grader.py) to `reward_version=story-reward-v3-scene-goals`, added explicit scene subgoals for Gundren briefing, High Road travel, and the Triboar ambush, and introduced `scene_subgoal_progress` evidence with matched subgoal ids/descriptions/terms.
+- Gundren briefing now rewards natural job-progress actions such as extra payment or hazard-pay negotiation, cargo/delivery questions, road danger questions, urgency/secrecy probes, scene examination, and travel commitment.
+- Added `stagnation_penalty` when same-scene story turns continue without scene subgoal progress, prompt resolution, meaningful state progress, stage transition, side quest progress, or combat outcome.
+- Tests: expanded [tests/test_story_reward_grader.py](/d:/DND-newagent/tests/test_story_reward_grader.py) for natural extra-payment/info gathering, High Road scene examination/watch setup, stagnation after three no-progress turns, and subgoal progress resetting stagnation.
+- Live dataset check: generated a full DeepSeek-backed dataset at [2026-05-21-live-reward-scene-advance-dataset.jsonl](/d:/DND-newagent/user-test/full-story-demo/logs/2026-05-21-live-reward-scene-advance-dataset.jsonl), with summary at [2026-05-21-live-reward-scene-advance-summary.json](/d:/DND-newagent/user-test/full-story-demo/logs/2026-05-21-live-reward-scene-advance-summary.json). The corrected run produced 9 candidates, 3 selected turns, 2 scene advancements, and `all_selected_actions_advanced_or_completed_subgoal=true`.
+- Correction from live data: tightened `gundren_payment_terms` and `gundren_road_dangers` after the first live dataset exposed a false positive where `extra supplies` matched payment and `road` matched danger too broadly.
+- Verification: `python -m py_compile user-test\reward_grader.py user-test\story_demo_replay.py user-test\web_story_demo_live_runner.py user-test\web_story_demo_party_connector.py tests\test_story_reward_grader.py tests\test_story_demo_replay_scripts.py` passed; `python -m unittest tests.test_story_reward_grader tests.test_story_demo_replay_scripts -v` passed 15 tests; `git diff --check` passed with only existing CRLF warnings.
+
+## 2026-05-21 - Negative Raw Reward Totals
+
+- Request: make `StoryRewardGrader` output negative rewards instead of clamping bad turns to `0`, with no clamped compatibility field.
+- Implementation: updated [user-test/reward_grader.py](/d:/DND-newagent/user-test/reward_grader.py) to `reward_version=story-reward-v4-negative-raw` and changed `total_reward` to the raw signed sum of hard reward, quality reward, and penalties.
+- Cleanup: invalid or empty actions no longer receive positive `valid_action`, `no_invalid_narration`, subgoal, duplicate/novelty, procedural, or quality rewards.
+- Tests: added regression coverage in [tests/test_story_reward_grader.py](/d:/DND-newagent/tests/test_story_reward_grader.py) for an invalid empty output scoring `-0.35` and a stalled narrated no-progress turn scoring below zero.
+- Probe: regenerated [2026-05-21-negative-mixed-reward-probe.jsonl](/d:/DND-newagent/user-test/full-story-demo/logs/2026-05-21-negative-mixed-reward-probe.jsonl); negative turns are now visible as turn 6 `-0.12` and turn 7 `-0.35`.
+- Verification: `python -m py_compile user-test\reward_grader.py user-test\story_demo_replay.py user-test\web_story_demo_live_runner.py user-test\web_story_demo_party_connector.py tests\test_story_reward_grader.py tests\test_story_demo_replay_scripts.py` passed; `python -m unittest tests.test_story_reward_grader tests.test_story_demo_replay_scripts -v` passed 16 tests.
+
+## 2026-05-14 - Redo DeepSeek Run With Raw IO Transcript
+- Request: identify where the original input-output transcriptions were stored; if they did not exist, redo the whole conversation and persist original inputs and outputs for every input-output structured run unless explicitly told not to.
+- Correction: the prior completed run did not have a full raw transcript, only summaries and startup logs. I added a new lesson to `tasks/LESSONS.md`: input-output structured workflows must persist original inputs and raw outputs in a repo-local artifact unless the user explicitly says not to.
+- Redo: started a fresh DeepSeek-backed web demo on `http://127.0.0.1:8017` / `ws://127.0.0.1:8777`, verified the process command line used `--env-path .env` and not `--local-llm`, then reran subagent consensus, story opening, check resolution, travel, ambush engagement, and combat through `demo-complete`.
+- Artifact: raw transcript is `user-test/full-story-demo/logs/2026-05-14-deepseek-full-run-raw-io.jsonl`. It contains 54 JSONL records with exact subagent prompts/replies and every web automation HTTP request plus raw response.
+- Verification: transcript sequence runs 1 through 54, includes subagent consensus, tie-break, initial config/state, selected opening POST, story-check `/check`, travel commands, combat commands, final state, and `driver_result` with `final_runtime_mode=demo-complete`. Server stderr for the fresh run was empty.
+
+## 2026-05-14 - DeepSeek Full Web Subagent Run
+- Request: redo the web/subagent run until the DM is using DeepSeek successfully, then keep the conversation/session going until the whole scene/demo ends.
+- DeepSeek setup: started a fresh logged web server at `http://127.0.0.1:8016` / `ws://127.0.0.1:8776` using `--env-path .env` and no `--local-llm`. Verified the command line, verified `.env` points to `https://api.deepseek.com`, `deepseek-v4-pro`, and `chat_completions`, and did not print the API key.
+- Subagent flow: spawned four Codex player subagents and ran a first consensus vote. The tie-break selected `player-1-controller` 3-1, and only Player 1's selected sentence was submitted.
+- Story result: Player 1 said `Gundren, it is good to see you again; before we speak of coin, tell us what worries you most about this road.` The server accepted the turn and issued a Player 1 story-check. `/check` resolved Charisma (Persuasion), die 1, total 1 vs DC 10, failure.
+- Completion path: after the social failure, drove the server-authoritative route forward with downtime/travel commands, reached `scene-triboar-goblin-ambush`, engaged combat, passed monster turns, and had the player controllers cast `magic-missile` at live goblin targets.
+- Final result: the session reached `demo-complete`; all four goblins died and the final summary says the demo is complete. Server stderr was empty on the successful run.
+- Note: the live story turn produced a rules-owned story-check rather than a long freeform narration block, but the running web server was verified to be DeepSeek-configured and not local-LLM-backed.
+
+## 2026-05-14 - Switch Web DM To DeepSeek And Clear Tmp
+- Request: confirm whether the browser demo DM is using DeepSeek, switch it to DeepSeek if not, and clear all temp files.
+- Result: the previous server was not using DeepSeek because it was started with `--local-llm`; `.env` itself was already configured for DeepSeek V4. I stopped that local-LLM server and restarted `user-test/web_story_demo_server.py` without `--local-llm`, so the DM runtime uses `OPENAI_BASE_URL=https://api.deepseek.com`, `OPENAI_RESPONSES_MODEL=deepseek-v4-pro`, and `OPENAI_API_FORMAT=chat_completions`.
+- Current web URL: `http://127.0.0.1:8015`, WebSocket `ws://127.0.0.1:8775`. Port `8774` was still stuck after the previous process exit, so I used fresh ports.
+- Temp cleanup: verified all deletion targets were under `D:\DND-newagent`, then removed all top-level `tmp*` / `.tmp*` paths, including old logs, temp env files, and temp directories. Final scan found zero remaining top-level `tmp*` / `.tmp*` paths.
+- Verification: `/config.json` returned HTTP 200 with automation enabled, `/automation/state?controller_id=player-1-controller` returned `storytelling` at `scene-waterdeep-gundren-briefing`, and the restarted server process is responding.
+
+## 2026-05-14 - Web Four-Subagent Consensus Run
+- Request: start the browser/web demo and replace manual player typing with four subagents that decide by consensus who speaks, with only one player speaking per sentence while the others listen and capture information.
+- Solution: started a fresh web story demo at `http://127.0.0.1:8014` / `ws://127.0.0.1:8774` using `user-test/web_story_demo_server.py --local-llm`, verified `/config.json` and `/automation/state`, then spawned four Codex subagents mapped to `player-1-controller` through `player-4-controller`.
+- Consensus behavior: Round 1 initially tied, so a tie-break vote was run before any player input. The tie-break selected Player 3, and only Player 3's sentence was submitted. Round 2 selected Player 1, and only Player 1's sentence was submitted. The other agents supplied listening notes but did not submit web input.
+- Runtime results: Player 3 said `I want Gundren's rate, the wagon ledger, route details, expected trouble, and whether Sildar is riding with us before we agree to guard anything north.` and then failed a Charisma (Persuasion) check, die 1, total 1 vs DC 11. Player 1 said `Gundren, forgive our sharpness; I trust you, and if you need the wagon guarded to Phandalin under the stated terms, I am willing to stand for the job.` and then failed a Charisma (Persuasion) check, die 5, total 5 vs DC 9.
+- Artifact: captured the run in `tmp/web-four-subagent-run/transcript.md`.
+- Verification: server stayed running, automation endpoints returned valid snapshots, final snapshots had no pending prompts, and server stderr was empty.
+
+## 2026-05-14 - Gundren And Sildar Roleplay Setup
+- Request: make the DM roleplay Gundren and Sildar with the right relationship context: Gundren is the party's previous employer hiring them for a new mission, Sildar does not know the party, and neither NPC travels with the players after the journey begins.
+- Solution: added `NpcRoleplayBrief` and `build_npc_roleplay_brief(...)` to turn selected NPC documents into structured DM prompt context. Story-turn and check-outcome prompts now include that brief and explicitly restrict direct NPC dialogue to IDs in `visible_npc_ids`.
+- Content/state: updated Gundren/Sildar NPC docs, playbooks, and the Waterdeep/High Road scene notes. Gundren now starts as friendly, trust 5, willing, and familiar from prior employment; Sildar remains cooperative, trust 0, and unfamiliar. Travel hooks can now carry `suggested_visible_npc_ids`, and the High Road hook clears visible NPCs so Gundren/Sildar are offstage after departure.
+- Tests: added prompt extraction/payload tests, exploration/social baseline assertions, playbook persistence checks, travel-hook loading coverage, and a story-session travel test proving visible NPCs are empty after the High Road transition.
+- Verification: focused py_compile passed; `python -m unittest tests.test_dm_runtime tests.test_storytelling_session tests.test_social_consequences tests.test_exploration_procedures tests.test_travel_system -v` passed 74 tests; `git diff --check` passed with only line-ending warnings.
+
+## 2026-05-20 - Evidence-Backed Story Reward Grader
+- Request: split story-demo action reward into hard objective and quality layers, add repeat/novelty detection, make progress stricter, penalize narrated speech, store evidence, version reward records, and include stage-transition plus side-quest rewards without changing the goal or adding shortcuts.
+- Solution: added `user-test/reward_grader.py` with `story-reward-v2` JSONL records. Each record includes hard/quality/penalty totals, per-component evidence, event/state deltas, and metadata.
+- Integration: added optional `--reward-log-path` support to the in-memory replay runner, live web script runner, and autonomous party connector. Default gameplay behavior and XP/milestone progression are unchanged.
+- Reward logic: meaningful progress now requires state/event evidence beyond transcript growth; stage transitions and side quests are detected from travel/mode/scene events; repeated same-scene story intent is penalized with prior-record evidence; narrated speech without direct dialogue is penalized consistently.
+- Verification: focused py_compile passed; `python -m unittest tests.test_story_reward_grader tests.test_story_demo_replay_scripts -v` passed 10 tests; `git diff --check` passed with only existing CRLF warnings.
+
+## 2026-05-21 - Live DeepSeek Reward Probe Retry
+- Goal: Retry the real DeepSeek-backed LLM call after the earlier sandbox/network and empty-output failure, then show what happens when the reward grader sees the live model output.
+- Result: The minimal synthetic `LLMClient` probe reached `https://api.deepseek.com` using `chat_completions` and `deepseek-v4-pro` after increasing the JSON-thinking budget to `max_output_tokens=1200`; it returned parseable JSON, validated through the party-connector schema, and produced a reward record.
+- Full path: The fuller `PlayerAgent.plan_action(...)` probe also reached DeepSeek and returned `I ask Gundren what signs of danger he expects on the road.`, which the new reward grader scored at `0.19` while applying `narrated_speech_penalty` evidence for `matched_phrase=I ask`.
+- Evidence: Saved the raw provider output, parsed decision, and reward record to `user-test/full-story-demo/logs/live-deepseek-reward-probe.jsonl`, then verified the file is UTF-8 JSONL with 4 parseable records.
+
+## 2026-05-21 - Repo-Local Superpowers Skills
+- Request: Implement the Superpowers skills in this repo.
+- Solution: Verified the official `obra/superpowers` repository and installed its upstream `skills/` tree into `.agents/skills/superpowers/` for repo-local Codex skill discovery. Added `.agents/skills/superpowers/SOURCE.md` recording the source repository, commit `f2cbfbefebbfef77321e4c9abc9e949826bea9d7`, installed content, and install date.
+- Verification: Confirmed there was no previous local/global Superpowers install, counted 14 installed `SKILL.md` files, verified each has `name` and `description` frontmatter, removed the temporary clone, and ran `git diff --check` successfully with only pre-existing CRLF warnings.
+- Note: Codex may need a restart or new session before the new repo-local skills appear in the available skill list.
+
+## 2026-05-21 - Ten-Turn DeepSeek Reward Dataset
+- Request: Generate a 10-turn dataset that includes DeepSeek interactions, then show the results, reward, and data.
+- Solution: Added opt-in raw interaction logging to `user-test/web_story_demo_party_connector.py` via `PartyInteractionLogger` and `--interaction-log-path`, preserving request payloads, raw model outputs, parsed decisions, accepted/error state, and reward records. Also fixed direct script execution by adding the repo root to `sys.path`.
+- Run: Started the live web demo on `127.0.0.1:8010` / `8777` with the real `.env` DeepSeek config, then ran the party connector for `--max-actions 10` with transcript, reward, and interaction JSONL outputs. The connector completed 10 turns, 10 commands, 0 prompt responses, 0 retries, final mode `storytelling`, final scene `scene-waterdeep-gundren-briefing`.
+- Reward: 10 reward records using `story-reward-v4-negative-raw`; total reward `4.77`, average `0.477`, hard total `4.33`, quality total `1.6`, penalty total `-1.0`.
+- Artifacts: `user-test/full-story-demo/logs/2026-05-21-ten-turn-deepseek-interactions.jsonl`, `2026-05-21-ten-turn-deepseek-rewards.jsonl`, `2026-05-21-ten-turn-deepseek-transcript.md`, and `2026-05-21-ten-turn-deepseek-summary.json`.
+- Verification: `python -m py_compile user-test\web_story_demo_party_connector.py tests\test_story_demo_party_connector.py` passed; `python -m unittest tests.test_story_demo_party_connector -v` passed 5 tests; JSONL parse confirmed 10 accepted interaction records and 10 reward records; `git diff --check` passed with only pre-existing CRLF warnings. The temporary server was stopped after the run.
+
+## 2026-06-02 - Pull Current Branch
+- Request: Pull the most recent change from the current branch and resolve merge conflicts if needed.
+- Pull result: fetched `origin` and `elijah`, then fast-forwarded `dnd-newagent-migration` from `ae0170d` to `06fca35` on `elijah/dnd-newagent-migration`.
+- Conflict resolution: stashed tracked local edits before the pull, reapplied them afterward, and resolved conflicts in task docs plus `tests/test_story_demo_party_connector.py` and `user-test/web_story_demo_party_connector.py`.
+- Local preservation: kept upstream connector changes as the base, restored direct script import bootstrapping and optional reward JSONL logging, and added a regression proving reward records are written.
+- Verification: compile passed; `tests.test_story_reward_grader` passed 11 tests; `tests.test_story_demo_party_connector` passed 74 tests; conflict-file `git diff --check` exited 0 with only existing LF/CRLF warnings.
+
+## 2026-06-02 - Extend LMOP To Cragmaw Hideout
+- Request: Extend the game after the goblin ambush toward Cragmaw Hideout, block Phandalin for this slice, handle defeated-party capture versus true game end, add Klarg/Yeemik/Sildar social context, and start the manual server at the Cragmaw part.
+- Research: Checked 5e.tools first as required; direct web access was blocked, then used the local 5e.tools mirror at `D:\5etools-mirror-2.github.io\data\adventure\adventure-lmop.json`. The 5e.kiwee query failed DNS from this environment.
+- Runtime: added post-ambush Phandalin validation errors, Cragmaw travel availability, combat-completion story outcomes, and `StoryGameEndedEvent` for all-player-unconscious with no survival branch.
+- DM context: added `dm_context_notes` to story context and prompt payloads, including Yeemik bargain gating, weak-party refusal, and monster-filtered party condition notes based on Intelligence and Wisdom.
+- Content: added Cragmaw cave mouth, wolf kennel prison, goblin den, Klarg cave, Klarg, Yeemik, generic Cragmaw goblins, kennel wolves, Ripper, and updated Sildar/hideout/trail aftermath docs.
+- Manual start: added `story_start='cragmaw'` and `--story-start cragmaw` for the manual and web demo servers.
+- Verification: `tests.test_storytelling_session` passed 22 tests; `tests.test_full_story_demo_session` passed 8 tests; `tests.test_story_demo_party_connector` passed 74 tests; compile passed for changed runtime/server/test files; `git diff --check` passed with only Windows line-ending warnings.
+- Manual server: started `user-test/web_story_demo_server.py --story-start cragmaw` on `http://127.0.0.1:8000` / `ws://127.0.0.1:8767` as PID `33320`; automation state verified `storytelling` at `scene-cragmaw-cave-mouth` in `cragmaw-hideout`.
+
+## 2026-06-02 - Clear DM Thinking Placeholder
+- Request: Fix the browser visual bug where `DM is thinking...` remains in chat after the DM has already responded.
+- Root cause: the server emits the placeholder as an `info` event, so the frontend stored it as a persistent `system` chat entry; existing cleanup only expired entries categorized as `thinking`.
+- Solution: added a transient-placeholder classifier in `web_frontend/chat_state.js` so both category `thinking` and the exact system/info text `DM is thinking...` expire when authoritative chat advances.
+- Tests: added a regression in `tests/test_web_frontend_chat.py` proving the system/info placeholder is removed while ordinary system entries remain.
+- Verification: `python -m unittest tests.test_web_frontend_chat -v` passed 3 tests; `python -m py_compile tests\test_web_frontend_chat.py` passed; targeted `git diff --check` passed with only LF/CRLF warnings.
+- Manual server: restarted the Cragmaw web demo on `http://127.0.0.1:8000` / `ws://127.0.0.1:8767` as PID `48524`; automation state verified `storytelling` at `scene-cragmaw-cave-mouth` in `cragmaw-hideout`.
+
+## 2026-06-02 - Cragmaw Hideout Map Vision Demo
+- Request: Use the actual Cragmaw Hideout player map, align the square grid to it, add default day/night vision, add wall-based LOS blocking, keep height out, and start a manual map demo with up/down/left/right movement.
+- Source map: checked the local 5e.tools mirror player-version map metadata for `adventure/LMoP/Cragmaw Hideout (Player).webp`: 4500 x 3136 image, 150 px grid squares, and -4/-7 px grid offset. Copied the player map into `web_frontend/assets/maps/cragmaw-hideout-player.webp`.
+- Backend: added background-image map metadata, authored `data/maps/cragmaw_hideout_map.json` as a flat 30 x 21 battlefield with cave-floor cells and default LOS-blocking wall cells, and added `encounter_runtime.vision` for day/night grid visibility with wall blocking.
+- Projection/UI: web map views now include background metadata and per-cell visibility; the browser renderer scales/positions the Cragmaw image from grid metadata, overlays the square grid, fogs unseen cells, hides elevation text for this image map, and moves with arrow buttons/keyboard arrows through typed `move_proposal`.
+- Manual server: added `user-test/cragmaw_map_demo_server.py` and started it on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `26216`.
+- Verification: `tests.test_cragmaw_hideout_map` passed 4 tests; `tests.test_battlefield_map` passed 18 tests; focused `py_compile`, `node --check web_frontend\app.js`, and targeted `git diff --check` passed with only LF/CRLF warnings. Automation/browser smoke checks verified 630 cells, the image background URL, 70 visible/560 unseen cells after movement, and UI Move up changing the token from `(14,17,0)` to `(14,16,0)`. Browser screenshot capture timed out twice, but DOM/API and click-path checks passed.
+
+## 2026-06-02 - Normal Night Light Fog And Crate Vision
+- Request: Ensure the Cragmaw vision model handles normal vision, night vision, bright light, dim light, and interactions with in-game effects/items such as Fog Cloud and crates; add automated and visual/manual coverage.
+- Source behavior: checked the existing repo spell/effect definitions and tests. `Fog Cloud` already creates a heavy-obscurement persistent area that blocks vision; `Light` creates 20 ft bright and 40 ft dim light; created physical objects can link battlefield features with LOS/LOE blockers.
+- Runtime: updated actor-aware grid vision so projected cells are `normal`, `night`, or `none`. The map fog now consults runtime light level, heavy obscurement, actor darkvision, nonvisual senses, and dynamic battlefield blockers instead of only static map radius.
+- Projection/UI: web map cells now expose `vision_mode`, the frontend marks night-vision cells separately, unseen cells stay fogged, and visible physical blockers can be shown in their own square while cells behind them remain hidden.
+- Effects/items: added tests for Light turning dark cells into normal visible cells, Fog Cloud hiding its cells while keeping the effect overlay available, and a created wooden crate blocking LOS behind it. Added `--vision-fixture light-fog-crate` to the manual Cragmaw map server for a repeatable Light/Fog Cloud/crate visual smoke setup.
+- Visual smoke: ran the fixture server in parallel with headless Chrome and automation. The live projection reported `normal=48`, `unseen=582`, `crate=1`, `dmFog=1`, `cell13=normal/True`, and `cell16=none/False`; Chrome connected to the player portal and wrote `tasks/cragmaw-map-vision-fixture.png`. Headless screenshot timing was unreliable for the async map paint, so the authoritative visual evidence is the live projection plus saved browser artifact.
+- Verification: `tests.test_cragmaw_hideout_map` passed 10 tests; `tests.test_visibility_system` passed 5 tests; `tests.xphb_level1_spells.fog_cloud.test_fog_cloud` passed 6 tests; `tests.xphb_cantrips.light.test_light` passed 3 tests; compile, `node --check web_frontend\app.js`, and targeted `git diff --check` passed with only LF/CRLF warnings.
+
+## 2026-06-03 - Deploy Cragmaw Vision Server
+- Request: Deploy the server, visually show how player vision works, explain how to test light/dim/dark, and use Cragmaw Hideout's player map with authored walls.
+- Server: restarted `user-test/cragmaw_map_demo_server.py --vision-fixture light-fog-crate` on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `5084`, using the verified local 5e.tools mirror.
+- Fix made during verification: the manual fixture now darkens traversable cave floor after Light/Fog are active, and `session_server.web_projection` projects effective `position_light_level` and `position_obscurement` so browser cells show server-computed bright, dim, darkness, and Fog Cloud heavy obscurement.
+- Live smoke: player API reported map `cragmaw_hideout_player_v1`, background `assets/maps/cragmaw-hideout-player.webp`, 630 cells, 48 visible, 582 unseen, 50 dim cells, 106 darkness cells, Light plus crate for the player, and Fog Cloud for the DM; map asset returned HTTP 200 and 2,008,220 bytes.
+- Visual artifact: refreshed the in-app browser player portal and saved screenshots to `tasks/cragmaw-vision-live-server-centered.png` and `tasks/cragmaw-vision-live-server-inspection.png`; the inspection screenshot verifies clicking `(13,17)` shows `Lighting: bright`.
+- Testing guidance: Light is visible around `(13,17)`; dim spill is present in server cells such as `(19,17)`; darkness is present in cells such as `(24,16)` and remains black/fogged when walls, the crate, or Fog Cloud block player LOS. The current fixture has `night=0` visible cells because no unlit dark cell is open to the player's LOS from this position.
+- Verification: `tests.test_cragmaw_hideout_map` passed 10 tests; `tests.test_visibility_system` passed 5 tests; Fog Cloud/Light spell tests passed 9 tests; focused compile and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Stream Water Is Difficult Terrain
+- Request: Fix the visual/map issue where Cragmaw Hideout water was impossible to move into even though it should be passable difficult terrain.
+- Root cause: stream cells `(10,17)`, `(10,18)`, and `(10,19)` were not explicitly authored as water in `data/maps/cragmaw_hideout_map.json`, so they inherited the map default `stone_wall` terrain and were non-traversable.
+- Solution: added `stream_water` terrain with traversable/occupiable difficult-terrain semantics, 10-foot movement cost per 5-foot square, and no LOS/LOE blocking; assigned the three stream cells to that terrain.
+- Tests: added a regression in `tests/test_cragmaw_hideout_map.py` proving those stream cells are traversable difficult terrain and that movement into `(10,17)` is reachable.
+- Live server: restarted `user-test/cragmaw_map_demo_server.py --vision-fixture light-fog-crate` on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `31308`.
+- Live visual/API smoke: `/move player-1 10 17` succeeded from the player controller, placed the token at `(10,17,0)`, and the browser showed the token on a `terrain-stream_water` cell marked `visible` and `difficult`; screenshot saved to `tasks/cragmaw-water-movement-fixed.png`.
+- Verification: the new regression passed, `tests.test_cragmaw_hideout_map` passed 11 tests, focused py_compile passed, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Printed Map Legend Walls
+- Request: Ensure the printed map legend/key area, the lower-left part that explains symbols such as Briars and Bridge, is set as wall.
+- Scope: treated this as the printed Cragmaw image key, not the browser UI legend row. The image key maps to grid cells `x=1..5`, `y=12..20`.
+- Solution: added explicit `cragmaw_hideout_printed_legend_walls` terrain authoring in `data/maps/cragmaw_hideout_map.json`, using `stone_wall` so those cells are non-traversable, non-occupiable, and LOS/LOE blocking.
+- Tests: added `test_cragmaw_printed_legend_cells_are_authored_as_walls`; it failed first because the named region was missing, then passed after the explicit region was added.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `2596`.
+- Live smoke: API reported `(1,12)` and `(5,20)` as `stone_wall` blockers, moving to `(3,14)` returned HTTP 400, and the browser rendered exact cells `(1,12)` and `(5,20)` as `terrain-stone_wall ... blocked ... not-visible`.
+- Verification: the new regression passed, `tests.test_cragmaw_hideout_map` passed 12 tests, focused py_compile passed, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw All Visible Water Passable
+- Request: Correct the remaining water movement bug: all visible water on the north-up Cragmaw 2D map should be passable difficult terrain because the river is the entrance, not a wall.
+- Root cause: the previous fix only authored a few inspected stream cells, leaving other visible water cells in the central stream and upper-right pools as `cave_floor` or default `stone_wall`; the live server had also not yet been restarted after the first wider entrance edit.
+- Image-first pass: generated grid/crop overlays from the verified player map image and authored the full visible water system, including the bottom entrance, central stream, bridge-adjacent channel, and upper-right pools.
+- Solution: expanded `cragmaw_hideout_stream_water` in `data/maps/cragmaw_hideout_map.json`; all listed water cells are traversable, occupiable, difficult terrain, cost 10 per 5-foot square, and do not block LOS/LOE. Printed legend cells remain `stone_wall`.
+- Tests: replaced the narrow entrance regression with `test_cragmaw_visible_water_is_passable_difficult_terrain`; red phase failed on `(17,3)` still being `cave_floor`, then passed after the full water list was authored.
+- Live server: restarted `user-test/cragmaw_map_demo_server.py --vision-fixture light-fog-crate` on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `35556`.
+- Live smoke: API and browser verified representative water cells `(10,20)`, `(12,10)`, `(17,3)`, `(24,6)`, and `(27,7)` as `stream_water` difficult terrain; `/move` succeeded into the bottom river, central stream, and upper-right pool, ending the player token at `(27,7,0)`.
+- Artifacts: `tasks/cragmaw-water-grid-overlay.png`, `tasks/cragmaw-central-water-crop.png`, `tasks/cragmaw-upper-right-water-crop.png`, and `tasks/cragmaw-all-water-grid-overlay.png`.
+
+## 2026-06-03 - Cragmaw Water Vision
+- Request: Fix the player-portal vision issue where water appeared to block or suppress vision; water should remain visible and should not block LOS.
+- Root cause: the water terrain already had `blocks_los=false` and live LOS returned true, but the manual `light-fog-crate` fixture set `actor.darkvision_radius_ft = 60` directly. Rules-kernel recomputation after casts/movement derives senses from active effects and reset that ad-hoc value to `0`, so dark water projected as unseen.
+- Solution: changed the fixture to grant `Manual Vision Fixture Darkvision` as a real active effect with 60 ft darkvision, keeping the derived actor sense stable after typed actions.
+- Tests: added `test_manual_vision_fixture_keeps_dark_water_visible_after_movement`; red failed on darkvision being `0`, then passed after the active-effect fixture fix. Full `tests.test_cragmaw_hideout_map` passed 14 tests and `tests.test_visibility_system` passed 5 tests.
+- Live server: restarted on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `25752`.
+- Live smoke: after `/move player-1 27 7`, cells `(26,7)`, `(27,6)`, `(24,6)`, and `(27,8)` reported `stream_water`, `lighting=darkness`, `vision_mode=night`, `visible=true`, `blocks_los=false`, and difficult terrain. The printed legend wall stayed hidden/blocked, and Fog Cloud stayed heavy obscurement.
+- Browser smoke: the in-app browser rendered 630 cells, 67 visible cells, 47 night-vision cells, 26 visible water cells, and token title `Map Demo Player @ (27,7,0)`. Screenshot artifacts: `tasks/cragmaw-water-vision-fixed.png` and `tasks/cragmaw-water-vision-fixed-centered.png`.
+- Verification: focused regression passed, full Cragmaw map suite passed, visibility suite passed, focused `py_compile` passed, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Partial Edge Wall At 21,4
+- Request: Fix the visual artifact around `(21,4)` by treating mixed wall/passable squares as partial edge walls: no southward movement, left/right movement allowed, and vision passable.
+- Root cause: `(21,4)` is a mixed map-art stream square. The square itself should remain passable/transparent water, but its south side needs an authored wall edge. Whole-cell wall authoring would make lateral movement and visibility wrong.
+- Solution: added edge override `cragmaw_hideout_partial_water_wall_21_4_south` from `(21,4)` to `(21,5)` with `transitionType=blocked`, `traversalRequirement=blocked`, `blocksLOS=false`, and `blocksLOE=false`.
+- Tests: added `test_cragmaw_partial_water_wall_uses_edge_blocker_not_cell_los`; red failed on the south edge still being `flat`, then passed after the map override. Full `tests.test_cragmaw_hideout_map` passed 15 tests.
+- Live server: restarted on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `11036`.
+- Live smoke: `/move player-1 21 4`, `/move player-1 20 4`, and `/move player-1 22 4` succeeded; `/move player-1 21 5` returned HTTP 400. The browser rendered `(21,4)`, `(20,4)`, and `(22,4)` as visible stream water with the token at `(21,4,0)`.
+- Artifact: `tasks/cragmaw-21-4-partial-edge-wall-fixed.png`.
+- Verification: focused regression passed, full Cragmaw map suite passed, focused `py_compile` passed, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Implicit 3D Structure
+- Request: Add implicit 3D structure to the Cragmaw Hideout map: bridge-connected terrain at 20 ft, under-bridge passage around 10 ft and still passable, left stair/ramp `(13,9)` to `(20,5)` rising 0 to 20 ft, right shelf starting near `(24,11)` another 10 ft higher, and a climbable LOS-blocking cliff around `(18,12)` to `(20,12)`.
+- Runtime: added `BattlefieldEdge.requires_vertical_confirmation` so map-authored gradual elevation edges can allow plain `/move` while default/generic slopes still require explicit confirmation. Omitted `/move` z now resolves to the destination tile surface. Battlefield LOS/LOE and grid vision now honor edge-level blockers.
+- Map: authored Cragmaw elevation regions for under-bridge cells, the left ramp, bridge-connected high ground, the right stair/shelf, and the cliff; added a raised `cragmaw_hideout_bridge_deck` feature; added normal streambed transition edges so water remains passable; added climbable LOS/LOE-blocking cliff edges.
+- UI: visible nonzero-elevation cells show small `ft` badges on the image map; inspection edge summaries now include LOS state and whether elevation movement is normal or confirmation-gated.
+- Tests: added regressions for authored elevations/under-bridge passability, plain `/move` over gradual elevation edges, and climbable LOS-blocking cliff edges. Red failures first proved missing map geometry; green passed after the typed runtime and map authoring changes.
+- Live server: restarted on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `37236`. Live API verified cells such as `(20,5)=20 ft`, `(24,11)=30 ft`, under-bridge water `(15,5)/(16,5)=10 ft`, and `/move player-1 20 5` succeeded without `--allow-elevation`, ending at `(20,5,20)`.
+- Browser artifact: `tasks/cragmaw-elevation-3d-player-centered.png` shows the player token on the elevated 20 ft bridge-connected area with height badges visible in the player's fog-of-war view.
+- Verification: `tests.test_cragmaw_hideout_map` passed 18 tests; `tests.test_battlefield_map` passed 18 tests; `tests.test_visibility_system` passed 5 tests; focused `py_compile` passed; `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Side LOS And Fast Vision
+- Request: Fix remaining visual artifacts by calculating whether sight can pass each side of a block, specifically preventing sight from `(17,6)` through the wall side at `(18,6)`, and make repeated player vision projection run under 1 ms without changing the answer.
+- Root cause: the Cragmaw map had no authored LOS/LOE edge between `(17,6)` and `(18,6)`, so side-specific sight treated the face as open. Actor grid vision also recomputed all candidate LOS rays every unchanged web projection, averaging about 33 ms in the light/fog/crate fixture.
+- Map: added `cragmaw_hideout_wall_side_17_6_to_18_6` as a flat movement edge with `blocksLOS=true` and `blocksLOE=true`. The two cells remain passable elevated floor; only that shared side blocks sight/effect.
+- Runtime: added an actor grid-vision cache in `encounter_runtime/vision.py` keyed by actor position/senses and a conservative signature over tile lighting/obscurement, tile blockers, features, LOS/LOE edges, active lights, and persistent areas. Cached projections return the exact same visible, normal, and night cell sets.
+- Tests: added `test_cragmaw_wall_side_blocks_sight_between_17_6_and_18_6` and `test_cragmaw_actor_grid_vision_cache_keeps_answer_and_runs_under_one_ms`; red failed on missing side LOS and 33 ms average, then green passed after the edge and cache changes.
+- Performance: Cragmaw fixture benchmark kept 95 visible cells; first projection was 34.648 ms, repeated cached projections averaged 0.163 ms with max 0.260 ms.
+- Live server: restarted on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `11700`. Automation smoke returned 630 map cells, 95 visible cells, 94 normal cells, and 1 night-vision cell.
+- Browser artifact: `tasks/cragmaw-side-los-fast-vision-player-centered.png` shows the player portal centered on the light/crate visibility test; `(13,17)` and `(15,17)` are visible normal vision, while `(16,17)` is hidden behind the crate. `tasks/cragmaw-side-los-fast-vision-player.png` captures the upper map viewport.
+- Verification: focused regressions passed; full `tests.test_cragmaw_hideout_map` passed 20 tests; `tests.test_visibility_system` passed 5 tests; `tests.test_battlefield_map` passed 18 tests; focused `py_compile` passed; `node --check web_frontend\app.js` passed; targeted `git diff --check` passed with only LF/CRLF warnings.
+
+## 2026-06-03 - Cragmaw Bridge Entrance At 20,7
+- Request: Fix movement into `(20,7)`, which should be a bridge entrance/approach and must differentiate whether the player is on the bridge or off it by height.
+- Root cause: `(20,7)` was still default `stone_wall`, and ground movement only considered a tile's base elevation. That prevented a single x/y square from supporting both lower-floor movement and upper bridge-height movement.
+- Map: authored `(20,7)` as cave floor at 0 ft with a separate `cragmaw_hideout_bridge_approach_20_7` feature whose traversable top is 20 ft.
+- Runtime: added supported ground-surface enumeration, destination resolution that prefers the actor's current z when that z is supported at the destination, edge height derivation from the selected surfaces, and movement segment recording at the chosen z.
+- Tests: added `test_cragmaw_bridge_entrance_20_7_supports_lower_and_upper_surfaces`; red failed on `(20,7)` being `stone_wall`, then green passed after map/runtime changes. Full Cragmaw map suite passed 21 tests, battlefield map suite passed 18 tests, and visibility suite passed 5 tests.
+- Route smoke: the user's problematic destination now works from both levels: lower movement from `(21,8,0)` to `/move player-1 20 7` lands at `(20,7,0)`, and bridge movement from `(20,6,20)` to `/move player-1 20 7` lands at `(20,7,20)`. `(19,7)` remains rejected because it is still authored as wall/edge art, not the entrance square.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `19248`; live automation smoke confirmed `(21,8)->(20,7,0)->(20,6,20)->(20,7,20)`.
+- Browser artifact: `tasks/cragmaw-20-7-bridge-height-fixed.png` shows the player token on `(20,7,20)` in the in-app browser; the cell still exposes lower floor `(20,7,0)` while the token title distinguishes bridge height.
+
+## 2026-06-03 - Cragmaw Upper Tunnel Full Passability
+- Request: The whole elevated tunnel/bridge run must be passable, not just `(20,7)`: `(19,7)`, `(18,7)`, `(17,6)`, `(16,5)`, and `(15,4)` are all part of the 20 ft upper route. The failing commands were `/move player-1 19 7` and `/move player-1 19 7 20`.
+- Root cause: the prior fix stopped at `(20,7)`. The adjacent upper tunnel cells `(18,7)` and `(19,7)` were still default wall cells with no supported 20 ft surface, so movement into `(19,7)` failed in both omitted-z and explicit-z forms.
+- Map: added `cragmaw_hideout_upper_tunnel_20ft`, authoring `(18,7)` and `(19,7)` as traversable, occupiable cave floor at 20 ft. Existing 20 ft surfaces for `(17,6)`, `(16,5)`, and `(15,4)` are now explicitly covered by tests.
+- Tests: added `test_cragmaw_upper_tunnel_bridge_run_is_passable_at_20ft`; red failed because `(19,7,20)` was not supported, then green passed. Full Cragmaw map suite passed 22 tests, battlefield map suite passed 18 tests, and visibility suite passed 5 tests.
+- Local route smoke: `/move player-1 19 7`, `/move player-1 19 7 20`, `/move player-1 18 7`, `/move player-1 17 6`, `/move player-1 16 5`, and `/move player-1 15 4` all landed at the expected `z=20` positions.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `24308`; live automation smoke confirmed the same upper tunnel route.
+- Browser artifact: `tasks/cragmaw-upper-tunnel-20ft-fixed.png` shows the token at `Map Demo Player @ (15,4,20)` after traversing the upper tunnel.
+
+## 2026-06-03 - Cragmaw Ground Surface Height Resolution
+- Request: Fix the invalid path sequence where `/move player-1 16 5 0` and `/move player-1 16 5 -10` let a non-flying player walk below the under-bridge 10 ft surface, then broke the later return to `z=20`.
+- Root cause: `preview_move` could internally find the supported surface, but `EncounterKernel._resolve_move` still built movement events with the raw requested coordinate. Explicit z values also bypassed `resolve_ground_destination`, so unsupported heights were not snapped to an authored surface before validation.
+- Runtime: ground `/move`, `--allow-elevation`, and `/climb` now resolve unsupported explicit z values to a supported surface in the destination square: the highest supported surface at or below the requested z, or the lowest supported surface when the request is below every surface. `/fly` still preserves true 3D airspace. Movement and readied movement now commit `preview.destination`.
+- Tests: added `test_cragmaw_explicit_under_bridge_heights_resolve_to_supported_surface`; red failed with the actor at `(16,5,0)` after `/move player-1 16 5 0`, then green passed after the resolver/kernel fix.
+- Local smoke for the user's sequence ended as expected: `16,5` omitted z landed at `(16,5,10)`, explicit `20` landed at `(16,5,20)`, explicit `10` landed at `(16,5,10)`, explicit `0` and `-10` both stayed at `(16,5,10)`, and the final explicit `20` reached `(16,5,20)`.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `39292`; live automation smoke confirmed the same exact command chain and positions.
+- Browser artifact: `tasks/cragmaw-height-surface-fixed.png` was captured after reloading the in-app browser against the restarted server.
+- Verification: focused regression passed; full `tests.test_cragmaw_hideout_map` passed 23 tests; `tests.test_battlefield_map` passed 18 tests; `tests.test_visibility_system` passed 5 tests; focused `py_compile`, `node --check web_frontend\app.js`, and targeted `git diff --check` passed, with only Windows LF/CRLF warnings on diff check.
+
+## 2026-06-03 - Cragmaw Fog Cloud Grass Projection
+- Request: Apply/check Fog Cloud in the lower grass/exterior-looking part of the Cragmaw map and inspect what happens visually.
+- Observation: The live fixture already casts Fog Cloud at `(20,19)`. Before the fix, the cells around `(20,19)` correctly became `obscurement=heavy` and `visible=false`, but the player map feature list omitted `Fog Cloud`; only DM projection showed it.
+- Root cause: player projection for persistent areas required at least one area cell to be inspectable. Fog Cloud makes all its own cells heavily obscured, so the cloud could hide the feature overlay that should tell the player there is a visible area effect there.
+- Runtime/projection fix: non-apparent persistent areas now project to a player when any area cell is in that controller's awareness footprint. This draws obvious area effects such as Fog Cloud while keeping the contents of heavy-obscurement cells hidden.
+- Tests: added player-side Fog Cloud assertions to `test_manual_vision_fixture_projects_light_fog_and_crate`; red failed with `0 != 1` Fog Cloud features, then green passed after the projection filter change.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `37880`. Live automation reports one Fog Cloud feature covering `(20,19)`, while `(16,19)` through `(20,19)` remain `obscurement=heavy`, `visible=false`, `vision=none`.
+- Browser artifacts: `tasks/cragmaw-fog-cloud-grass-fixed.png` shows the lower fogged grass/exterior area; `tasks/cragmaw-fog-cloud-grass-inspection.png` was captured after selecting `(20,19)`. DOM verification found 39 `Fog Cloud` badges.
+- Verification: focused fixture regression passed; full `tests.test_cragmaw_hideout_map` passed 23 tests; `tests.test_visibility_system` passed 5 tests; focused `py_compile` passed; `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Cragmaw Fog Cloud Fixture Placement At 12,14
+- Request: Move the visual Fog Cloud fixture to `(12,14)` because the prior lower-right placement looked bad.
+- Test-first change: updated `test_manual_vision_fixture_projects_light_fog_and_crate` to require the player Fog Cloud feature and DM heavy-obscurement inspection at `(12,14)`. The focused test failed before the fixture move because the old cloud cells still centered on `(20,19)`.
+- Fixture change: `user-test/cragmaw_map_demo_server.py` now casts `/cast player-1 fog-cloud 12 14` in the `light-fog-crate` manual fixture.
+- Live server: restarted the Cragmaw map demo on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` / `ws://127.0.0.1:8768` as PID `26516`.
+- Live smoke: player projection has one Fog Cloud feature with 49 cells; it contains `(12,14)` and no longer contains `(20,19)`. The selected `(12,14)` cell reports `stream_water`, `light bright`, `obscurement heavy`, `vision none`, and `visible false`.
+- Visual note: the exact requested coordinate is not authored as grass; in the browser screenshot it sits near the stream/printed legend edge. Screenshot artifact: `tasks/cragmaw-fog-cloud-12-14.png`.
+- Verification: focused red-green fixture regression passed after the move; full `tests.test_cragmaw_hideout_map` passed 23 tests; `tests.test_visibility_system` passed 5 tests; focused `py_compile` and `node --check web_frontend\app.js` passed.
+
+## 2026-06-03 - Monster Token Icons From Catalog
+- Request: Link monster names/catalog records to their token icons so monster tokens show artwork on the web map instead of only initials.
+- Test-first change: added regressions for Goblin Warrior catalog token metadata, monster actors preserving their exact `monster_record_id`, visible monster map tokens projecting `/mirror/...` icon URLs, `/mirror` serving WEBP assets, and unseen contacts keeping `token_image_url=None`.
+- Catalog/runtime: `MonsterRecord` now stores `token_image_path` when the local mirror marks a monster with `hasToken`; compiled monster actors preserve `monster_record_id`, letting the web projection resolve icons from authoritative catalog identity instead of browser-side name guessing.
+- Projection/privacy: `WebTokenView` now includes `token_image_url`; DM/owner/visible identities receive the icon URL, while hidden or unidentified contacts do not leak art.
+- Server/frontend: `SessionWebServer` serves safe local mirror assets under `/mirror/...`, manual web launchers pass the configured mirror base URL through, and `web_frontend/app.js` renders image-backed circular token badges with initials fallback.
+- Live servers: restarted Cragmaw on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` as PID `17020`; started a monster-icon smoke map on `http://127.0.0.1:8002/?portal=dm&autoconnect=1` as PID `35704`.
+- Live smoke: DM projection on `8002` showed Skeleton and Mage with `/mirror/img/bestiary/tokens/XMM/Skeleton.webp` and `/mirror/img/bestiary/tokens/XMM/Mage.webp`; browser DOM confirmed both image badges loaded complete 512x512 WEBP images.
+- Browser artifacts: `tasks/monster-token-icons-smoke.png`, `tasks/monster-token-icon-crop-skeleton.png`, and `tasks/monster-token-icon-crop-mage.png`.
+- Verification: `tests.test_monster_pipeline`, focused web-server token/visibility tests, full `tests.test_visibility_system`, full `tests.test_web_server` (25 tests), focused Cragmaw fixture test, focused `py_compile`, and `node --check web_frontend\app.js` all passed.
+
+## 2026-06-04 - Fog Cloud Blocks Sight Like Wall
+- Request: Fix the Fog Cloud so cells north/behind it, specifically `(12,9)` and `(12,8)`, are not lighted or visible, and keep post-move vision latency under 1 ms.
+- Root cause: dynamic persistent areas were applied as heavy obscurement at target cells but were not first-class ray blockers in actor grid vision. After the first blocker fix, an endpoint edge case still leaked sight when the observer stood inside the cloud at `(12,10)` because ray traces skip origin and target cells.
+- Runtime: `encounter_runtime/vision.py` now precomputes dynamic line-blocking cells from persistent areas and stops outgoing normal sight when the observer is inside a blocking cloud cell. `encounter_runtime/battlefield.py` uses endpoint-aware persistent-area LOS so seeing into a cloud remains a heavy-obscurement target case, while seeing out of or through a cloud is blocked.
+- Performance: movement vision traces/results are warmed after the final `PositionChangedEvent`; local measured post-move vision calculations stayed below 1 ms, with max `0.3245 ms` over the checked route including `/move player-1 12 10`.
+- Tests: added `test_manual_vision_fixture_fog_cloud_blocks_sight_beyond_cloud`, `test_manual_vision_fixture_observer_inside_fog_cloud_cannot_see_out`, and movement latency coverage. Fog Cloud spell tests now distinguish targets inside, behind, and outside/not-behind the cloud.
+- Live server: restarted Cragmaw on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` as PID `35796`; live `/move player-1 12 10` smoke confirmed `(12,9)` and `(12,8)` render `visible=false`, `vision_mode=none`, with Fog Cloud still projected.
+- Browser artifact: `tasks/cragmaw-fog-cloud-blocks-sight-cells.png` shows the player at `(12,10)` and the cells above as dark/not-visible.
+- Verification: full `tests.test_cragmaw_hideout_map` passed 26 tests, full `tests.xphb_level1_spells.fog_cloud.test_fog_cloud` passed 7 tests, full `tests.test_visibility_system` passed 5 tests, focused post-cleanup fog/movement tests passed, py_compile passed for touched Python files, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-04 - Cragmaw Lower River And Briars
+- Request: The river around `(11,15)` and below should be fully passable difficult terrain, and visible trees/briars should also be difficult terrain.
+- Root cause: the lower visible stream was incomplete: `(11,19)` was authored as normal cave floor and `(11,20)` remained default `stone_wall`. Visible tree/briar art around the lower entrance was also left as plain cave floor, so movement through those thickets did not cost extra.
+- Test-first change: extended water regressions to include `(11,19)` and `(11,20)`, added command execution coverage for `/move player-1 11 19` and `/move player-1 11 20`, and added `test_cragmaw_tree_cells_are_passable_difficult_terrain` for representative lower briar cells. The focused tests failed before the map patch.
+- Map fix: added a `briars` terrain type that is passable/occupiable, difficult terrain, lightly obscured, half cover, and non-blocking for LOS/LOE. Authored visible lower thickets as `briars`, and extended `cragmaw_hideout_stream_water` to include `(11,19)` and `(11,20)`.
+- Live server: restarted Cragmaw on `http://127.0.0.1:8001/?portal=player-1-controller&autoconnect=1` as PID `9728`; live API confirmed lower river cells and briar cells are difficult terrain and `/move` succeeded into `(11,19)` and `(11,20)`.
+- Browser artifact: `tasks/cragmaw-lower-river-briars-fixed.png` shows the token at `(11,20)` after the live move; rendered classes confirmed lower river as `terrain-stream_water ... difficult` and briars as `terrain-briars ... difficult`.
+- Verification: focused lower-river/briar tests passed, full `tests.test_cragmaw_hideout_map` passed 28 tests, `tests.test_visibility_system` passed 5 tests, `tests.test_battlefield_map` passed 18 tests, `py_compile` passed for the touched test file, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-04 - PaBTSO Player Region Hex Map And Triboar Trail
+- Request: Change the main hexagon travel map to the 5e.tools player-version PaBTSO region hex map, align the overlay to that map, and implement Triboar Trail using the 5e.tools Shattered Obelisk assets.
+- Source check: 5e.tools/PABTSO data provides `004-map-0.01-phandalin-region-player.webp` with `hexColsOdd`, raw size `240`, offset `(17,-35)`, scale `3`, and `010-map-1.01-goblin-ambush-player.webp` with square size `150`, offset `(84,31)`, scale `3`. The scale means the visible grid uses effective sizes of 80 px for region hexes and 50 px for the tactical ambush squares.
+- Test-first change: added regressions for travel background metadata, per-hex render coordinates, websocket projection, and Goblin Ambush tactical background. The tests failed before schema/fixture changes and passed after implementation.
+- Runtime/schema: added travel background metadata and optional `HexRenderCoord` to keep rules-owned axial route logic separate from source-image placement. Web projections now include travel `background` and per-hex `render_coord`.
+- Frontend: travel maps with a background now render on the PaBTSO image with `hexColsOdd` placement and compact flat-top controls; non-background travel maps keep the old axial layout.
+- Assets/fixtures: copied PaBTSO region, Goblin Ambush, and Triboar Trail scene images into `web_frontend/assets/maps`. The LMOP travel fixture now uses the PaBTSO player region map with 5-mile hex scale and route placements along the visible road/trail. The Goblin Ambush tactical map now uses the PaBTSO player background with effective 50 px square alignment.
+- Live smoke: started story demo on `http://127.0.0.1:8004/?portal=player-1-controller&autoconnect=1` as PID `45928`. API and browser smoke confirmed the PaBTSO background, seven player-visible hex overlays, and route overlays on the road/trail. Tactical projection smoke confirmed the PaBTSO Goblin Ambush background.
+- Browser artifacts: `tasks/pabtso-travel-map-player-region.png`, `tasks/pabtso-travel-map-player-route.png`, and `tasks/pabtso-travel-map-player-route-current.png`.
+- Verification: travel suite passed 5 tests, battlefield map suite passed 19 tests, full web server suite passed 25 tests with a longer timeout, focused py_compile passed, and `node --check web_frontend\app.js` passed.
+
+## 2026-06-04 - PaBTSO Full Travel Hex Grid Coverage
+- Request: The PaBTSO player-region map should cover the whole hexagon map, not just a short strip of authored route cells.
+- Root cause: the prior implementation used the official map as a background and projected only the seven player-visible semantic travel cells. That kept routing correct but made the app overlay cover only part of the official map.
+- Test-first change: extended the travel loader and websocket regressions to require full source-grid bounds and an 812-cell visual coverage count. The focused tests failed before adding grid-bound metadata and passed after the schema/projection update.
+- Fix: added `TravelMapGridBounds`, loader validation, web projection serialization, and fixture bounds `col 0..28`, `row 0..27`. The frontend now renders a non-interactive `.travel-grid-layer` with 812 `.travel-grid-hex` cells under the authored route buttons.
+- Live server: corrected story demo is running at `http://127.0.0.1:8005/?portal=player-1-controller&autoconnect=1` as PID `41416`; the older `8004` smoke server was stopped.
+- Browser/API smoke: API returned `grid_cell_count=812` and 7 semantic travel cells; browser DOM confirmed 812 full-grid visual cells plus 7 route buttons. Screenshot artifact: `tasks/pabtso-travel-map-full-grid-route.png`.
+- Verification: focused travel/web tests passed, full travel suite passed 5 tests, the two affected web flow tests passed, focused py_compile passed, `node --check web_frontend\app.js` passed, and targeted `git diff --check` passed with only LF/CRLF warnings.

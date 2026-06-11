@@ -55,7 +55,14 @@ class SessionWebServerTests(unittest.TestCase):
         for temp_dir in reversed(self._temp_dirs):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def _start_server(self, session, *, session_id: str = 'test-session', automation_api_enabled: bool = False) -> SessionWebServer:
+    def _start_server(
+        self,
+        session,
+        *,
+        session_id: str = 'test-session',
+        automation_api_enabled: bool = False,
+        mirror_base_url: str | None = None,
+    ) -> SessionWebServer:
         story_session = getattr(session, 'story_session', None)
         if story_session is None and hasattr(session, 'validate_controller') and hasattr(session, 'view_for_controller') and not hasattr(session, 'state'):
             controller_ids = ('dm', 'player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller')
@@ -93,6 +100,7 @@ class SessionWebServerTests(unittest.TestCase):
             websocket_host='127.0.0.1',
             websocket_port=0,
             automation_api_enabled=automation_api_enabled,
+            mirror_base_url=mirror_base_url,
         )
         server.start()
         self._servers.append(server)
@@ -103,10 +111,14 @@ class SessionWebServerTests(unittest.TestCase):
         return status, body
 
     def _request_with_headers(self, server: SessionWebServer, path: str) -> tuple[int, dict[str, str], str]:
+        status, headers, body = self._request_bytes(server, path)
+        return status, headers, body.decode('utf-8')
+
+    def _request_bytes(self, server: SessionWebServer, path: str) -> tuple[int, dict[str, str], bytes]:
         conn = http.client.HTTPConnection('127.0.0.1', server.http_port, timeout=10)
         conn.request('GET', path)
         response = conn.getresponse()
-        body = response.read().decode('utf-8')
+        body = response.read()
         headers = {key.lower(): value for key, value in response.getheaders()}
         status = response.status
         conn.close()
@@ -337,6 +349,21 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertIsNone(player_tokens['monster-skeleton-1']['hit_points'])
         self.assertIsNotNone(dm_tokens['monster-skeleton-1']['hit_points'])
         self.assertTrue(player_tokens['player-1']['is_owner'])
+
+    def test_monster_map_tokens_include_visible_catalog_icon_urls(self) -> None:
+        from session_server.web_projection import project_encounter_session_view
+
+        session = build_goblin_ambush_encounter_session(base_url=LOCAL_MIRROR_BASE_URL)
+        dm_view = project_encounter_session_view(session, 'dm', session_id='test-session')
+        assert dm_view.map is not None
+        dm_token = next(token for token in dm_view.map.tokens if token.actor_id == 'monster-skeleton-1')
+
+        self.assertEqual(dm_token.token_image_url, '/mirror/img/bestiary/tokens/XMM/Skeleton.webp')
+        server = self._start_server(session, mirror_base_url=LOCAL_MIRROR_BASE_URL)
+        status, headers, body = self._request_bytes(server, dm_token.token_image_url)
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get('content-type'), 'image/webp')
+        self.assertGreater(len(body), 100)
 
     def test_inspect_preview_and_move_proposal_broadcast_authoritative_results(self) -> None:
         session = build_goblin_ambush_encounter_session()
@@ -791,6 +818,16 @@ class SessionWebServerTests(unittest.TestCase):
         self.assertNotIn('ambush-horses', player_landmarks)
         self.assertIn('ambush-horses', dm_landmarks)
         self.assertEqual(player_view['travel']['current_party_coord'], {'q': 0, 'r': 0})
+        background = player_view['travel']['background']
+        self.assertEqual(background['url'], 'assets/maps/pabtso-phandalin-region-player.webp')
+        self.assertEqual(background['source_internal_path'], 'adventure/PaBTSO/004-map-0.01-phandalin-region-player.webp')
+        self.assertEqual(background['grid_type'], 'hexColsOdd')
+        self.assertEqual(background['effective_grid_size_px'], 80)
+        self.assertEqual(background['grid_bounds'], {'min_col': 0, 'min_row': 0, 'max_col': 28, 'max_row': 27})
+        self.assertEqual(background['grid_cell_count'], 812)
+        visible_hexes = {(hex_view['coord']['q'], hex_view['coord']['r']): hex_view for hex_view in player_view['travel']['hexes']}
+        self.assertEqual(visible_hexes[(0, 0)]['render_coord'], {'col': 6, 'row': 13})
+        self.assertEqual(visible_hexes[(6, 0)]['render_coord'], {'col': 15, 'row': 21})
 
     def test_story_websocket_supports_travel_inspection_route_preview_and_advancement(self) -> None:
         session = self._build_story_demo_story_session()

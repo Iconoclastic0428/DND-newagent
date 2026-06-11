@@ -55,6 +55,18 @@ class BattlefieldMapIntegrationTests(unittest.TestCase):
         self.assertEqual(battlefield.default_elevation_transition_rule.threshold_feet, 10)
         self.assertEqual(battlefield.default_elevation_transition_rule.transition_type.value, 'climbable_ledge')
 
+    def test_goblin_ambush_map_uses_pabtso_player_background(self) -> None:
+        battlefield = load_battlefield_state_from_json(DEFAULT_GOBLIN_AMBUSH_MAP_PATH)
+        background = battlefield.background_image
+        self.assertIsNotNone(background)
+        assert background is not None
+        self.assertEqual(background.url, 'assets/maps/pabtso-goblin-ambush-player.webp')
+        self.assertEqual(background.source_internal_path, 'adventure/PaBTSO/010-map-1.01-goblin-ambush-player.webp')
+        self.assertEqual((background.width_px, background.height_px), (1002, 1369))
+        self.assertEqual(background.grid_type, 'square')
+        self.assertEqual(background.grid_size_px, 50)
+        self.assertEqual((background.grid_offset_x_px, background.grid_offset_y_px), (28, 10))
+
     def test_region_expansion_and_elevation_queries(self) -> None:
         battlefield = load_battlefield_state_from_json(DEFAULT_GOBLIN_AMBUSH_MAP_PATH)
         rules = BattlefieldRules()
