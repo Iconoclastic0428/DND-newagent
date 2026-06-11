@@ -351,6 +351,7 @@ def compile_monster_actor_from_record(
         position=position,
         speed_ft=monster.speed_ft,
         climb_speed_ft=monster.climb_speed_ft,
+        monster_record_id=monster.record_id,
         swim_speed_ft=0,
         fly_speed_ft=0,
         hover=False,

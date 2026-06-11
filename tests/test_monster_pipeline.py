@@ -61,6 +61,16 @@ class MonsterPipelineTests(unittest.TestCase):
         self.assertEqual(actor.ability_modifiers[Ability.DEX], 2)
         self.assertIn("misty-step", actor.spells)
 
+    def test_monster_records_and_actors_preserve_token_image_identity(self) -> None:
+        runtime = self._build_runtime()
+        goblin = next(record for record in runtime.monster_catalog.monsters.values() if record.name == "Goblin Warrior" and record.source == "XMM")
+
+        self.assertEqual(goblin.token_image_path, "img/bestiary/tokens/XMM/Goblin Warrior.webp")
+
+        actor = runtime.compile_monster(monster_id=goblin.record_id, actor_id="monster-goblin-1")
+
+        self.assertEqual(actor.monster_record_id, goblin.record_id)
+
     def test_monster_compilation_keeps_capability_mapped_spells_without_legacy_effect_type(self) -> None:
         runtime = self._build_runtime()
         artificer = next(record for record in runtime.monster_catalog.monsters.values() if record.name == "Cannith Artificer" and record.source == "EFA")

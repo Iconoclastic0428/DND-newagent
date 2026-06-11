@@ -1702,3 +1702,9 @@ Verification for the level-2 defense-buff trio completed: Barkskin, Enhance Abil
 - Live server: corrected story demo is running at `http://127.0.0.1:8005/?portal=player-1-controller&autoconnect=1` as PID `41416`; the older `8004` smoke server was stopped.
 - Browser/API smoke: API returned `grid_cell_count=812` and 7 semantic travel cells; browser DOM confirmed 812 full-grid visual cells plus 7 route buttons. Screenshot artifact: `tasks/pabtso-travel-map-full-grid-route.png`.
 - Verification: focused travel/web tests passed, full travel suite passed 5 tests, the two affected web flow tests passed, focused py_compile passed, `node --check web_frontend\app.js` passed, and targeted `git diff --check` passed with only LF/CRLF warnings.
+
+## 2026-06-04 - Corrective Commit For Token Icons And Tactical Background Plumbing
+- Request: Clarify whether token image placement was committed after the PaBTSO/full-grid push.
+- Finding: the pushed commit included frontend token badge rendering, `WebTokenView.token_image_url`, web projection, CSS, and web-server assertions, but missed the catalog/runtime fields that make `record.token_image_path` and `actor.monster_record_id` exist in a fresh checkout. It also committed the Goblin Ambush background test/data without the shared battlefield image spec and loader parser.
+- Correction: added the missing `MonsterRecord.token_image_path`, `RuntimeActorState.monster_record_id`, monster loader token-path extraction from 5e.tools `hasToken`, compiler preservation of the monster record id, battlefield background image spec, and battlefield background parser.
+- Verification passed: focused py_compile for the corrective Python files; `test_monster_records_and_actors_preserve_token_image_identity`; `test_goblin_ambush_map_uses_pabtso_player_background`; and `test_monster_map_tokens_include_visible_catalog_icon_urls`.

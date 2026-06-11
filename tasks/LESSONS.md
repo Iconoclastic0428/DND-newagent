@@ -193,3 +193,5 @@
 - Rule: When binding a map to 5e.tools metadata, preserve the raw source values in notes/types, but render with the effective grid size and effective offset after scale so overlays line up with the actual image grid.
 - Pattern: Putting an official map image behind only authored route cells can look like a partial map implementation even when the route cells align correctly.
 - Rule: For image-backed regional hex maps, render the full source grid as a visual layer across the whole image, and keep the smaller rules-owned travel graph as a separate semantic overlay.
+- Pattern: Committing from a dirty worktree with an explicit path list can still leave a pushed branch half-wired if committed files reference new fields whose defining model/loader files remain local.
+- Rule: Before pushing a sliced commit, check the committed tree for new identifiers with `git grep HEAD`, run focused tests against every committed assertion, and include the minimal dependency files in the same commit or an immediate corrective commit.

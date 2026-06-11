@@ -122,6 +122,12 @@ def _record_id_for_name_source(name: str, source: str, existing_ids: set[str]) -
         suffix += 1
 
 
+def _monster_token_image_path(record: Mapping[str, object], *, name: str, source: str) -> str | None:
+    if record.get("hasToken") is not True:
+        return None
+    return f"img/bestiary/tokens/{source}/{name}.webp"
+
+
 def _source_metadata_for(source: str, source_metadata: Mapping[str, _SourceMetadata]) -> _SourceMetadata:
     return source_metadata.get(source, _SourceMetadata(source=source, author="", group=""))
 
@@ -614,6 +620,7 @@ def load_monster_catalog(
                     spellcasting_ability=spellcasting_ability,
                     spell_save_dc=spell_save_dc,
                     spell_attack_bonus=spell_attack_bonus,
+                    token_image_path=_monster_token_image_path(raw_monster, name=name, source=record_source),
                 )
             except ContentLoadError:
                 continue

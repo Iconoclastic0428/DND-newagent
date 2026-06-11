@@ -126,6 +126,18 @@ class BattlefieldGridSpec:
 
 
 @dataclass(frozen=True)
+class BattlefieldImageSpec:
+    url: str
+    width_px: int
+    height_px: int
+    grid_type: str
+    grid_size_px: int
+    grid_offset_x_px: int
+    grid_offset_y_px: int
+    source_internal_path: str
+
+
+@dataclass(frozen=True)
 class OccupiedVolume:
     x: int
     y: int
@@ -237,6 +249,7 @@ class BattlefieldEdge:
     extra_movement_cost_with_climb_speed_feet: int | None
     blocks_los: bool
     blocks_loe: bool
+    requires_vertical_confirmation: bool = True
     cover_from_low_to_high: CoverLevel = CoverLevel.NONE
     cover_from_high_to_low: CoverLevel = CoverLevel.NONE
     blocks_diagonal_corner_cutting: bool = False
@@ -379,6 +392,10 @@ class BattlefieldState:
     map_id: str = ''
     name: str = ''
     grid: BattlefieldGridSpec | None = None
+    background_image: BattlefieldImageSpec | None = None
+    vision_time_of_day: str = 'day'
+    vision_day_radius_ft: int = 120
+    vision_night_radius_ft: int = 30
     tiles: dict['GridPosition', BattlefieldTile] = field(default_factory=dict)
     base_tiles: dict['GridPosition', BattlefieldTile] = field(default_factory=dict)
     features: dict[str, BattlefieldFeature] = field(default_factory=dict)

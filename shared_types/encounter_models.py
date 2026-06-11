@@ -300,6 +300,7 @@ class MonsterRecord:
     spellcasting_ability: Ability | None = None
     spell_save_dc: int | None = None
     spell_attack_bonus: int | None = None
+    token_image_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -620,6 +621,7 @@ class RuntimeActorState:
     climb_speed_ft: int
     summon_owner_actor_id: str | None = None
     mounted_on_actor_id: str | None = None
+    monster_record_id: str | None = None
     swim_speed_ft: int = 0
     fly_speed_ft: int = 0
     hover: bool = False

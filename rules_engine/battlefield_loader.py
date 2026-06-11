@@ -8,6 +8,7 @@ from shared_types.battlefield import (
     BattlefieldEdge,
     BattlefieldFeature,
     BattlefieldGridSpec,
+    BattlefieldImageSpec,
     BattlefieldIntegrationHints,
     BattlefieldState,
     BattlefieldTile,
@@ -26,6 +27,7 @@ from shared_types.visibility import LightLevel
 
 
 DEFAULT_GOBLIN_AMBUSH_MAP_PATH = Path('data/maps/goblin_ambush_triboar_trail_map.json')
+CRAGMAW_HIDEOUT_MAP_PATH = Path('data/maps/cragmaw_hideout_map.json')
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,7 @@ class _EdgeOverride:
     extra_movement_cost_with_climb_speed_feet: int | None
     blocks_los: bool
     blocks_loe: bool
+    requires_vertical_confirmation: bool
 
 
 def _require(condition: bool, message: str) -> None:
@@ -192,6 +195,22 @@ def _edge_override(payload: dict) -> _EdgeOverride:
         extra_movement_cost_with_climb_speed_feet=(None if payload.get('extraMovementCostFeetWithClimbSpeed') is None else int(payload['extraMovementCostFeetWithClimbSpeed'])),
         blocks_los=bool(payload['blocksLOS']),
         blocks_loe=bool(payload['blocksLOE']),
+        requires_vertical_confirmation=bool(payload.get('requiresVerticalConfirmation', True)),
+    )
+
+
+def _background_image(payload: dict | None) -> BattlefieldImageSpec | None:
+    if payload is None:
+        return None
+    return BattlefieldImageSpec(
+        url=str(payload['url']),
+        width_px=int(payload['widthPx']),
+        height_px=int(payload['heightPx']),
+        grid_type=str(payload['gridType']),
+        grid_size_px=int(payload['gridSizePx']),
+        grid_offset_x_px=int(payload['gridOffsetXPx']),
+        grid_offset_y_px=int(payload['gridOffsetYPx']),
+        source_internal_path=str(payload['sourceInternalPath']),
     )
 
 
@@ -228,6 +247,14 @@ def load_battlefield_state_from_json(path: str | Path = DEFAULT_GOBLIN_AMBUSH_MA
         max_x=int(bounds['maxX']),
         max_y=int(bounds['maxY']),
     )
+    background_image = _background_image(payload.get('backgroundImage'))
+    vision_payload = payload.get('visionDefaults', {})
+    vision_time_of_day = str(vision_payload.get('timeOfDay', 'day')).strip().lower()
+    _require(vision_time_of_day in {'day', 'night'}, f'Unknown battlefield vision time of day: {vision_time_of_day!r}.')
+    vision_day_radius_ft = int(vision_payload.get('dayRadiusFt', 120))
+    vision_night_radius_ft = int(vision_payload.get('nightRadiusFt', 30))
+    _require(vision_day_radius_ft > 0, 'Battlefield day vision radius must be positive.')
+    _require(vision_night_radius_ft > 0, 'Battlefield night vision radius must be positive.')
 
     defaults = payload['defaults']
     default_ceiling_ft = int(defaults['airspaceTopFt'])
@@ -390,6 +417,7 @@ def load_battlefield_state_from_json(path: str | Path = DEFAULT_GOBLIN_AMBUSH_MA
             extra_movement_cost_with_climb_speed_feet=override.extra_movement_cost_with_climb_speed_feet,
             blocks_los=override.blocks_los,
             blocks_loe=override.blocks_loe,
+            requires_vertical_confirmation=override.requires_vertical_confirmation,
         )
 
     spawn_zones = {
@@ -407,6 +435,10 @@ def load_battlefield_state_from_json(path: str | Path = DEFAULT_GOBLIN_AMBUSH_MA
         map_id=str(payload['mapId']),
         name=str(payload['name']),
         grid=grid,
+        background_image=background_image,
+        vision_time_of_day=vision_time_of_day,
+        vision_day_radius_ft=vision_day_radius_ft,
+        vision_night_radius_ft=vision_night_radius_ft,
         tiles=tiles,
         base_tiles=dict(tiles),
         features=features,

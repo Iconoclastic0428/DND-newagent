@@ -5568,3 +5568,24 @@
   - `python -m py_compile shared_types\travel.py shared_types\web_ui.py rules_engine\hexmap_loader.py session_server\web_projection.py`
   - `node --check web_frontend\app.js`
   - Targeted `git diff --check` passed with only LF/CRLF warnings.
+
+## 2026-06-04 - Corrective Commit: Token Icons And Tactical Background Plumbing
+
+### Scope
+- Repair the pushed branch so token image placement has the catalog/runtime fields it depends on.
+- Repair the pushed tactical background test/data by committing the shared battlefield image spec and loader parser.
+- Keep unrelated Cragmaw movement/vision work out of the correction.
+
+### Steps
+- [x] Confirm pushed commit contained token frontend/projection but missed model/loader/compiler fields.
+- [x] Identify the minimal dependency files for token icons and tactical background parsing.
+- [x] Run focused compile and regression tests.
+- [x] Stage, commit, and push the corrective dependency set.
+
+### Review
+- Root cause: the first commit was sliced from a dirty worktree and included `session_server/web_projection.py`, `shared_types/web_ui.py`, `web_frontend/app.js`, and token assertions, but left `MonsterRecord.token_image_path`, `RuntimeActorState.monster_record_id`, loader extraction, and compiler preservation uncommitted.
+- Token fix: `MonsterRecord` now stores the mirror token path from 5e.tools `hasToken`, compiled monster actors preserve their source record id, and the existing web projection can resolve visible monster token images without frontend name guessing.
+- Tactical background fix: `BattlefieldImageSpec` and loader parsing are committed so the PaBTSO Goblin Ambush background assertion works in a fresh checkout.
+- Verification passed:
+  - `python -m py_compile shared_types\encounter_models.py shared_types\battlefield.py rules_engine\monster_loader.py rules_engine\battlefield_loader.py monster_runtime\compiler.py`
+  - `python -m unittest tests.test_monster_pipeline.MonsterPipelineTests.test_monster_records_and_actors_preserve_token_image_identity tests.test_battlefield_map.BattlefieldMapIntegrationTests.test_goblin_ambush_map_uses_pabtso_player_background tests.test_web_server.SessionWebServerTests.test_monster_map_tokens_include_visible_catalog_icon_urls -v`
