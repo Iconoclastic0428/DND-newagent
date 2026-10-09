@@ -1444,6 +1444,13 @@ class ReturnedToStorytellingEvent(EncounterEvent):
 
 
 @dataclass(frozen=True)
+class StoryGameEndedEvent(EncounterEvent):
+    outcome: str
+    reason: str
+    scene_id: str | None = None
+
+
+@dataclass(frozen=True)
 class LLMConfigLoadedEvent(EncounterEvent):
     base_url: str
     model: str

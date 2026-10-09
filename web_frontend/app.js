@@ -18,6 +18,7 @@ const state = {
   chatFeed: createChatFeedState(),
   autoConnect: false,
   selectedCharacterCardActorId: null,
+  renderedMapKey: null,
   mapPan: {
     active: false,
     moved: false,
@@ -290,6 +291,10 @@ function renderHeader() {
 function renderLegend() {
   els.mapLegend.innerHTML = '';
   const view = state.view;
+  if (view?.site && !view.site.in_dungeon) {
+    els.mapLegend.textContent = 'Select a town location; conversations reveal new choices.';
+    return;
+  }
   const items = (view?.travel && !view?.map)
     ? [
         ['travel-terrain-road', 'Road or trail'],
@@ -342,7 +347,7 @@ function renderMapToolbar() {
     appendMapNudgeControls(view.map);
     return;
   }
-  if (!view.travel) return;
+  if (view.site || !view.travel) return;
   for (const pace of [
     ['cautious', 'Cautious'],
     ['normal', 'Normal'],
@@ -377,18 +382,108 @@ function renderMap() {
   els.mapContainer.innerHTML = '';
   const hasBattlefield = Boolean(view?.map?.grid);
   const hasTravel = Boolean(view?.travel);
-  els.mapContainer.classList.toggle('map-empty', !hasBattlefield && !hasTravel);
+  const hasTown = Boolean(view?.site && !view.site.in_dungeon);
+  els.mapContainer.classList.toggle('map-empty', !hasBattlefield && !hasTravel && !hasTown);
+  if (view?.site) renderSiteActions(view.site);
+  if (hasTown) {
+    renderTownMap(view.site);
+    if (state.renderedMapKey !== view.site.site_id) {
+      els.mapContainer.scrollLeft = 0;
+      els.mapContainer.scrollTop = 0;
+    }
+    state.renderedMapKey = view.site.site_id;
+    return;
+  }
   if (hasBattlefield) {
     renderBattlefieldMap(view.map);
+    if (state.renderedMapKey !== view.map.map_id) {
+      focusBattlefieldToken(view.map);
+    }
+    state.renderedMapKey = view.map.map_id;
     return;
   }
   if (hasTravel) {
     renderTravelMap(view.travel);
+    state.renderedMapKey = null;
     return;
   }
   els.mapContainer.textContent = view?.runtime_mode === 'character-creation'
     ? 'Character creation is active. The campaign map will appear automatically when travel begins.'
     : 'No semantic map is active for this scene.';
+}
+
+function focusBattlefieldToken(map) {
+  const token = map.tokens.find(token => token.is_owner)
+    || map.tokens.find(token => token.is_active)
+    || map.tokens.find(token => token.side === 'player');
+  if (!token) return;
+  requestAnimationFrame(() => {
+    const grid = els.mapContainer.querySelector('.map-grid');
+    if (!grid || state.view?.map?.map_id !== map.map_id) return;
+    const container = els.mapContainer;
+    const bounds = container.getBoundingClientRect();
+    const gridBounds = grid.getBoundingClientRect();
+    container.scrollLeft += gridBounds.left - bounds.left + token.position.x * 42 + 21 - container.clientWidth / 2;
+    container.scrollTop += gridBounds.top - bounds.top + token.position.y * 42 + 21 - container.clientHeight / 2;
+  });
+}
+
+function renderSiteActions(site) {
+  const panel = create('div', 'site-actions');
+  panel.appendChild(create('strong', 'site-heading', site.in_dungeon ? 'Hideout exploration' : 'Phandalin'));
+  if (site.actor_body_weight_lb === 0 && state.view?.role === 'player') {
+    const form = create('form', 'site-weight');
+    const label = create('label', '', 'Character body weight (lb)');
+    const input = create('input');
+    input.type = 'number';
+    input.min = '0.1';
+    input.step = 'any';
+    input.required = true;
+    input.setAttribute('aria-label', 'Character body weight in pounds');
+    label.appendChild(input);
+    const submit = create('button', 'secondary', 'Record weight');
+    submit.type = 'submit';
+    form.append(label, submit);
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (form.reportValidity()) sendCommand(`/site weight ${input.value}`);
+    });
+    panel.appendChild(form);
+  }
+  for (const action of site.actions || []) {
+    const button = create('button', 'secondary site-action', action.label);
+    button.type = 'button';
+    button.dataset.actionId = action.action_id;
+    button.title = action.command;
+    button.addEventListener('click', () => sendCommand(action.command));
+    panel.appendChild(button);
+  }
+  if (site.discoveries.length) {
+    const details = create('details', 'site-discoveries');
+    details.appendChild(create('summary', '', 'Party discoveries'));
+    details.appendChild(create('p', '', site.discoveries.map(flag => flag.replaceAll('-', ' ')).join(' · ')));
+    panel.appendChild(details);
+  }
+  els.mapContainer.appendChild(panel);
+}
+
+function renderTownMap(site) {
+  const map = create('div', 'town-map');
+  map.style.backgroundImage = `url("${site.town_image}")`;
+  map.style.aspectRatio = `${site.town_width_px} / ${site.town_height_px}`;
+  map.setAttribute('aria-label', 'Phandalin town locations');
+  for (const place of site.places) {
+    const button = create('button', `town-place${place.current ? ' current' : ''}`, place.name);
+    button.type = 'button';
+    button.dataset.placeId = place.place_id;
+    button.style.left = `${place.x * 100}%`;
+    button.style.top = `${place.y * 100}%`;
+    button.setAttribute('aria-pressed', String(place.current));
+    button.disabled = state.view?.role === 'dm';
+    button.addEventListener('click', () => sendCommand(place.command));
+    map.appendChild(button);
+  }
+  els.mapContainer.appendChild(map);
 }
 
 function renderBattlefieldMap(map) {
@@ -435,7 +530,7 @@ function renderBattlefieldMap(map) {
     if (selectedKey === `${cell.position.x},${cell.position.y},${cell.position.z}`) tile.classList.add('selected');
     if (previewPath.has(`${cell.position.x},${cell.position.y},${cell.position.z}`)) tile.classList.add('preview');
     tile.appendChild(create('div', 'cell-coord', `${cell.position.x},${cell.position.y}`));
-    tile.appendChild(create('div', 'cell-elevation', `${cell.elevation_ft}ft`));
+    if (cell.visible !== false) tile.appendChild(create('div', 'cell-elevation', `${cell.elevation_ft}ft`));
     tile.title = `(${cell.position.x},${cell.position.y},${cell.position.z}) | ${cell.terrain_id} | light ${cell.lighting} | obscurement ${cell.obscurement} | vision ${cell.vision_mode || 'none'} | visible ${cell.visible !== false}`;
     const featureStack = create('div', 'feature-stack');
     for (const feature of featureMap.get(`${cell.position.x},${cell.position.y}`) || []) {
@@ -665,7 +760,11 @@ function renderInspection() {
   els.inspectionPanel.innerHTML = '';
   const inspection = state.inspection;
   if (!inspection) {
-    if (state.view?.travel) {
+    if (state.view?.site && !state.view.site.in_dungeon) {
+      els.inspectionPanel.textContent = 'Choose a town location, then select a conversation or entrance.';
+      return;
+    }
+    if (state.view?.travel && !state.view?.map) {
       els.inspectionPanel.textContent = 'Click a hex to inspect it and preview a route.';
       return;
     }
@@ -1275,6 +1374,7 @@ function handleMapKeyboardMove(event) {
 function canPreviewMove() {
   const view = state.view;
   if (!view) return false;
+  if (view.site?.in_dungeon && view.runtime_mode === 'storytelling') return (view.owned_actor_ids || []).length === 1;
   if (view.runtime_mode !== 'combat') return false;
   return (view.owned_actor_ids || []).includes(view.active_actor_id);
 }

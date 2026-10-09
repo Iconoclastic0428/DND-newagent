@@ -53,6 +53,19 @@ class CampaignDocument:
 
 
 @dataclass(frozen=True)
+class NpcRoleplayBrief:
+    npc_id: str
+    display_name: str
+    personality: tuple[str, ...] = ()
+    roleplay_contract: tuple[str, ...] = ()
+    default_stance_toward_party: tuple[str, ...] = ()
+    current_stance: tuple[str, ...] = ()
+    journey_availability: tuple[str, ...] = ()
+    voice_and_habits: tuple[str, ...] = ()
+    source_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class RetrievalSelection:
     documents: tuple[CampaignDocument, ...]
     selection_reason: str
@@ -336,6 +349,91 @@ def _serialize_document(document: CampaignDocument) -> dict[str, Any]:
     }
 
 
+def _markdown_section_lines(content: str, heading: str) -> tuple[str, ...]:
+    target = f'# {heading}'.strip().lower()
+    collecting = False
+    lines: list[str] = []
+    for raw_line in content.splitlines():
+        stripped = raw_line.strip()
+        if stripped.startswith('# '):
+            if stripped.lower() == target:
+                collecting = True
+                continue
+            if collecting:
+                break
+        if not collecting or not stripped:
+            continue
+        if stripped.startswith('- '):
+            stripped = stripped[2:].strip()
+        if stripped:
+            lines.append(stripped)
+    return tuple(lines)
+
+
+def _merge_ordered_lines(*groups: tuple[str, ...]) -> tuple[str, ...]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for line in group:
+            if line in seen:
+                continue
+            seen.add(line)
+            merged.append(line)
+    return tuple(merged)
+
+
+def build_npc_roleplay_brief(documents: Iterable[CampaignDocument], visible_npc_ids: tuple[str, ...]) -> tuple[NpcRoleplayBrief, ...]:
+    visible_order = tuple(dict.fromkeys(visible_npc_ids))
+    if not visible_order:
+        return ()
+    visible_set = set(visible_order)
+    grouped: dict[str, list[CampaignDocument]] = {npc_id: [] for npc_id in visible_order}
+    for document in documents:
+        if document.type not in {'npc', 'npc_playbook'}:
+            continue
+        if document.doc_id not in visible_set:
+            continue
+        grouped[document.doc_id].append(document)
+
+    briefs: list[NpcRoleplayBrief] = []
+    for npc_id in visible_order:
+        npc_documents = tuple(grouped.get(npc_id, ()))
+        if not npc_documents:
+            continue
+        display_name = next(
+            (document.title.replace(' Playbook', '') for document in npc_documents if document.type == 'npc'),
+            npc_documents[0].title.replace(' Playbook', ''),
+        )
+        briefs.append(
+            NpcRoleplayBrief(
+                npc_id=npc_id,
+                display_name=display_name,
+                personality=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Personality') for document in npc_documents)),
+                roleplay_contract=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Roleplay Contract') for document in npc_documents)),
+                default_stance_toward_party=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Default Stance Toward Party') for document in npc_documents)),
+                current_stance=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Current Stance') for document in npc_documents)),
+                journey_availability=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Journey Availability') for document in npc_documents)),
+                voice_and_habits=_merge_ordered_lines(*(_markdown_section_lines(document.content, 'Voice and Habits') for document in npc_documents)),
+                source_paths=tuple(document.path for document in npc_documents),
+            )
+        )
+    return tuple(briefs)
+
+
+def _serialize_npc_roleplay_brief(brief: NpcRoleplayBrief) -> dict[str, Any]:
+    return {
+        'npc_id': brief.npc_id,
+        'display_name': brief.display_name,
+        'personality': list(brief.personality),
+        'roleplay_contract': list(brief.roleplay_contract),
+        'default_stance_toward_party': list(brief.default_stance_toward_party),
+        'current_stance': list(brief.current_stance),
+        'journey_availability': list(brief.journey_availability),
+        'voice_and_habits': list(brief.voice_and_habits),
+        'source_paths': list(brief.source_paths),
+    }
+
+
 def _serialize_spell_perceptibility(profile) -> dict[str, Any]:
     return {
         'has_verbal_component': profile.has_verbal_component,
@@ -492,6 +590,7 @@ class DMStorytellingRuntime:
             visible_npc_ids=getattr(context, 'visible_npc_ids', ()) if hasattr(context, 'visible_npc_ids') else (),
             mode_hint=getattr(context, 'mode_hint', 'storytelling') if hasattr(context, 'mode_hint') else 'combat',
             nearby_tags=getattr(context, 'nearby_tags', ()) if hasattr(context, 'nearby_tags') else (),
+            dm_context_notes=getattr(context, 'dm_context_notes', ()) if hasattr(context, 'dm_context_notes') else (),
         )
         selection = self.select_relevant_documents(story_context, documents)
         payload = self._build_mode_switch_prompt(context, selection, current_mode=current_mode)
@@ -741,6 +840,7 @@ class DMStorytellingRuntime:
             'current_scene_summary': getattr(context, 'current_scene_summary', '') if hasattr(context, 'current_scene_summary') else '',
             'recent_session_summary': getattr(context, 'recent_session_summary', '') if hasattr(context, 'recent_session_summary') else '',
             'visible_npc_ids': list(getattr(context, 'visible_npc_ids', ()) if hasattr(context, 'visible_npc_ids') else ()),
+            'dm_context_notes': list(getattr(context, 'dm_context_notes', ()) if hasattr(context, 'dm_context_notes') else ()),
             'suggested_participants': list(getattr(context, 'suggested_participants', ()) if hasattr(context, 'suggested_participants') else ()),
             'ambush': getattr(context, 'ambush', False) if hasattr(context, 'ambush') else False,
         }
@@ -768,6 +868,7 @@ class DMStorytellingRuntime:
         available_combatant_actor_ids: tuple[str, ...],
         actors_with_resolved_scene_checks: tuple[str, ...],
     ) -> dict[str, Any]:
+        npc_roleplay_brief = build_npc_roleplay_brief(selection.documents, context.visible_npc_ids)
         context_payload = {
             'campaign_id': context.campaign_id,
             'current_mode': context.mode.value,
@@ -780,18 +881,21 @@ class DMStorytellingRuntime:
             'party_beliefs': list(context.party_beliefs),
             'visible_npc_ids': list(context.visible_npc_ids),
             'nearby_tags': list(context.nearby_tags),
+            'dm_context_notes': list(context.dm_context_notes),
             'acting_controller_id': controller_id,
             'acting_actor_id': actor_id,
             'available_actor_ids': list(available_actor_ids),
             'available_combatant_actor_ids': list(available_combatant_actor_ids),
             'actors_with_resolved_scene_checks': list(actors_with_resolved_scene_checks),
             'declaration': declaration,
+            'npc_roleplay_brief': [_serialize_npc_roleplay_brief(brief) for brief in npc_roleplay_brief],
         }
         selected_docs = [_serialize_document(document) for document in selection.documents]
         instructions = (
             'You are a D&D DM storytelling runtime. '
             + build_json_object_contract(template=_STORY_TURN_JSON_TEMPLATE)
             + ' The root object must contain exactly these keys: public_narration, transcript_entries, check_request, scene_update, mode_switch_decision, memory_note. '
+            + 'Use npc_roleplay_brief as authoritative for visible NPC personality, party relationship, and journey availability. Direct NPC dialogue may only come from NPC ids listed in visible_npc_ids; documents for offstage NPCs are context, not physical presence. '
             + 'transcript_entries must be an array of objects with exactly speaker, text, visibility. visibility must be public or dm_only. Never use speaker_id. '
             + _VISIBLE_NPC_TRANSCRIPT_RULE
             + 'check_request must be null or an object with exactly actor_id, ability, skill_name, dc, prompt, reason, requires_sight, requires_hearing, interacting_with_actor_id. ability must be one of STR, DEX, CON, INT, WIS, CHA. '
@@ -826,6 +930,7 @@ class DMStorytellingRuntime:
         available_combatant_actor_ids: tuple[str, ...],
         actors_with_resolved_scene_checks: tuple[str, ...],
     ) -> dict[str, Any]:
+        npc_roleplay_brief = build_npc_roleplay_brief(selection.documents, context.visible_npc_ids)
         context_payload = {
             'campaign_id': context.campaign_id,
             'current_mode': context.mode.value,
@@ -835,6 +940,8 @@ class DMStorytellingRuntime:
             'unresolved_hooks': list(context.unresolved_hooks),
             'current_scene_summary': context.current_scene_summary,
             'recent_session_summary': context.recent_session_summary,
+            'visible_npc_ids': list(context.visible_npc_ids),
+            'dm_context_notes': list(context.dm_context_notes),
             'pending_check': {
                 'request_id': pending_check.request_id,
                 'actor_id': pending_check.actor_id,
@@ -859,6 +966,7 @@ class DMStorytellingRuntime:
                 'rolled_by': 'rules_engine',
             },
             'original_declaration': declaration,
+            'npc_roleplay_brief': [_serialize_npc_roleplay_brief(brief) for brief in npc_roleplay_brief],
         }
         selected_docs = [_serialize_document(document) for document in selection.documents]
         instructions = (
@@ -867,6 +975,7 @@ class DMStorytellingRuntime:
             + ' The check result in the context payload was already rolled and finalized by the deterministic rules engine. '
             + 'You must interpret that result and describe consequences. Do not reroll, alter, or override the roll, DC, modifier, or success state. '
             + 'The root object must contain exactly these keys: public_narration, transcript_entries, check_request, scene_update, mode_switch_decision, memory_note. '
+            + 'Use npc_roleplay_brief as authoritative for visible NPC personality, party relationship, and journey availability. Direct NPC dialogue may only come from NPC ids listed in visible_npc_ids; documents for offstage NPCs are context, not physical presence. '
             + 'transcript_entries must be an array of objects with exactly speaker, text, visibility. visibility must be public or dm_only. Never use speaker_id. '
             + _VISIBLE_NPC_TRANSCRIPT_RULE
             + 'check_request should usually be null here unless an immediate follow-up check is explicitly required; if present it must use exactly actor_id, ability, skill_name, dc, prompt, reason, requires_sight, requires_hearing, interacting_with_actor_id. ability must be one of STR, DEX, CON, INT, WIS, CHA. '

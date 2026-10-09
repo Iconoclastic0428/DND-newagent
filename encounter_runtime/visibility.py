@@ -128,28 +128,43 @@ def target_obscurement(state: EncounterState, target: RuntimeActorState) -> Obsc
     return ObscurementLevel.NONE
 
 
-def can_observer_see_position(state: EncounterState, observer: RuntimeActorState, position: GridPosition) -> bool:
-    observer_state = _condition_state(observer)
-    if ConditionType.BLINDED in observer_state.effective_types:
-        return False
-    if not _battlefield_rules().has_line_of_sight_to_position(state, observer, position):
-        return False
+def position_light_level(state: EncounterState, position: GridPosition) -> LightLevel:
     tile = _battlefield_rules().get_tile(state.battlefield, position.x, position.y)
-    light_level = _dynamic_light_level_at_position(state, position)
-    if light_level is None or _light_priority(tile.light_level) >= _light_priority(light_level):
-        light_level = tile.light_level
-    if light_level == LightLevel.DARKNESS and not _observer_has_darkvision_to_position(observer, position):
-        return False
-    obscurement = _dynamic_obscurement_at_position(state, position)
-    if obscurement is None:
-        obscurement = tile.obscurement
-    elif tile.obscurement == ObscurementLevel.HEAVY or obscurement == ObscurementLevel.HEAVY:
-        obscurement = ObscurementLevel.HEAVY
-    elif tile.obscurement != ObscurementLevel.NONE or obscurement != ObscurementLevel.NONE:
-        obscurement = ObscurementLevel.LIGHT
-    if obscurement == ObscurementLevel.HEAVY:
-        return False
-    return True
+    dynamic = _dynamic_light_level_at_position(state, position)
+    if dynamic is None or _light_priority(tile.light_level) >= _light_priority(dynamic):
+        return tile.light_level
+    return dynamic
+
+
+def position_obscurement(state: EncounterState, position: GridPosition) -> ObscurementLevel:
+    tile = _battlefield_rules().get_tile(state.battlefield, position.x, position.y)
+    dynamic = _dynamic_obscurement_at_position(state, position)
+    if dynamic is None:
+        return tile.obscurement
+    if tile.obscurement == ObscurementLevel.HEAVY or dynamic == ObscurementLevel.HEAVY:
+        return ObscurementLevel.HEAVY
+    if tile.obscurement != ObscurementLevel.NONE or dynamic != ObscurementLevel.NONE:
+        return ObscurementLevel.LIGHT
+    return ObscurementLevel.NONE
+
+
+def observer_position_vision_mode(state: EncounterState, observer: RuntimeActorState, position: GridPosition) -> str | None:
+    observer_state = _condition_state(observer)
+    if ConditionType.BLINDED in observer_state.effective_types and not _observer_has_nonvisual_precision(observer, position):
+        return None
+    if not _battlefield_rules().has_line_of_sight_to_position(state, observer, position):
+        return None
+    if _observer_has_nonvisual_precision(observer, position):
+        return 'normal'
+    if position_obscurement(state, position) == ObscurementLevel.HEAVY:
+        return None
+    if position_light_level(state, position) == LightLevel.DARKNESS:
+        return 'night' if _observer_has_darkvision_to_position(observer, position) else None
+    return 'normal'
+
+
+def can_observer_see_position(state: EncounterState, observer: RuntimeActorState, position: GridPosition) -> bool:
+    return observer_position_vision_mode(state, observer, position) is not None
 
 
 def assess_visibility(state: EncounterState, observer: RuntimeActorState, target: RuntimeActorState) -> VisibilityAssessment:

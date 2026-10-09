@@ -147,6 +147,12 @@ class ExplorationProcedureEngine:
                 display_name=profile.display_name,
                 attitude=profile.base_attitude,
                 current_stance=profile.base_stance,
+                trust=profile.base_trust,
+                hostility=profile.base_hostility,
+                leverage=profile.base_leverage,
+                obligation=profile.base_obligation,
+                fear=profile.base_fear,
+                interest=profile.base_interest,
             )
             for npc_id, profile in self.social_profiles.items()
         }
@@ -1443,8 +1449,10 @@ def _lmop_social_profiles() -> tuple[NpcInfluenceProfile, ...]:
         NpcInfluenceProfile(
             npc_id='gundren-rockseeker',
             display_name='Gundren Rockseeker',
-            base_attitude=NpcAttitude.RESERVED,
-            base_stance='Eager to hire the party, but protective of the full truth.',
+            base_attitude=NpcAttitude.FRIENDLY,
+            base_stance='Warm toward former hires he trusts, eager to hire them for a new Phandalin mission, and protective of the full truth.',
+            base_trust=5,
+            base_interest=1,
             scene_ids=('scene-waterdeep-gundren-briefing',),
             location_ids=('waterdeep',),
             approaches=(
@@ -1512,7 +1520,7 @@ def _lmop_social_profiles() -> tuple[NpcInfluenceProfile, ...]:
             npc_id='sildar-hallwinter',
             display_name='Sildar Hallwinter',
             base_attitude=NpcAttitude.COOPERATIVE,
-            base_stance='Courteous, practical, and inclined to keep the job moving.',
+            base_stance='Courteous, practical, and inclined to keep the job moving, but he does not personally know the party yet.',
             scene_ids=('scene-waterdeep-gundren-briefing', 'scene-02-trail-aftermath'),
             location_ids=('waterdeep', 'triboar-trail'),
             approaches=(

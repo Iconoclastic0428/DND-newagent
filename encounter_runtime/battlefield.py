@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import heapq
 import math
 
@@ -53,6 +53,37 @@ class BattlefieldRules:
     def surface_position(self, battlefield: BattlefieldState, x: int, y: int) -> GridPosition:
         tile = self.get_tile(battlefield, x, y)
         return GridPosition(x, y, tile.elevation_ft)
+
+    def supported_surface_positions(self, battlefield: BattlefieldState, x: int, y: int) -> tuple[GridPosition, ...]:
+        tile = self.get_tile(battlefield, x, y)
+        surfaces: list[GridPosition] = []
+        if tile.traversable and tile.occupiable:
+            surfaces.append(GridPosition(x, y, tile.elevation_ft))
+        for feature in self._features_at(battlefield, x, y):
+            if feature.traversable and feature.occupiable:
+                surfaces.append(GridPosition(x, y, feature.top_ft))
+        unique = sorted({surface: None for surface in surfaces}, key=lambda position: position.z)
+        return tuple(unique)
+
+    def resolve_ground_destination(self, state: EncounterState, actor: RuntimeActorState, x: int, y: int, z: int | None, *, movement_intent_mode: MovementIntentMode = MovementIntentMode.SAME_PLANE) -> GridPosition:
+        if z is not None and movement_intent_mode == MovementIntentMode.ALLOW_FLY:
+            return GridPosition(x, y, z)
+        surfaces = self.supported_surface_positions(state.battlefield, x, y)
+        if z is not None:
+            requested = GridPosition(x, y, z)
+            if requested in surfaces or not surfaces:
+                return requested
+            lower_surfaces = tuple(surface for surface in surfaces if surface.z <= z)
+            if lower_surfaces:
+                return lower_surfaces[-1]
+            return surfaces[0]
+        current_height = GridPosition(x, y, actor.position.z)
+        if current_height in surfaces:
+            return current_height
+        tile_surface = self.surface_position(state.battlefield, x, y)
+        if tile_surface in surfaces or not surfaces:
+            return tile_surface
+        return surfaces[0]
 
     def get_position3d(self, actor: RuntimeActorState) -> GridPosition:
         return actor.position
@@ -224,6 +255,16 @@ class BattlefieldRules:
         if key in battlefield.edges:
             return battlefield.edges[key]
         diff = self.get_height_difference(battlefield, a, b)
+        return self._edge_transition_from_height_difference(battlefield, key, diff)
+
+    def _edge_transition_between_positions(self, battlefield: BattlefieldState, a: GridPosition, b: GridPosition) -> BattlefieldEdge:
+        key = edge_key(GridPosition(a.x, a.y), GridPosition(b.x, b.y))
+        diff = b.z - a.z
+        if key in battlefield.edges:
+            return replace(battlefield.edges[key], height_change_ft=diff)
+        return self._edge_transition_from_height_difference(battlefield, key, diff)
+
+    def _edge_transition_from_height_difference(self, battlefield: BattlefieldState, key: tuple[GridPosition, GridPosition], diff: int) -> BattlefieldEdge:
         rule = battlefield.default_elevation_transition_rule
         if rule is None:
             return BattlefieldEdge(cells=key, transition_type=(EdgeTransitionType.FLAT if diff == 0 else EdgeTransitionType.BLOCKED), traversal_requirement=(EdgeTraversalRequirement.NONE if diff == 0 else EdgeTraversalRequirement.BLOCKED), height_change_ft=diff, extra_movement_cost_feet=0, extra_movement_cost_with_climb_speed_feet=None, blocks_los=False, blocks_loe=False)
@@ -263,22 +304,29 @@ class BattlefieldRules:
         if max(abs(destination.x - origin.x), abs(destination.y - origin.y)) != 1:
             return False, UnreachableReason.NO_TRAVERSABLE_EDGE, None
         try:
-            tile = self.get_tile(state.battlefield, destination.x, destination.y)
+            self.get_tile(state.battlefield, destination.x, destination.y)
         except EncounterValidationError:
             return False, UnreachableReason.OUTSIDE_BATTLEFIELD, None
-        if not tile.traversable or not tile.occupiable:
+        destination_surfaces = self.supported_surface_positions(state.battlefield, destination.x, destination.y)
+        if destination not in destination_surfaces:
+            tile_surface = self.surface_position(state.battlefield, destination.x, destination.y)
+            if destination.z == 0 and tile_surface in destination_surfaces:
+                destination = tile_surface
+            else:
+                return False, UnreachableReason.DESTINATION_BLOCKED, None
+        if destination not in destination_surfaces:
             return False, UnreachableReason.DESTINATION_BLOCKED, None
-        edge = self.get_edge_transition(state.battlefield, origin, destination)
+        edge = self._edge_transition_between_positions(state.battlefield, origin, destination)
         seg = self._ground_segment(state, actor, origin, destination, edge)
         if edge.transition_type in {EdgeTransitionType.BLOCKED, EdgeTransitionType.IMPASSABLE_FACE} or edge.traversal_requirement == EdgeTraversalRequirement.BLOCKED:
             return False, UnreachableReason.IMPASSABLE_EDGE, None
-        if movement_intent_mode == MovementIntentMode.SAME_PLANE and edge.height_change_ft != 0:
+        if movement_intent_mode == MovementIntentMode.SAME_PLANE and edge.height_change_ft != 0 and edge.requires_vertical_confirmation:
             return False, UnreachableReason.REQUIRES_VERTICAL_CONFIRMATION, seg
         if edge.traversal_requirement == EdgeTraversalRequirement.CLIMB_SPEED and actor.climb_speed_ft <= 0:
             return False, UnreachableReason.REQUIRES_CLIMB_SPEED, seg
         if edge.traversal_requirement == EdgeTraversalRequirement.CLIMB and movement_intent_mode != MovementIntentMode.ALLOW_CLIMB:
             return False, (UnreachableReason.REQUIRES_VERTICAL_CONFIRMATION if movement_intent_mode == MovementIntentMode.SAME_PLANE else UnreachableReason.REQUIRES_CLIMB), seg
-        if not self.is_volume_occupiable(state, OccupiedVolume(destination.x, destination.y, tile.elevation_ft, height_ft=actor.occupied_height_ft), actor, ignore_actor_id=actor.actor_id):
+        if not self.is_volume_occupiable(state, OccupiedVolume(destination.x, destination.y, destination.z, height_ft=actor.occupied_height_ft), actor, ignore_actor_id=actor.actor_id):
             return False, UnreachableReason.DESTINATION_OCCUPIED, seg
         return True, None, seg
 
@@ -293,11 +341,12 @@ class BattlefieldRules:
                 if dx == 0 and dy == 0:
                     continue
                 try:
-                    candidate = self.surface_position(state.battlefield, pos.x + dx, pos.y + dy)
+                    candidates = self.supported_surface_positions(state.battlefield, pos.x + dx, pos.y + dy)
                 except EncounterValidationError:
                     continue
-                if self.can_move_between_cells(state, actor, pos, candidate, movement_intent_mode=mode):
-                    out.append(candidate)
+                for candidate in candidates:
+                    if self.can_move_between_cells(state, actor, pos, candidate, movement_intent_mode=mode):
+                        out.append(candidate)
         return tuple(out)
 
     def _fly_neighbors(self, state: EncounterState, actor: RuntimeActorState, pos: GridPosition):
@@ -318,9 +367,7 @@ class BattlefieldRules:
         return self._fly_neighbors(state, actor, pos) if mode == MovementIntentMode.ALLOW_FLY else self._ground_neighbors(state, actor, pos, mode)
 
     def _step_cost(self, state: EncounterState, actor: RuntimeActorState, origin: GridPosition, dest: GridPosition) -> int:
-        if origin.z != self.get_tile(state.battlefield, origin.x, origin.y).elevation_ft or dest.z != self.get_tile(state.battlefield, dest.x, dest.y).elevation_ft:
-            return 5
-        edge = self.get_edge_transition(state.battlefield, origin, dest)
+        edge = self._edge_transition_between_positions(state.battlefield, origin, dest)
         return self._ground_segment(state, actor, origin, dest, edge).movement_cost_ft
 
     def _search(self, state: EncounterState, actor: RuntimeActorState, start: GridPosition, dest: GridPosition, *, mode: MovementIntentMode):
@@ -364,16 +411,30 @@ class BattlefieldRules:
         return self._search(state, actor, start, destination, mode=MovementIntentMode.ALLOW_FLY)
 
     def preview_move(self, state: EncounterState, actor: RuntimeActorState, destination: GridPosition, *, movement_intent_mode: MovementIntentMode) -> MovementPreview:
-        if actor.position == destination:
-            raise EncounterValidationError('Movement requires a different destination.')
-        if actor.remaining_movement_ft <= 0:
-            return MovementPreview(MovementPreviewOutcome.UNREACHABLE_INSUFFICIENT_MOVEMENT, destination, destination.z, movement_intent_mode, None, False, False, actor.climb_speed_ft > 0, False, UnreachableReason.SPEED_ZERO, detail='The actor cannot move because it has no remaining movement.')
+        requested_destination = destination
         try:
             tile = self.get_tile(state.battlefield, destination.x, destination.y)
         except EncounterValidationError:
             return MovementPreview(MovementPreviewOutcome.UNREACHABLE_BLOCKED, destination, destination.z, movement_intent_mode, None, False, False, actor.climb_speed_ft > 0, False, UnreachableReason.OUTSIDE_BATTLEFIELD, detail='The destination is outside the authored battlefield.')
-        same_dest = GridPosition(destination.x, destination.y, actor.position.z)
-        surface_dest = GridPosition(destination.x, destination.y, tile.elevation_ft)
+        if movement_intent_mode != MovementIntentMode.ALLOW_FLY:
+            destination = self.resolve_ground_destination(
+                state,
+                actor,
+                destination.x,
+                destination.y,
+                destination.z,
+                movement_intent_mode=movement_intent_mode,
+            )
+        if actor.position == destination:
+            if requested_destination != destination:
+                plan = MovementPlan(path=(), segments=(), total_cost_ft=0, destination_elevation_ft=destination.z, includes_elevation_change=False, requires_climb=False)
+                return self._preview_from_plan(actor, destination, movement_intent_mode, plan, MovementPreviewOutcome.REACHABLE_SAME_PLANE)
+            raise EncounterValidationError('Movement requires a different destination.')
+        if actor.remaining_movement_ft <= 0:
+            return MovementPreview(MovementPreviewOutcome.UNREACHABLE_INSUFFICIENT_MOVEMENT, destination, destination.z, movement_intent_mode, None, False, False, actor.climb_speed_ft > 0, False, UnreachableReason.SPEED_ZERO, detail='The actor cannot move because it has no remaining movement.')
+        default_dest = self.resolve_ground_destination(state, actor, destination.x, destination.y, None)
+        surface_dest = destination if destination in self.supported_surface_positions(state.battlefield, destination.x, destination.y) else default_dest
+        same_dest = surface_dest if movement_intent_mode == MovementIntentMode.SAME_PLANE and destination.z in {actor.position.z, surface_dest.z} else GridPosition(destination.x, destination.y, actor.position.z)
         if movement_intent_mode in {MovementIntentMode.ALLOW_ELEVATION, MovementIntentMode.ALLOW_CLIMB} and destination.z == 0 and tile.elevation_ft != 0:
             destination = surface_dest
         same_plane = self.find_path_on_same_plane(state, actor, actor.position, same_dest)
@@ -416,7 +477,7 @@ class BattlefieldRules:
         preview = self.preview_move(state, actor, destination, movement_intent_mode=movement_intent_mode)
         if preview.outcome not in {MovementPreviewOutcome.REACHABLE_SAME_PLANE, MovementPreviewOutcome.REACHABLE_WITH_SLOPE, MovementPreviewOutcome.REACHABLE_WITH_CLIMB, MovementPreviewOutcome.REACHABLE_WITH_FLY} or preview.plan is None:
             raise EncounterValidationError(preview.detail)
-        return MovementLegality(actor.position, destination, preview.plan.path, self.get_distance(actor.position, destination), preview.plan.total_cost_ft, preview, preview.plan)
+        return MovementLegality(actor.position, preview.destination, preview.plan.path, self.get_distance(actor.position, preview.destination), preview.plan.total_cost_ft, preview, preview.plan)
 
     def stand_legality(self, actor: RuntimeActorState, *, effective_speed_ft: int) -> StandLegality:
         if effective_speed_ft <= 0:
@@ -528,10 +589,10 @@ class BattlefieldRules:
         cur = start
         segs = []
         for step in path:
-            if cur.z != self.get_tile(state.battlefield, cur.x, cur.y).elevation_ft or step.z != self.get_tile(state.battlefield, step.x, step.y).elevation_ft:
+            if cur not in self.supported_surface_positions(state.battlefield, cur.x, cur.y) or step not in self.supported_surface_positions(state.battlefield, step.x, step.y):
                 segs.append(MovementSegment(cur, step, cur.z, step.z, EdgeTransitionType.FLAT, EdgeTraversalRequirement.NONE, TraversalMode.FLY, 5, False, False))
             else:
-                edge = self.get_edge_transition(state.battlefield, cur, step)
+                edge = self._edge_transition_between_positions(state.battlefield, cur, step)
                 segs.append(self._ground_segment(state, actor, cur, step, edge))
             cur = step
         return MovementPlan(path=path, segments=tuple(segs), total_cost_ft=sum(s.movement_cost_ft for s in segs), destination_elevation_ft=(path[-1].z if path else start.z), includes_elevation_change=any(s.from_position.z != s.to_position.z for s in segs), requires_climb=any(s.requires_climb for s in segs), requires_fly=any(s.traversal_mode == TraversalMode.FLY for s in segs))
@@ -541,7 +602,7 @@ class BattlefieldRules:
         used_climb = edge.requires_climb and actor.climb_speed_ft > 0 and edge.extra_movement_cost_with_climb_speed_feet is not None
         extra = edge.extra_movement_cost_with_climb_speed_feet if used_climb else edge.extra_movement_cost_feet
         extra = 0 if extra is None else extra
-        return MovementSegment(GridPosition(origin.x, origin.y, self.get_cell_elevation(state.battlefield, origin)), GridPosition(dest.x, dest.y, tile.elevation_ft), self.get_cell_elevation(state.battlefield, origin), tile.elevation_ft, edge.transition_type, edge.traversal_requirement, (TraversalMode.CLIMB if edge.requires_climb else TraversalMode.WALK), tile.movement_cost_feet_per_5ft + extra, edge.requires_climb, used_climb)
+        return MovementSegment(GridPosition(origin.x, origin.y, origin.z), GridPosition(dest.x, dest.y, dest.z), origin.z, dest.z, edge.transition_type, edge.traversal_requirement, (TraversalMode.CLIMB if edge.requires_climb else TraversalMode.WALK), tile.movement_cost_feet_per_5ft + extra, edge.requires_climb, used_climb)
 
     def _preview_from_plan(self, actor: RuntimeActorState, destination: GridPosition, movement_intent_mode: MovementIntentMode, plan: MovementPlan, outcome: MovementPreviewOutcome, *, same_plane_plan: MovementPlan | None = None):
         if plan.total_cost_ft > actor.remaining_movement_ft:
@@ -562,6 +623,8 @@ class BattlefieldRules:
         return self._has_line_between_positions(state, attacker.position, attacker.occupied_height_ft, target.position, for_effect=for_effect, target_height_ft=target.occupied_height_ft)
 
     def _has_line_between_positions(self, state: EncounterState, origin: GridPosition, origin_height_ft: int, destination: GridPosition, *, for_effect: bool, target_height_ft: int = 5) -> bool:
+        if not for_effect and self._persistent_area_blocks_line_of_sight(state, origin, origin_height_ft, destination, target_height_ft=target_height_ft):
+            return False
         if not state.battlefield.has_authored_map:
             return True
         ax, ay, az = origin.x + 0.5, origin.y + 0.5, origin.z + (origin_height_ft / 2)
@@ -569,10 +632,14 @@ class BattlefieldRules:
         steps = max(abs(destination.x - origin.x), abs(destination.y - origin.y), math.ceil(abs(destination.z - origin.z) / 5)) * 4
         if steps <= 1:
             return True
+        previous_cell = GridPosition(int(math.floor(ax)), int(math.floor(ay)))
         for i in range(1, steps):
             r = i / steps
             sx, sy, sz = ax + ((tx - ax) * r), ay + ((ty - ay) * r), az + ((tz - az) * r)
             cell = GridPosition(int(math.floor(sx)), int(math.floor(sy)))
+            if self._edge_blocks_line_between_cells(state.battlefield, previous_cell, cell, for_effect=for_effect):
+                return False
+            previous_cell = cell
             try:
                 tile = self.get_tile(state.battlefield, cell.x, cell.y)
             except EncounterValidationError:
@@ -583,6 +650,65 @@ class BattlefieldRules:
                 if feature.bottom_ft <= sz < feature.top_ft and (feature.blocks_loe if for_effect else feature.blocks_los):
                     return False
         return True
+
+    def _persistent_area_blocks_line_of_sight(self, state: EncounterState, origin: GridPosition, origin_height_ft: int, destination: GridPosition, *, target_height_ft: int = 5) -> bool:
+        from .persistent_effects import persistent_area_contains_position
+
+        if origin.x == destination.x and origin.y == destination.y and origin.z == destination.z:
+            return False
+        origin_blocker_ids = {
+            area_id
+            for area_id, area in state.persistent_areas.items()
+            if area.definition.blocks_vision and persistent_area_contains_position(area, origin)
+        }
+        destination_blocker_ids = {
+            area_id
+            for area_id, area in state.persistent_areas.items()
+            if area.definition.blocks_vision and persistent_area_contains_position(area, destination)
+        }
+        if origin_blocker_ids - destination_blocker_ids:
+            return True
+        ax, ay, az = origin.x + 0.5, origin.y + 0.5, origin.z + (origin_height_ft / 2)
+        tx, ty, tz = destination.x + 0.5, destination.y + 0.5, destination.z + (target_height_ft / 2)
+        steps = max(abs(destination.x - origin.x), abs(destination.y - origin.y), math.ceil(abs(destination.z - origin.z) / 5)) * 4
+        if steps <= 1:
+            return False
+        for i in range(1, steps):
+            r = i / steps
+            sx, sy, sz = ax + ((tx - ax) * r), ay + ((ty - ay) * r), az + ((tz - az) * r)
+            cell = GridPosition(int(math.floor(sx)), int(math.floor(sy)), int(math.floor(sz)))
+            if cell.horizontal() == origin.horizontal() or cell.horizontal() == destination.horizontal():
+                continue
+            for area_id, area in state.persistent_areas.items():
+                if area_id in destination_blocker_ids:
+                    continue
+                if area.definition.blocks_vision and persistent_area_contains_position(area, cell):
+                    return True
+        return False
+
+    def _edge_blocks_line_between_cells(self, battlefield: BattlefieldState, origin: GridPosition, destination: GridPosition, *, for_effect: bool) -> bool:
+        if origin.x == destination.x and origin.y == destination.y:
+            return False
+        pairs = [(origin.horizontal(), destination.horizontal())]
+        if origin.x != destination.x and origin.y != destination.y:
+            via_x = GridPosition(destination.x, origin.y)
+            via_y = GridPosition(origin.x, destination.y)
+            pairs.extend(
+                (
+                    (origin.horizontal(), via_x),
+                    (via_x, destination.horizontal()),
+                    (origin.horizontal(), via_y),
+                    (via_y, destination.horizontal()),
+                )
+            )
+        for a, b in pairs:
+            try:
+                edge = self.get_edge_transition(battlefield, a, b)
+            except EncounterValidationError:
+                continue
+            if edge.blocks_loe if for_effect else edge.blocks_los:
+                return True
+        return False
 
     def _features_on_line(self, battlefield: BattlefieldState, origin: GridPosition, dest: GridPosition):
         found = {}

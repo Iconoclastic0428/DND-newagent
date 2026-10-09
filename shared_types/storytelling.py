@@ -50,6 +50,7 @@ class StorytellingTurnContext:
     visible_npc_ids: tuple[str, ...] = ()
     mode_hint: str = 'storytelling'
     nearby_tags: tuple[str, ...] = ()
+    dm_context_notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

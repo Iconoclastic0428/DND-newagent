@@ -15,7 +15,7 @@ from dm_agent.memory import (
     SessionLogEntry,
 )
 from dm_agent.adjudication import DMAdjudicationPlanner
-from dm_agent.runtime import CampaignDocument, DMRuntimeError, DMStorytellingRuntime
+from dm_agent.runtime import CampaignDocument, DMRuntimeError, DMStorytellingRuntime, build_npc_roleplay_brief
 from shared_types.adjudication import AdjudicationContext
 from shared_types.capabilities import (
     AttackRollGateEffect,
@@ -39,6 +39,7 @@ from shared_types.encounter_events import (
     CombatEndedEvent,
     CombatStartedEvent,
     StorySceneCommittedToCombatEvent,
+    StoryGameEndedEvent,
     StoryNPCCombatantSynthesizedEvent,
     StoryNPCCombatantFallbackUsedEvent,
     ReinforcementScheduledEvent,
@@ -113,7 +114,7 @@ from shared_types.encounter_intents import CastSpellIntent, StartEncounterIntent
 from shared_types.encounter_models import ActorSide, DyingState, DyingStateStatus, EncounterPhase, GridPosition, RuntimeSpellState
 from shared_types.effects import CheckRequest, ResolutionContext
 from shared_types.errors import EncounterClarificationRequiredError, EncounterOwnershipError, EncounterPermissionError, EncounterValidationError
-from shared_types.models import CharacterRecord, ChoiceSource, ChoiceSourceKind, ChoiceView
+from shared_types.models import Ability, CharacterRecord, ChoiceSource, ChoiceSourceKind, ChoiceView
 from shared_types.conditions import ConditionType
 from shared_types.advancement import AdvancementCommitStatus, AdvancementValidationStatus
 from shared_types.exploration import (
@@ -191,7 +192,7 @@ from rules_engine.travel import HexTravelEngine
 from rules_engine.social import SocialConsequenceEngine
 from rules_engine.progression import CampaignProgressionEngine
 from rules_engine.advancement import CharacterAdvancementEngine
-from shared_types.travel import AdvanceTravelIntent, HexCoord, PlanTravelRouteIntent, ResumeTravelIntent, SetTravelPaceIntent, TravelHookDefinition, TravelPace, TravelState, TravelStatus, unique_strings
+from shared_types.travel import AdvanceTravelIntent, HexCoord, PlanTravelRouteIntent, ResumeTravelIntent, SetTravelPaceIntent, TravelHookDefinition, TravelPace, TravelState, TravelStatus, unique_coords, unique_strings
 
 
 def _without_echoed_player_declaration(
@@ -352,6 +353,15 @@ _STORY_UTILITY_CANTRIP_SPECS = {
 }
 
 
+_POST_AMBUSH_CRAGMAW_SCENE_IDS = frozenset({
+    'scene-02-trail-aftermath',
+    'scene-cragmaw-cave-mouth',
+    'scene-cragmaw-kennel-prison',
+    'scene-cragmaw-goblin-den',
+    'scene-cragmaw-klarg-cave',
+})
+
+
 class StorytellingSession:
     def __init__(
         self,
@@ -370,6 +380,7 @@ class StorytellingSession:
         hostile_escalation_engine: HostileEscalationEngine | None = None,
     ) -> None:
         self.encounter_session = encounter_session
+        self.campaign_site = None
         self.story_state = story_state
         self.campaign_root = campaign_root.resolve()
         self.memory_writer = memory_writer
@@ -404,6 +415,10 @@ class StorytellingSession:
             self.story_state.progression_state = self.progression_engine.initial_state(actor_snapshots=self._progression_actor_snapshots(), mode=self.story_state.progression_state.mode, policy=self.story_state.progression_state.policy)
         self._refresh_exploration_context(auto_initialize=True)
         self._sync_memory_files()
+
+    @property
+    def runtime_services(self):
+        return self.encounter_session.runtime_services
 
     @property
     def state(self):
@@ -555,13 +570,116 @@ class StorytellingSession:
             party_beliefs=tuple(item for item in self.story_state.metadata.get('party_beliefs', '').split('|') if item),
             visible_npc_ids=self._visible_npc_ids(),
             nearby_tags=tuple(tag for tag in self.story_state.metadata.get('nearby_tags', '').split(',') if tag),
+            dm_context_notes=self._dm_context_notes(),
         )
 
     def _visible_npc_ids(self) -> tuple[str, ...]:
-        explicit = tuple(item for item in self.story_state.metadata.get('visible_npc_ids', '').split(',') if item)
-        if explicit:
-            return explicit
+        if 'visible_npc_ids' in self.story_state.metadata:
+            return tuple(item for item in self.story_state.metadata.get('visible_npc_ids', '').split(',') if item)
         return tuple(actor_id for actor_id, actor in self.state.actors.items() if actor.side == ActorSide.MONSTER)
+
+    def _dm_context_notes(self) -> tuple[str, ...]:
+        notes: list[str] = []
+        if self.campaign_site is not None and self.campaign_site.active:
+            notes.append('Campaign site is authoritative: narrate only. Keep scene/location and mode unchanged; use displayed typed site actions for movement, leads, doors, rescue and combat. Do not invent successful discoveries or mechanical outcomes.')
+        condition_note = self._monster_filtered_party_condition_note()
+        if condition_note:
+            notes.append(condition_note)
+        yeemik_note = self._yeemik_bargain_note()
+        if yeemik_note:
+            notes.append(yeemik_note)
+        return tuple(notes)
+
+    def _in_post_ambush_cragmaw_slice(self) -> bool:
+        metadata_slice = self.story_state.metadata.get('story_slice', '')
+        if metadata_slice in {'post-ambush-cragmaw', 'cragmaw-hideout'}:
+            return True
+        return self.story_state.current_scene_id in _POST_AMBUSH_CRAGMAW_SCENE_IDS
+
+    def _party_condition_counts(self) -> tuple[int, int, int]:
+        unconscious = 0
+        bloodied = 0
+        healthy = 0
+        for actor_id in self._player_actor_ids():
+            actor = self.state.actors[actor_id]
+            if actor.current_hit_points <= 0:
+                unconscious += 1
+            elif actor.current_hit_points * 2 <= actor.max_hit_points:
+                bloodied += 1
+            else:
+                healthy += 1
+        return unconscious, bloodied, healthy
+
+    def _party_is_too_weak_for_yeemik_bargain(self) -> bool:
+        player_actor_ids = self._player_actor_ids()
+        if not player_actor_ids:
+            return True
+        unconscious, bloodied, _ = self._party_condition_counts()
+        if unconscious > 0:
+            return True
+        current = sum(max(0, self.state.actors[actor_id].current_hit_points) for actor_id in player_actor_ids)
+        maximum = sum(max(1, self.state.actors[actor_id].max_hit_points) for actor_id in player_actor_ids)
+        return (current / maximum) < 0.35 or bloodied >= len(player_actor_ids)
+
+    def _yeemik_bargain_note(self) -> str:
+        visible = set(self._visible_npc_ids())
+        if 'yeemik' not in visible and self.story_state.current_scene_id != 'scene-cragmaw-goblin-den':
+            return ''
+        clue_found = self.story_state.metadata.get('cragmaw_rivalry_clue_found') == 'true'
+        inferred = self.story_state.metadata.get('yeemik_rivalry_inferred') == 'true'
+        persuasion_passed = self.story_state.metadata.get('yeemik_persuasion_passed') == 'true'
+        if not clue_found and not (inferred and persuasion_passed):
+            return (
+                'Yeemik bargain unavailable: he may posture with Sildar as leverage, but do not expose his Klarg rivalry unless the party finds the chest clue or infers it and passes Persuasion.'
+            )
+        if self._party_is_too_weak_for_yeemik_bargain():
+            return (
+                'Yeemik refuses fair bargaining because the party is too weak; he may press for ransom or keep Sildar as leverage instead of risking open betrayal.'
+            )
+        return (
+            'Yeemik bargain available: he resents Klarg, wants the bugbear removed, and can offer Sildar as leverage, but remains self-serving and untrustworthy.'
+        )
+
+    def _monster_condition_observer_id(self) -> str | None:
+        explicit = self.story_state.metadata.get('dm_condition_observer_actor_id')
+        if explicit:
+            return explicit if explicit in self.state.actors else None
+        for npc_id in self._visible_npc_ids():
+            if npc_id in self.state.actors and self.state.actors[npc_id].side == ActorSide.MONSTER:
+                return npc_id
+        for actor_id, actor in self.state.actors.items():
+            if actor.side == ActorSide.MONSTER:
+                return actor_id
+        return None
+
+    def _monster_filtered_party_condition_note(self) -> str:
+        observer_id = self._monster_condition_observer_id()
+        if observer_id is None:
+            return ''
+        observer = self.state.actors[observer_id]
+        intelligence = observer.ability_scores.get(Ability.INT, 10)
+        wisdom = observer.ability_scores.get(Ability.WIS, 10)
+        unconscious, bloodied, healthy = self._party_condition_counts()
+        base = (
+            f'DM party condition for {observer.name} (INT {intelligence}, WIS {wisdom}): '
+            f'{unconscious} unconscious, {bloodied} visibly bloodied, {healthy} steady.'
+        )
+        if intelligence <= 8 and wisdom <= 10:
+            return base + ' This observer gets obvious wounds only; keep detailed adventurer resources hidden.'
+        if intelligence >= 14:
+            resource_bits: list[str] = []
+            for actor_id in self._player_actor_ids():
+                actor = self.state.actors[actor_id]
+                spell_slots = [
+                    f'{resource_id} {pool.current}/{pool.maximum}'
+                    for resource_id, pool in sorted(actor.resource_pools.items())
+                    if resource_id.startswith('spell-slot')
+                ]
+                if spell_slots:
+                    resource_bits.append(f'{actor.name}: ' + ', '.join(spell_slots))
+            resource_summary = '; '.join(resource_bits) if resource_bits else 'no tracked spell-slot pools'
+            return base + f' High intelligence can infer prepared resources from gear, casting, and pacing; prepared resources: {resource_summary}.'
+        return base + ' This observer reads superficial condition, confidence, armor, weapons, and obvious spellcasting signs, but not exact resources.'
 
     def _player_actor_ids(self) -> tuple[str, ...]:
         return tuple(actor_id for actor_id, actor in self.state.actors.items() if actor.side == ActorSide.PLAYER)
@@ -1334,6 +1452,11 @@ class StorytellingSession:
             summary_lines.append('Party goals: ' + '; '.join(self.story_state.current_party_goals))
         if self.story_state.open_loops:
             summary_lines.append('Open loops: ' + '; '.join(self.story_state.open_loops[:4]))
+        if dm_view:
+            dm_notes = self._dm_context_notes()
+            if dm_notes:
+                summary_lines.append('DM context:')
+                summary_lines.extend(f'  - {note}' for note in dm_notes)
         travel_state = self.story_state.travel_state
         if travel_state is not None:
             summary_lines.append(f'Travel map: {travel_state.map_id}')
@@ -1519,6 +1642,15 @@ class StorytellingSession:
             token_budget_hint=document.front_matter.token_budget_hint.value,
         )
 
+    def _npc_roleplay_brief_for_memory(self, npc_id: str):
+        document = self.retrieval_index.by_path.get(f'npcs/{npc_id}.md')
+        if document is None:
+            return None
+        briefs = build_npc_roleplay_brief((self._to_runtime_document(document),), (npc_id,))
+        if not briefs:
+            return None
+        return briefs[0]
+
     def _promoted_linked_scene_documents(self) -> tuple[CampaignDocument, ...]:
         current_scene_doc = self.retrieval_index.by_id.get(self.story_state.current_scene_id)
         if current_scene_doc is None or current_scene_doc.front_matter.type.value != 'scene':
@@ -1619,6 +1751,8 @@ class StorytellingSession:
         self.encounter_session.control_runtime.validate_controller(controller_id)
         tokens = command.strip().split(maxsplit=1)
         verb = tokens[0].lower()
+        if self.campaign_site is not None and self.campaign_site.owns_command(command):
+            return self.campaign_site.execute(controller_id, command)
         if verb == '/levelup':
             return self._execute_levelup_command(controller_id, command)
         if self.story_state.runtime_mode == RuntimeMode.COMBAT:
@@ -1627,6 +1761,8 @@ class StorytellingSession:
                     raise EncounterPermissionError(f'{verb} requires text after the command.')
                 return self.submit_improvised_action(controller_id, tokens[1].strip())
             self.encounter_session.execute_for_controller(controller_id, command)
+            if self.campaign_site is not None and self.campaign_site.active:
+                self.campaign_site.after_combat_action()
             self._process_due_reinforcements()
             self._sync_memory_files()
             return self.view_for_controller(controller_id)
@@ -2116,6 +2252,8 @@ class StorytellingSession:
         return self._require_travel_engine().preview_route(state, intent, dm_view=(binding.role.value == 'dm'))
 
     def travel_plan_route(self, controller_id: str, *, destination_coord: HexCoord | None = None, destination_location_id: str | None = None):
+        if self.campaign_site is not None and self.campaign_site.state.progress.in_dungeon:
+            raise EncounterValidationError('Leave the dungeon before regional travel.')
         binding = self.encounter_session.control_runtime.validate_controller(controller_id)
         state = self.story_state.travel_state
         if state is None:
@@ -2134,6 +2272,8 @@ class StorytellingSession:
         return self.view_for_controller(controller_id)
 
     def travel_advance(self, controller_id: str, *, steps: int = 1):
+        if self.campaign_site is not None and self.campaign_site.state.progress.in_dungeon:
+            raise EncounterValidationError('Leave the dungeon before regional travel.')
         state = self.story_state.travel_state
         if state is None:
             raise EncounterValidationError('No travel state is configured for this session.')
@@ -2142,6 +2282,8 @@ class StorytellingSession:
         return self.view_for_controller(controller_id)
 
     def travel_resume(self, controller_id: str):
+        if self.campaign_site is not None and self.campaign_site.state.progress.in_dungeon:
+            raise EncounterValidationError('Leave the dungeon before regional travel.')
         state = self.story_state.travel_state
         if state is None:
             raise EncounterValidationError('No travel state is configured for this session.')
@@ -2188,14 +2330,18 @@ class StorytellingSession:
             self.story_state.metadata[key] = '|'.join(merged)
 
     def _apply_travel_hook_story_updates(self, hook: TravelHookDefinition) -> None:
-        if hook.scene_id is not None:
+        # Discovery points toward a place; it does not transport the party there.
+        discovery_only = hook.hook_type.value in {'side_quest_hook','landmark_discovered'}
+        if hook.scene_id is not None and not discovery_only:
             self.story_state.current_scene_id = hook.scene_id
-        if hook.location_id is not None:
+        if hook.location_id is not None and not discovery_only:
             self.story_state.canonical_location_id = hook.location_id
         if hook.suggested_open_loops:
             self.story_state.open_loops = unique_strings(self.story_state.open_loops + hook.suggested_open_loops)
         if hook.suggested_party_goals:
-            self.story_state.current_party_goals = hook.suggested_party_goals
+            self.story_state.current_party_goals = unique_strings(self.story_state.current_party_goals+hook.suggested_party_goals) if discovery_only else hook.suggested_party_goals
+        if hook.suggested_visible_npc_ids is not None:
+            self.story_state.metadata['visible_npc_ids'] = ','.join(hook.suggested_visible_npc_ids)
         self.story_state.recent_summary = hook.summary
 
     def _commit_travel_result(self, new_state: TravelState, events: list[object]) -> None:
@@ -2230,6 +2376,10 @@ class StorytellingSession:
                 self.story_state.metadata['travel_status'] = event.status.value
             elif isinstance(event, HexDiscoveredEvent):
                 continue
+        if self.campaign_site is not None:
+            town_id=self.campaign_site.engine.definition.town_location_id
+            if new_state.current_location_id==town_id and any(isinstance(event,LocationReachedEvent) and event.location_id==town_id for event in events):
+                self.campaign_site.arrive()
         self._refresh_exploration_context(sync_memory=False)
         self._sync_memory_files()
 
@@ -2242,6 +2392,10 @@ class StorytellingSession:
             if pending_check.controller_id == controller_id:
                 raise EncounterPermissionError('Resolve your pending story check before taking a new storytelling action.')
             raise EncounterPermissionError(self._pending_check_waiting_message(pending_check))
+        if self.campaign_site is not None and self.campaign_site.active:
+            command=self.campaign_site.natural_command(controller_id,declaration)
+            if command is not None:
+                return self.campaign_site.execute(controller_id,command)
         if self.dm_runtime is None:
             raise EncounterValidationError('No DM storytelling runtime is configured for this session.')
         actor_id = self._owned_actor_for_controller(controller_id)
@@ -3268,6 +3422,8 @@ class StorytellingSession:
             self._commit_exploration_result(new_state, list(events))
 
     def _apply_story_turn_decision(self, decision: StoryTurnDecision, *, triggering_declaration: str | None = None) -> None:
+        if self.campaign_site is not None and self.campaign_site.active:
+            self.campaign_site.validate_story_decision(decision)
         if decision.check_request is not None and decision.mode_switch_decision is not None and decision.mode_switch_decision.decision_type == ModeSwitchAction.ENTER_COMBAT:
             raise EncounterValidationError('A storytelling turn cannot both request a check and enter combat immediately.')
         player_speakers = tuple(
@@ -3308,6 +3464,8 @@ class StorytellingSession:
             self.story_state.recent_summary = public_lines[-1]
 
     def _apply_scene_update(self, update: StorySceneUpdate) -> None:
+        if self.campaign_site is not None and self.campaign_site.active:
+            self.campaign_site.validate_scene_update(update)
         if update.scene_id is not None:
             self.story_state.current_scene_id = update.scene_id
         if update.location_id is not None:
@@ -3324,6 +3482,8 @@ class StorytellingSession:
         self._refresh_exploration_context(sync_memory=False)
 
     def apply_mode_switch_decision(self, decision: ModeSwitchDecision) -> None:
+        if self.campaign_site is not None and self.campaign_site.active:
+            self.campaign_site.validate_mode_decision(decision)
         self.state.event_log.append(
             ModeSwitchRequestedEvent(
                 action=decision.decision_type,
@@ -3348,6 +3508,142 @@ class StorytellingSession:
             self.exit_combat(decision.exit_combat_plan)
             return
         raise EncounterValidationError('Unknown mode-switch action.')
+
+    def resolve_completed_combat_story_outcome(self) -> str:
+        if self.story_state.runtime_mode != RuntimeMode.COMBAT:
+            return 'none'
+        if self.state.phase != EncounterPhase.COMPLETE:
+            return 'none'
+        if self.state.winning_side is None:
+            raise EncounterValidationError('Combat completed without a winning side.')
+        if self._completed_combat_is_ambush() and self.state.winning_side == ActorSide.PLAYER:
+            self._continue_after_ambush_victory()
+            return 'continued'
+        if self._all_player_characters_unconscious():
+            if self._defeat_capture_available():
+                self._capture_after_ambush_defeat()
+                return 'captured'
+            self._end_story_for_unconscious_party()
+            return 'game-ended'
+        return 'none'
+
+    def _completed_combat_is_ambush(self) -> bool:
+        scene_id = self.story_state.current_scene_id or ''
+        battlefield_id = self.story_state.active_battlefield_map_id or ''
+        return scene_id == 'scene-triboar-goblin-ambush' or battlefield_id == 'goblin-ambush-triboar-trail'
+
+    def _all_player_characters_unconscious(self) -> bool:
+        player_actor_ids = self._player_actor_ids()
+        return bool(player_actor_ids) and all(self.state.actors[actor_id].current_hit_points <= 0 for actor_id in player_actor_ids)
+
+    def _defeat_capture_available(self) -> bool:
+        if self.story_state.metadata.get('party_defeat_capture_disabled') == 'true':
+            return False
+        if not self._completed_combat_is_ambush():
+            return bool(self.story_state.metadata.get('party_defeat_capture_scene_id'))
+        return True
+
+    def _reveal_cragmaw_trail(self, *, party_coord: HexCoord) -> None:
+        travel_state = self.story_state.travel_state
+        if travel_state is None:
+            return
+        self.story_state.travel_state = replace(
+            travel_state,
+            party_coord=party_coord,
+            discovered_hexes=unique_coords(travel_state.discovered_hexes + (HexCoord(5, 0), HexCoord(5, -1))),
+            discovered_landmark_ids=unique_strings(travel_state.discovered_landmark_ids + ('ambush-horses', 'cragmaw-trail-signs')),
+            known_location_ids=unique_strings(travel_state.known_location_ids + ('cragmaw-hideout',)),
+            status=TravelStatus.IDLE,
+            planned_route=None,
+            pending_hook=None,
+            current_scene_id=self.story_state.current_scene_id,
+            current_location_id=self.story_state.canonical_location_id,
+        )
+
+    def _reset_completed_combat_to_story(self, *, reason: str, scene_id: str, location_id: str, summary: str) -> None:
+        self.story_state.pending_adjudication = None
+        self.story_state.pending_exploration_check = None
+        self.story_state.combat_transition = None
+        self.state.event_log.append(CombatEndedEvent(rationale=reason))
+        self.state.phase = EncounterPhase.READY
+        self.state.round_number = 0
+        self.state.turn_index = 0
+        self.state.active_actor_id = None
+        self.state.initiative_order = ()
+        self.state.winning_side = None
+        self.story_state.runtime_mode = RuntimeMode.STORYTELLING
+        self.story_state.current_scene_id = scene_id
+        self.story_state.canonical_location_id = location_id
+        self.story_state.active_battlefield_map_id = None
+        self.story_state.recent_summary = summary
+        self.state.event_log.append(ReturnedToStorytellingEvent(scene_id=scene_id, rationale=reason))
+        self._refresh_exploration_context(sync_memory=False)
+
+    def _continue_after_ambush_victory(self) -> None:
+        summary = (
+            'The goblin ambush is over. The wagon road remains dangerous, but fresh tracks and broken brush point off the trail toward Cragmaw Hideout.'
+        )
+        self._reset_completed_combat_to_story(
+            reason='The party survived the goblin ambush and can follow the Cragmaw trail.',
+            scene_id='scene-02-trail-aftermath',
+            location_id='triboar-trail',
+            summary=summary,
+        )
+        self.story_state.current_party_goals = (
+            'Follow the goblin trail toward Cragmaw Hideout.',
+            'Rescue Sildar Hallwinter and learn where Gundren was taken.',
+        )
+        self.story_state.open_loops = (
+            'Where did the goblins take Gundren Rockseeker?',
+            'What waits at the Cragmaw Hideout?',
+        )
+        self.story_state.metadata.update({
+            'story_slice': 'post-ambush-cragmaw',
+            'party_defeat_capture_scene_id': 'scene-cragmaw-kennel-prison',
+            'retrieval_tags': 'triboar-trail,cragmaw-hideout,goblin-trail,klarg,yeemik,sildar',
+            'nearby_tags': 'trail,forest,cragmaw-hideout',
+            'visible_npc_ids': '',
+        })
+        self._reveal_cragmaw_trail(party_coord=HexCoord(5, 0))
+        self._append_transcript((
+            StoryTranscriptEntry(speaker='DM', text=summary, visibility=StoryTranscriptVisibility.PUBLIC),
+        ))
+
+    def _capture_after_ambush_defeat(self) -> None:
+        summary = (
+            'The party wakes bound inside the Cragmaw Hideout wolf kennel. Three wolves strain at their chains nearby while goblin voices echo deeper in the cave.'
+        )
+        self._reset_completed_combat_to_story(
+            reason='The goblin ambushers captured the unconscious party instead of killing them.',
+            scene_id='scene-cragmaw-kennel-prison',
+            location_id='cragmaw-hideout',
+            summary=summary,
+        )
+        self.story_state.current_party_goals = (
+            'Escape the wolf kennel in Cragmaw Hideout.',
+            'Avoid provoking the three wolves.',
+            'Find Sildar Hallwinter before the goblins move him.',
+        )
+        self.story_state.open_loops = (
+            'How can the party escape the kennel without alerting the whole cave?',
+            'Where are Sildar and Gundren?',
+            'Who commands the Cragmaw goblins here?',
+        )
+        self.story_state.metadata.update({
+            'story_slice': 'cragmaw-hideout',
+            'retrieval_tags': 'cragmaw-hideout,wolf-kennel,goblins,sildar,klarg,yeemik',
+            'nearby_tags': 'cave,wolf-kennel,goblins',
+            'visible_npc_ids': 'cragmaw-wolf',
+        })
+        self._reveal_cragmaw_trail(party_coord=HexCoord(5, -1))
+        self._append_transcript((
+            StoryTranscriptEntry(speaker='DM', text=summary, visibility=StoryTranscriptVisibility.PUBLIC),
+        ))
+
+    def _end_story_for_unconscious_party(self) -> None:
+        reason = 'All player characters are unconscious and no capture, rescue, or other special survival condition is available.'
+        self.state.event_log.append(StoryGameEndedEvent(outcome='party-defeated', reason=reason, scene_id=self.story_state.current_scene_id))
+        self.state.event_log.append(CombatEndedEvent(rationale=reason))
 
     def enter_combat(self, plan: EnterCombatPlan, *, surprised_actor_ids: tuple[str, ...] = ()) -> None:
         if self.story_state.runtime_mode == RuntimeMode.COMBAT:
@@ -3577,13 +3873,26 @@ class StorytellingSession:
                     recent_interactions = social_recent_lines + recent_interactions
                 if social_warning_lines:
                     warning_lines = warning_lines + social_warning_lines
+            roleplay_brief = self._npc_roleplay_brief_for_memory(npc_id)
+            voice_lines = ('Keep the voice aligned with the canonical NPC markdown file.',)
+            roleplay_contract_lines: tuple[str, ...] = ()
+            journey_availability_lines: tuple[str, ...] = ()
+            current_stance = npc_state.current_stance if npc_state is not None else 'Cautiously cooperative.'
+            if roleplay_brief is not None:
+                voice_lines = voice_lines + roleplay_brief.personality
+                roleplay_contract_lines = roleplay_brief.roleplay_contract
+                journey_availability_lines = roleplay_brief.journey_availability
+                if npc_state is None and roleplay_brief.default_stance_toward_party:
+                    current_stance = roleplay_brief.default_stance_toward_party[0]
             self.memory_writer.write_npc_playbook(
                 NpcPlaybook(
                     npc_id=npc_id,
                     campaign=self.story_state.campaign_id,
                     title=f'{npc_id.replace('-', ' ').title()} Playbook',
-                    voice_lines=('Keep the voice aligned with the canonical NPC markdown file.',),
-                    current_stance=(npc_state.current_stance if npc_state is not None else 'Cautiously cooperative.'),
+                    voice_lines=voice_lines,
+                    current_stance=current_stance,
+                    roleplay_contract_lines=roleplay_contract_lines,
+                    journey_availability_lines=journey_availability_lines,
                     trust_lines=trust_lines,
                     reveal_lines=('Reveal only what the current scene makes immediately relevant.',),
                     withholding_lines=('Do not volunteer hidden campaign spoilers.',),

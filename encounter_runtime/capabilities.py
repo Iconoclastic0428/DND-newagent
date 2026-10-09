@@ -130,6 +130,8 @@ def discover_leave_reach_reactions(
         return ()
     trigger_path = path or (to_position,)
     for actor in state.actors.values():
+        if state.initiative_order and actor.actor_id not in state.initiative_order:
+            continue
         if actor.actor_id == moving_actor_id or actor.side == moving_actor.side:
             continue
         if not actor.reaction_available or not actor.is_conscious or not can_take_reactions(actor):

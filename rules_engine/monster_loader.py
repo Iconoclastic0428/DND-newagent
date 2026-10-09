@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 import re
 from urllib.parse import urljoin
 
@@ -43,6 +44,9 @@ _ATTACK_KIND_MAP = {
     "r": AttackKind.RANGED,
     "m,r": AttackKind.MELEE_OR_RANGED,
     "r,m": AttackKind.MELEE_OR_RANGED,
+    "mw": AttackKind.MELEE,
+    "rw": AttackKind.RANGED,
+    "mw,rw": AttackKind.MELEE_OR_RANGED,
 }
 
 _SPELL_MATERIAL_PROFILE_OVERRIDES = {
@@ -97,7 +101,8 @@ def _spell_material_profile(record: Mapping[str, object]) -> tuple[int | None, b
     return cost_cp, consumed, item_keywords, focus_tags
 
 
-_DAMAGE_TYPE_PATTERN = re.compile(r"([A-Za-z\u4e00-\u9fff]+)\u4f24\u5bb3")
+_DAMAGE_TYPE_PATTERN = re.compile(r"([A-Za-z\u4e00-\u9fff]+)(?:\u4f24\u5bb3| damage)")
+_DAMAGE_TYPES = {'穿刺':'piercing','挥砍':'slashing','钝击':'bludgeoning','强酸':'acid','寒冷':'cold','火焰':'fire','力场':'force','闪电':'lightning','毒素':'poison','心灵':'psychic','暗蚀':'necrotic','黯蚀':'necrotic','光耀':'radiant','雷鸣':'thunder'}
 _SPELL_TAG_PATTERN = re.compile(r"\{@spell\s+([^|}]+)\|([^}|]+)[^}]*\}")
 _DAMAGE_PATTERN = re.compile(r"\{@damage\s+(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?\}")
 _HIT_PATTERN = re.compile(r"\{@hit\s+([+-]?\d+)\}")
@@ -178,7 +183,7 @@ def _parse_attack_profile(action_entry: Mapping[str, object], *, existing_ids: s
     text = _first_string(action_entry.get("entries"))
     if not text or "{@hit" not in text or "{@damage" not in text:
         return None
-    raw_kind_match = re.search(r"\{@atkr\s+([^}]+)\}", text)
+    raw_kind_match = re.search(r"\{@(?:atkr|atk)\s+([^}]+)\}", text)
     if raw_kind_match is None:
         return None
     raw_kind = raw_kind_match.group(1).replace(" ", "")
@@ -195,7 +200,7 @@ def _parse_attack_profile(action_entry: Mapping[str, object], *, existing_ids: s
         damage_bonus *= -1
     reach_match = _REACH_PATTERN.search(text)
     range_match = _RANGE_PATTERN.search(text)
-    damage_type_match = _DAMAGE_TYPE_PATTERN.search(text)
+    damage_type_match = _DAMAGE_TYPE_PATTERN.search(text, damage_match.end())
     name = _canonical_name(action_entry)
     attack_id = _record_id_for_name_source(name, "attack", existing_ids)
     existing_ids.add(attack_id)
@@ -210,8 +215,23 @@ def _parse_attack_profile(action_entry: Mapping[str, object], *, existing_ids: s
         damage_dice_count=int(damage_match.group(1)),
         damage_die_faces=int(damage_match.group(2)),
         damage_bonus=damage_bonus,
-        damage_type=damage_type_match.group(1) if damage_type_match else "unknown",
+        damage_type=_DAMAGE_TYPES.get(damage_type_match.group(1).lstrip("点點"),damage_type_match.group(1).lstrip("点點").lower()) if damage_type_match else "unknown",
     )
+
+
+def _parse_attack_profiles(action_entry, *, existing_ids):
+    attack=_parse_attack_profile(action_entry,existing_ids=existing_ids)
+    if attack is None:
+        return ()
+    text=_first_string(action_entry.get('entries'))
+    damages=tuple(_DAMAGE_PATTERN.finditer(text))
+    if attack.attack_kind==AttackKind.MELEE_OR_RANGED and len(damages)==2 and '近战' in text and '远程' in text:
+        ranged=damages[1]
+        bonus=int(ranged.group(4) or 0)*(-1 if ranged.group(3)=='-' else 1)
+        return (replace(attack,attack_kind=AttackKind.MELEE,range_ft=None,long_range_ft=None),
+                replace(attack,attack_id=attack.attack_id+'-ranged',name=attack.name+' (Ranged)',attack_kind=AttackKind.RANGED,reach_ft=None,
+                        damage_dice_count=int(ranged.group(1)),damage_die_faces=int(ranged.group(2)),damage_bonus=bonus))
+    return (attack,)
 
 
 def _spell_effect_type(record: Mapping[str, object]) -> SpellEffectType | None:
@@ -569,13 +589,8 @@ def load_monster_catalog(
             attacks = ()
             if isinstance(raw_actions, Sequence) and not isinstance(raw_actions, (str, bytes)):
                 attacks = tuple(
-                    attack
-                    for attack in (
-                        _parse_attack_profile(action_entry, existing_ids=attack_ids)
-                        for action_entry in raw_actions
-                        if isinstance(action_entry, Mapping)
-                    )
-                    if attack is not None
+                    attack for action_entry in raw_actions if isinstance(action_entry, Mapping)
+                    for attack in _parse_attack_profiles(action_entry,existing_ids=attack_ids)
                 )
             hp_data = raw_monster.get("hp")
             spellcasting_ability, spell_save_dc, spell_attack_bonus = _monster_spellcasting(raw_monster)

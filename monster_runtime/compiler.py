@@ -16,6 +16,7 @@ from shared_types.errors import ContentLoadError
 from shared_types.models import ABILITY_ORDER, Ability, CharacterRecord, ContentCatalog, SpellSelectionKind
 from shared_types.rest import RestRecoveryMode, RestRecoveryRule, RestRecoverySpec, RuntimeResourcePoolState
 
+from .source_actions import source_action_capabilities
 from rules_engine.encounter_math import ability_modifier
 from rules_engine.starter_content import apply_player_passive_features, build_monster_capabilities, build_player_capabilities
 
@@ -369,7 +370,7 @@ def compile_monster_actor_from_record(
         skill_bonuses=dict(monster.skill_bonuses),
         attacks={attack.attack_id: attack for attack in monster.attacks},
         spells=spells,
-        capabilities=build_monster_capabilities(monster),
+        capabilities={**build_monster_capabilities(monster),**source_action_capabilities(monster)},
         spellcasting_ability=monster.spellcasting_ability,
         spell_save_dc=monster.spell_save_dc,
         spell_attack_bonus=monster.spell_attack_bonus,
@@ -399,3 +400,40 @@ def compile_monster_actor(
         position=placement.position,
         monster_catalog=monster_catalog,
     )
+
+
+def configure_prepared_monster_spells(actor, *, spell_ids, slot_counts, encounter_catalog):
+    """Apply an explicit campaign loadout using current-edition spell records.
+
+    No source-name guessing or per-spell copies of a shared slot pool.
+    """
+    pools = {}
+    for level,count in enumerate(slot_counts,start=1):
+        if count < 0:
+            raise ContentLoadError('Spell slot counts must be nonnegative.')
+        if count:
+            key=f'spell-slot-{level}'
+            pools[key]=RuntimeResourcePoolState(resource_id=key,label=f'Level {level} Spell Slots',
+                current=count,maximum=count,category='spell-slot',rest_recovery=_LONG_REST_FULL_RECOVERY)
+    spells = {}
+    for spell_id in spell_ids:
+        record=encounter_catalog.spells.get(spell_id)
+        if record is None or record.source!='XPHB' or (record.capability is None and record.effect_type is None):
+            raise ContentLoadError(f'Prepared site spell {spell_id!r} requires an executable XPHB record.')
+        pool_id=f'spell-slot-{record.level}' if record.level else None
+        if pool_id is not None and pool_id not in pools:
+            raise ContentLoadError(f'Prepared spell {spell_id!r} has no spell slot pool.')
+        spells[spell_id]=RuntimeSpellState(
+            option_id=spell_id,name=record.name,source=record.source,action_cost=record.action_cost,
+            range_ft=record.range_ft,remaining_uses=None,level=record.level,
+            casting_time_seconds=record.casting_time_seconds,perceptibility=record.perceptibility,
+            material_component_cost_cp=record.material_component_cost_cp,
+            material_component_consumed=record.material_component_consumed,
+            material_component_item_keywords=record.material_component_item_keywords,
+            material_component_focus_tags=record.material_component_focus_tags,
+            can_cast_as_ritual=record.can_cast_as_ritual,ritual_additional_cast_seconds=record.ritual_additional_cast_seconds,
+            effect_type=record.effect_type,concentration=record.concentration,capability=record.capability,
+            runtime_support=record.runtime_support,resource_pool_id=pool_id,
+        )
+    actor.resource_pools=pools
+    actor.spells=spells

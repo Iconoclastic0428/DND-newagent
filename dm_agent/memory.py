@@ -69,6 +69,8 @@ class NpcPlaybook:
     title: str
     voice_lines: tuple[str, ...] = ()
     current_stance: str = ''
+    roleplay_contract_lines: tuple[str, ...] = ()
+    journey_availability_lines: tuple[str, ...] = ()
     trust_lines: tuple[str, ...] = ()
     reveal_lines: tuple[str, ...] = ()
     withholding_lines: tuple[str, ...] = ()
@@ -225,6 +227,8 @@ class DmMemoryWriter:
             (
                 ('Voice and Habits', playbook.voice_lines),
                 ('Current Stance', (playbook.current_stance,) if playbook.current_stance else ()),
+                ('Roleplay Contract', playbook.roleplay_contract_lines),
+                ('Journey Availability', playbook.journey_availability_lines),
                 ('Trust and Leverage', playbook.trust_lines),
                 ('What They Will Reveal', playbook.reveal_lines),
                 ('What They Are Withholding', playbook.withholding_lines),

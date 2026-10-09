@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import shutil
 import unittest
@@ -17,8 +18,10 @@ from dm_agent import (
     LLMResponse,
     LLMConfigError,
     ModeSwitchDecisionType,
+    RetrievalSelection,
     RuntimeMode,
     StorytellingTurnContext,
+    build_npc_roleplay_brief,
     load_llm_config,
     validate_llm_example,
 )
@@ -679,6 +682,114 @@ class DMRuntimeTests(unittest.TestCase):
         self.assertIn('reviewed by a separate GPT verifier', payload['instructions'])
         self.assertIn('Do not emit wrapper keys such as json, response, data, result, or output', payload['instructions'])
         self.assertIn('Only NPC ids listed in visible_npc_ids may speak or visibly act', payload['instructions'])
+
+    def test_npc_roleplay_brief_extracts_visible_relationship_and_availability(self) -> None:
+        documents = (
+            CampaignDocument(
+                doc_id='gundren-rockseeker',
+                path='npcs/gundren-rockseeker.md',
+                title='Gundren Rockseeker',
+                type='npc',
+                campaign='lmop',
+                content=(
+                    '# Personality\n'
+                    '- Warm with trusted former hires\n'
+                    '# Roleplay Contract\n'
+                    '- Prior relationship: Gundren has employed the party before.\n'
+                    '- Current hook: Gundren is hiring the party again for a new Phandalin mission.\n'
+                    '# Journey Availability\n'
+                    '- Gundren does not travel with the party after the Waterdeep briefing.\n'
+                ),
+            ),
+            CampaignDocument(
+                doc_id='sildar-hallwinter',
+                path='npcs/sildar-hallwinter.md',
+                title='Sildar Hallwinter',
+                type='npc',
+                campaign='lmop',
+                content=(
+                    '# Roleplay Contract\n'
+                    '- Prior relationship: Sildar does not know the party personally.\n'
+                    '# Journey Availability\n'
+                    '- Sildar rides ahead with Gundren.\n'
+                ),
+            ),
+            CampaignDocument(
+                doc_id='offstage-npc',
+                path='npcs/offstage.md',
+                title='Offstage NPC',
+                type='npc',
+                campaign='lmop',
+                content='# Roleplay Contract\n- Must not appear.\n',
+            ),
+        )
+        brief = build_npc_roleplay_brief(documents, ('gundren-rockseeker', 'sildar-hallwinter'))
+        self.assertEqual([item.npc_id for item in brief], ['gundren-rockseeker', 'sildar-hallwinter'])
+        self.assertIn('Prior relationship: Gundren has employed the party before.', brief[0].roleplay_contract)
+        self.assertIn('Gundren does not travel with the party after the Waterdeep briefing.', brief[0].journey_availability)
+        self.assertIn('Prior relationship: Sildar does not know the party personally.', brief[1].roleplay_contract)
+
+    def test_story_turn_prompt_includes_npc_roleplay_brief_and_visibility_rule(self) -> None:
+        runtime = DMStorytellingRuntime(
+            client=LLMClient(LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'), transport=FakeTransport({'output_text': '{}'})),
+            config=LLMConfig(api_key='k', base_url='https://example.invalid/v1', responses_model='model'),
+        )
+        context = StorytellingTurnContext(
+            campaign_id='lmop',
+            mode=RuntimeMode.STORYTELLING,
+            current_scene_id='scene-waterdeep-gundren-briefing',
+            current_location_id='waterdeep',
+            party_goal_summary='take the job',
+            visible_npc_ids=('gundren-rockseeker', 'sildar-hallwinter'),
+        )
+        documents = (
+            CampaignDocument(
+                doc_id='gundren-rockseeker',
+                path='npcs/gundren-rockseeker.md',
+                title='Gundren Rockseeker',
+                type='npc',
+                campaign='lmop',
+                content=(
+                    '# Personality\n'
+                    '- Warm and familiar with prior hires\n'
+                    '# Roleplay Contract\n'
+                    '- Prior relationship: Gundren has employed the party before.\n'
+                    '# Journey Availability\n'
+                    '- Gundren does not travel with the party after the Waterdeep briefing.\n'
+                ),
+            ),
+            CampaignDocument(
+                doc_id='sildar-hallwinter',
+                path='npcs/sildar-hallwinter.md',
+                title='Sildar Hallwinter',
+                type='npc',
+                campaign='lmop',
+                content=(
+                    '# Roleplay Contract\n'
+                    '- Prior relationship: Sildar does not know the party personally.\n'
+                    '# Journey Availability\n'
+                    '- Sildar rides ahead with Gundren.\n'
+                ),
+            ),
+        )
+        payload = runtime._build_story_turn_prompt(
+            context,
+            RetrievalSelection(documents=documents, selection_reason='test'),
+            controller_id='player-1-controller',
+            actor_id='player-1',
+            declaration='I ask about the job.',
+            available_actor_ids=('player-1',),
+            available_combatant_actor_ids=('player-1',),
+            actors_with_resolved_scene_checks=(),
+        )
+        self.assertIn('Use npc_roleplay_brief as authoritative', payload['instructions'])
+        self.assertIn('Direct NPC dialogue may only come from NPC ids listed in visible_npc_ids', payload['instructions'])
+        prompt_payload = json.loads(payload['input'][0]['content'][0]['text'])
+        brief_by_id = {entry['npc_id']: entry for entry in prompt_payload['context']['npc_roleplay_brief']}
+        self.assertEqual(prompt_payload['context']['visible_npc_ids'], ['gundren-rockseeker', 'sildar-hallwinter'])
+        self.assertIn('Prior relationship: Gundren has employed the party before.', brief_by_id['gundren-rockseeker']['roleplay_contract'])
+        self.assertIn('Prior relationship: Sildar does not know the party personally.', brief_by_id['sildar-hallwinter']['roleplay_contract'])
+        self.assertIn('Gundren does not travel with the party after the Waterdeep briefing.', brief_by_id['gundren-rockseeker']['journey_availability'])
 
     def test_adjudication_prompt_explicitly_requires_bare_json_object(self) -> None:
         planner = DMAdjudicationPlanner(

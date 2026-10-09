@@ -41,6 +41,8 @@ class FullStoryDemoSessionTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tempdir = Path(__file__).resolve().parents[1] / '.full-story-demo-tests' / uuid4().hex
         self._tempdir.mkdir(parents=True, exist_ok=False)
+        self.campaign_root = self._tempdir / 'campaign-root'
+        shutil.copytree(REPO_ROOT / 'campaigns' / 'lmop', self.campaign_root)
         self.env_path = self._tempdir / '.env'
         self.env_path.write_text(
             'OPENAI_API_KEY=test-key\n'
@@ -56,6 +58,7 @@ class FullStoryDemoSessionTests(unittest.TestCase):
     def _build_session(self):
         return build_full_story_demo_manual_session(
             base_url=self.base_url,
+            campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
         )
@@ -95,6 +98,7 @@ class FullStoryDemoSessionTests(unittest.TestCase):
     def test_precreated_demo_starts_in_storytelling_with_four_players(self) -> None:
         session = build_full_story_demo_manual_session(
             base_url=self.base_url,
+            campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
             precreate_characters=True,
@@ -127,10 +131,30 @@ class FullStoryDemoSessionTests(unittest.TestCase):
         self.assertIn('Current scene: scene-waterdeep-gundren-briefing', text)
         self.assertIn('A stout dwarf with dust still caught in his beard', text)
 
+    def test_precreated_demo_can_start_at_cragmaw_hideout(self) -> None:
+        session = build_full_story_demo_manual_session(
+            base_url=self.base_url,
+            campaign_root=self.campaign_root,
+            env_path=self.env_path,
+            client_transport=QueueTransport([]),
+            precreate_characters=True,
+            story_start='cragmaw',
+        )
+        self.assertIsNotNone(session.story_session)
+        assert session.story_session is not None
+        self.assertEqual(session.story_session.story_state.runtime_mode, RuntimeMode.STORYTELLING)
+        self.assertEqual(session.story_session.story_state.current_scene_id, 'scene-cragmaw-cave-mouth')
+        self.assertEqual(session.story_session.story_state.canonical_location_id, 'cragmaw-hideout')
+        player_view = session.view_for_controller('player-1-controller')
+        text = '\n'.join(player_view.summary_lines)
+        self.assertIn('Cragmaw Hideout', text)
+        self.assertNotIn('Phandalin is available', text)
+
     def test_demo_can_save_and_reload_confirmed_character_party(self) -> None:
         save_path = self._tempdir / 'saved-party.json'
         session = build_full_story_demo_manual_session(
             base_url=self.base_url,
+            campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
             character_save_path=save_path,
@@ -141,6 +165,7 @@ class FullStoryDemoSessionTests(unittest.TestCase):
 
         loaded_session = build_full_story_demo_manual_session(
             base_url=self.base_url,
+            campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=QueueTransport([]),
             character_load_path=save_path,
@@ -172,23 +197,63 @@ class FullStoryDemoSessionTests(unittest.TestCase):
         self.assertIn('Current scene: scene-waterdeep-gundren-briefing', text)
         self.assertIn('A stout dwarf with dust still caught in his beard', text)
 
-    def test_demo_ends_when_ambush_combat_resolves(self) -> None:
+    def _complete_ambush_combat(self, session, winning_side: ActorSide) -> None:
+        assert session.story_session is not None
+        session.story_session.story_state.runtime_mode = RuntimeMode.COMBAT
+        session.story_session.story_state.current_scene_id = 'scene-triboar-goblin-ambush'
+        session.story_session.story_state.canonical_location_id = 'triboar-trail'
+        session.story_session.state.phase = EncounterPhase.COMPLETE
+        session.story_session.state.winning_side = winning_side
+
+    def test_player_win_continues_to_trail_aftermath(self) -> None:
         session = self._build_session()
         for controller_id in ('player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller'):
             self._confirm_default_character(session, controller_id)
+        self._complete_ambush_combat(session, ActorSide.PLAYER)
+
+        view = session.view_for_controller('player-2-controller')
+        text = '\n'.join(view.summary_lines)
+        self.assertIn('Runtime mode: storytelling', text)
+        self.assertIn('Current scene: scene-02-trail-aftermath', text)
+        self.assertIn('Cragmaw', text)
+        self.assertNotIn('Runtime mode: demo-complete', text)
+        status_view = session.handle_input('player-2-controller', '/view')
+        self.assertIn('Runtime mode: storytelling', '\n'.join(status_view.summary_lines))
+
+    def test_monster_win_with_capture_condition_moves_party_to_kennel_prison(self) -> None:
+        session = self._build_session()
+        for controller_id in ('player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller'):
+            self._confirm_default_character(session, controller_id)
+        self._complete_ambush_combat(session, ActorSide.MONSTER)
         assert session.story_session is not None
-        session.story_session.story_state.runtime_mode = RuntimeMode.COMBAT
-        session.story_session.state.phase = EncounterPhase.COMPLETE
-        session.story_session.state.winning_side = ActorSide.PLAYER
+        for actor_id in ('player-1', 'player-2', 'player-3', 'player-4'):
+            session.story_session.state.actors[actor_id].current_hit_points = 0
+
+        view = session.view_for_controller('player-2-controller')
+        text = '\n'.join(view.summary_lines)
+        self.assertIn('Runtime mode: storytelling', text)
+        self.assertIn('Current scene: scene-cragmaw-kennel-prison', text)
+        self.assertIn('Location: cragmaw-hideout', text)
+        self.assertIn('three wolves', text)
+        self.assertNotIn('Runtime mode: demo-complete', text)
+
+    def test_all_unconscious_without_capture_condition_ends_game(self) -> None:
+        session = self._build_session()
+        for controller_id in ('player-1-controller', 'player-2-controller', 'player-3-controller', 'player-4-controller'):
+            self._confirm_default_character(session, controller_id)
+        self._complete_ambush_combat(session, ActorSide.MONSTER)
+        assert session.story_session is not None
+        session.story_session.story_state.metadata['party_defeat_capture_disabled'] = 'true'
+        for actor_id in ('player-1', 'player-2', 'player-3', 'player-4'):
+            session.story_session.state.actors[actor_id].current_hit_points = 0
+
         view = session.view_for_controller('player-2-controller')
         text = '\n'.join(view.summary_lines)
         self.assertIn('Runtime mode: demo-complete', text)
-        self.assertIn('The party survived the goblin ambush.', text)
-        self.assertEqual(view.available_choices, {})
-        status_view = session.handle_input('player-2-controller', '/view')
-        self.assertIn('Runtime mode: demo-complete', '\n'.join(status_view.summary_lines))
+        self.assertIn('All player characters are unconscious', text)
+        self.assertTrue(any(type(event).__name__ == 'StoryGameEndedEvent' for event in session.story_session.state.event_log))
         with self.assertRaises(EncounterPermissionError):
-            session.handle_input('player-2-controller', 'We head into the woods.')
+            session.handle_input('player-2-controller', 'We crawl away.')
 
 
 if __name__ == '__main__':

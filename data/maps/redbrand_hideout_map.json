@@ -1,0 +1,4169 @@
+{
+  "schemaVersion": "2.0.0",
+  "mapId": "redbrand_hideout_player_v1",
+  "name": "Redbrand Hideout",
+  "source": {
+    "moduleHint": "Lost Mine of Phandelver, chapter 2, areas 1\u201312",
+    "authoringMethod": "Image-first five-foot grid transcription; cell-side wall/door edges",
+    "notes": [
+      "5e.tools LMoP player image: 4500 x 3136, grid 150, offset (2,-7).",
+      "The cellar entry landing is 15 feet above the cellar; the crevasse is 20 feet deep.",
+      "Room outlines and door edges are transcribed from the full player map, checked against the DM map regions.",
+      "Town and hideout use LMoP content; combat resolves with the existing 2024 engine."
+    ]
+  },
+  "backgroundImage": {
+    "url": "assets/maps/redbrand-hideout-player.webp",
+    "widthPx": 4500,
+    "heightPx": 3136,
+    "gridType": "square",
+    "gridSizePx": 150,
+    "gridOffsetXPx": 2,
+    "gridOffsetYPx": -7,
+    "sourceInternalPath": "adventure/LMoP/Redbrand Hideout (Player).webp"
+  },
+  "visionDefaults": {
+    "timeOfDay": "day",
+    "dayRadiusFt": 120,
+    "nightRadiusFt": 30
+  },
+  "grid": {
+    "cellSizeFeet": 5,
+    "width": 30,
+    "height": 21,
+    "origin": "top_left",
+    "coordinates": "x_right_y_down",
+    "playableBounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 29,
+      "maxY": 20
+    }
+  },
+  "defaults": {
+    "terrain": "stone_wall",
+    "elevationFt": 0,
+    "airspaceTopFt": 40
+  },
+  "terrainTypes": {
+    "stone_wall": {
+      "traversable": false,
+      "occupiable": false,
+      "movementCostFeetPer5Ft": 5,
+      "difficultTerrain": false,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "baseCover": "total",
+      "tags": [
+        "wall",
+        "stone",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "dungeon_floor": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 5,
+      "difficultTerrain": false,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "none",
+      "tags": [
+        "floor",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "rubble": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 10,
+      "difficultTerrain": true,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "none",
+      "tags": [
+        "rubble",
+        "difficult-terrain"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "cistern": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 10,
+      "difficultTerrain": true,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "none",
+      "tags": [
+        "water",
+        "cistern"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    }
+  },
+  "terrainRegions": [
+    {
+      "id": "floor",
+      "terrain": "dungeon_floor",
+      "elevationFt": 0,
+      "cells": [
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          2,
+          8
+        ],
+        [
+          2,
+          9
+        ],
+        [
+          2,
+          10
+        ],
+        [
+          2,
+          11
+        ],
+        [
+          2,
+          12
+        ],
+        [
+          2,
+          16
+        ],
+        [
+          2,
+          17
+        ],
+        [
+          2,
+          18
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          3,
+          8
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          3,
+          12
+        ],
+        [
+          3,
+          13
+        ],
+        [
+          3,
+          14
+        ],
+        [
+          3,
+          15
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          3,
+          17
+        ],
+        [
+          3,
+          18
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          9
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          4,
+          11
+        ],
+        [
+          4,
+          12
+        ],
+        [
+          4,
+          15
+        ],
+        [
+          4,
+          16
+        ],
+        [
+          4,
+          17
+        ],
+        [
+          4,
+          18
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          5,
+          11
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          6,
+          15
+        ],
+        [
+          6,
+          16
+        ],
+        [
+          6,
+          17
+        ],
+        [
+          6,
+          18
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          15
+        ],
+        [
+          8,
+          3
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          8,
+          11
+        ],
+        [
+          8,
+          12
+        ],
+        [
+          8,
+          13
+        ],
+        [
+          8,
+          14
+        ],
+        [
+          8,
+          15
+        ],
+        [
+          8,
+          16
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          9,
+          16
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          10,
+          14
+        ],
+        [
+          10,
+          15
+        ],
+        [
+          10,
+          16
+        ],
+        [
+          10,
+          17
+        ],
+        [
+          10,
+          18
+        ],
+        [
+          10,
+          19
+        ],
+        [
+          11,
+          3
+        ],
+        [
+          11,
+          4
+        ],
+        [
+          11,
+          5
+        ],
+        [
+          11,
+          6
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          11,
+          15
+        ],
+        [
+          11,
+          16
+        ],
+        [
+          11,
+          17
+        ],
+        [
+          12,
+          3
+        ],
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          5
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          12,
+          7
+        ],
+        [
+          12,
+          8
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          12,
+          13
+        ],
+        [
+          12,
+          14
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          12,
+          16
+        ],
+        [
+          12,
+          17
+        ],
+        [
+          13,
+          3
+        ],
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ],
+        [
+          13,
+          6
+        ],
+        [
+          13,
+          7
+        ],
+        [
+          13,
+          8
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          13,
+          10
+        ],
+        [
+          13,
+          11
+        ],
+        [
+          13,
+          12
+        ],
+        [
+          13,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          13,
+          16
+        ],
+        [
+          14,
+          3
+        ],
+        [
+          14,
+          4
+        ],
+        [
+          14,
+          5
+        ],
+        [
+          14,
+          7
+        ],
+        [
+          14,
+          8
+        ],
+        [
+          14,
+          9
+        ],
+        [
+          14,
+          16
+        ],
+        [
+          15,
+          3
+        ],
+        [
+          15,
+          4
+        ],
+        [
+          15,
+          16
+        ],
+        [
+          15,
+          17
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          16,
+          3
+        ],
+        [
+          16,
+          4
+        ],
+        [
+          16,
+          5
+        ],
+        [
+          16,
+          6
+        ],
+        [
+          16,
+          7
+        ],
+        [
+          16,
+          8
+        ],
+        [
+          16,
+          9
+        ],
+        [
+          16,
+          10
+        ],
+        [
+          16,
+          11
+        ],
+        [
+          16,
+          13
+        ],
+        [
+          16,
+          14
+        ],
+        [
+          16,
+          15
+        ],
+        [
+          16,
+          16
+        ],
+        [
+          16,
+          18
+        ],
+        [
+          17,
+          3
+        ],
+        [
+          17,
+          4
+        ],
+        [
+          17,
+          5
+        ],
+        [
+          17,
+          6
+        ],
+        [
+          17,
+          7
+        ],
+        [
+          17,
+          8
+        ],
+        [
+          17,
+          9
+        ],
+        [
+          17,
+          10
+        ],
+        [
+          17,
+          11
+        ],
+        [
+          17,
+          13
+        ],
+        [
+          17,
+          14
+        ],
+        [
+          17,
+          15
+        ],
+        [
+          17,
+          16
+        ],
+        [
+          17,
+          18
+        ],
+        [
+          18,
+          3
+        ],
+        [
+          18,
+          4
+        ],
+        [
+          18,
+          5
+        ],
+        [
+          18,
+          6
+        ],
+        [
+          18,
+          7
+        ],
+        [
+          18,
+          8
+        ],
+        [
+          18,
+          9
+        ],
+        [
+          18,
+          10
+        ],
+        [
+          18,
+          11
+        ],
+        [
+          18,
+          13
+        ],
+        [
+          18,
+          14
+        ],
+        [
+          18,
+          15
+        ],
+        [
+          18,
+          16
+        ],
+        [
+          18,
+          18
+        ],
+        [
+          19,
+          6
+        ],
+        [
+          19,
+          7
+        ],
+        [
+          19,
+          8
+        ],
+        [
+          19,
+          9
+        ],
+        [
+          19,
+          10
+        ],
+        [
+          19,
+          11
+        ],
+        [
+          19,
+          14
+        ],
+        [
+          19,
+          18
+        ],
+        [
+          20,
+          3
+        ],
+        [
+          20,
+          4
+        ],
+        [
+          20,
+          5
+        ],
+        [
+          20,
+          6
+        ],
+        [
+          20,
+          7
+        ],
+        [
+          20,
+          8
+        ],
+        [
+          20,
+          9
+        ],
+        [
+          20,
+          10
+        ],
+        [
+          20,
+          11
+        ],
+        [
+          20,
+          13
+        ],
+        [
+          20,
+          14
+        ],
+        [
+          20,
+          15
+        ],
+        [
+          20,
+          16
+        ],
+        [
+          20,
+          17
+        ],
+        [
+          20,
+          18
+        ],
+        [
+          21,
+          3
+        ],
+        [
+          21,
+          4
+        ],
+        [
+          21,
+          5
+        ],
+        [
+          21,
+          6
+        ],
+        [
+          21,
+          7
+        ],
+        [
+          21,
+          8
+        ],
+        [
+          21,
+          9
+        ],
+        [
+          21,
+          10
+        ],
+        [
+          21,
+          11
+        ],
+        [
+          21,
+          13
+        ],
+        [
+          21,
+          14
+        ],
+        [
+          21,
+          15
+        ],
+        [
+          21,
+          16
+        ],
+        [
+          21,
+          17
+        ],
+        [
+          21,
+          18
+        ],
+        [
+          22,
+          3
+        ],
+        [
+          22,
+          4
+        ],
+        [
+          22,
+          5
+        ],
+        [
+          22,
+          6
+        ],
+        [
+          22,
+          7
+        ],
+        [
+          22,
+          8
+        ],
+        [
+          22,
+          9
+        ],
+        [
+          22,
+          10
+        ],
+        [
+          22,
+          11
+        ],
+        [
+          22,
+          13
+        ],
+        [
+          22,
+          14
+        ],
+        [
+          22,
+          15
+        ],
+        [
+          22,
+          16
+        ],
+        [
+          22,
+          17
+        ],
+        [
+          22,
+          18
+        ],
+        [
+          23,
+          10
+        ],
+        [
+          23,
+          11
+        ],
+        [
+          23,
+          13
+        ],
+        [
+          23,
+          14
+        ],
+        [
+          23,
+          15
+        ],
+        [
+          23,
+          16
+        ],
+        [
+          23,
+          17
+        ],
+        [
+          23,
+          18
+        ],
+        [
+          24,
+          10
+        ],
+        [
+          24,
+          11
+        ],
+        [
+          24,
+          13
+        ],
+        [
+          24,
+          14
+        ],
+        [
+          24,
+          15
+        ],
+        [
+          24,
+          16
+        ],
+        [
+          24,
+          17
+        ],
+        [
+          24,
+          18
+        ],
+        [
+          25,
+          10
+        ],
+        [
+          25,
+          11
+        ],
+        [
+          25,
+          13
+        ],
+        [
+          25,
+          14
+        ],
+        [
+          25,
+          15
+        ],
+        [
+          25,
+          16
+        ],
+        [
+          25,
+          17
+        ],
+        [
+          25,
+          18
+        ],
+        [
+          26,
+          10
+        ],
+        [
+          26,
+          11
+        ],
+        [
+          26,
+          12
+        ],
+        [
+          26,
+          13
+        ],
+        [
+          26,
+          14
+        ],
+        [
+          26,
+          15
+        ],
+        [
+          26,
+          16
+        ],
+        [
+          26,
+          17
+        ],
+        [
+          26,
+          18
+        ],
+        [
+          27,
+          10
+        ],
+        [
+          27,
+          11
+        ],
+        [
+          27,
+          13
+        ],
+        [
+          27,
+          14
+        ],
+        [
+          27,
+          15
+        ],
+        [
+          27,
+          16
+        ],
+        [
+          27,
+          17
+        ],
+        [
+          27,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "landing",
+      "terrain": "dungeon_floor",
+      "elevationFt": 15,
+      "cells": [
+        [
+          25,
+          13
+        ],
+        [
+          25,
+          18
+        ],
+        [
+          26,
+          18
+        ],
+        [
+          27,
+          13
+        ],
+        [
+          27,
+          14
+        ],
+        [
+          27,
+          15
+        ],
+        [
+          27,
+          16
+        ],
+        [
+          27,
+          17
+        ],
+        [
+          27,
+          18
+        ]
+      ]
+    },
+    {
+      "id": "stairs",
+      "terrain": "dungeon_floor",
+      "elevationFt": 5,
+      "cells": [
+        [
+          25,
+          14
+        ],
+        [
+          25,
+          17
+        ]
+      ]
+    },
+    {
+      "id": "fissure",
+      "terrain": "rubble",
+      "elevationFt": -20,
+      "cells": [
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          10,
+          14
+        ],
+        [
+          10,
+          15
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          11,
+          15
+        ],
+        [
+          11,
+          16
+        ],
+        [
+          12,
+          16
+        ],
+        [
+          12,
+          17
+        ]
+      ]
+    },
+    {
+      "id": "cistern",
+      "terrain": "cistern",
+      "elevationFt": -8,
+      "cells": [
+        [
+          20,
+          15
+        ],
+        [
+          20,
+          16
+        ],
+        [
+          21,
+          15
+        ],
+        [
+          21,
+          16
+        ],
+        [
+          22,
+          15
+        ],
+        [
+          22,
+          16
+        ]
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "north-bridge",
+      "type": "bridge",
+      "cells": [
+        [
+          10,
+          9
+        ],
+        [
+          11,
+          9
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "bridge"
+      ]
+    },
+    {
+      "id": "south-bridge",
+      "type": "bridge",
+      "cells": [
+        [
+          10,
+          15
+        ],
+        [
+          11,
+          15
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "bridge"
+      ]
+    },
+    {
+      "id": "cellar-barracks",
+      "type": "door",
+      "cells": [
+        [
+          19,
+          14
+        ],
+        [
+          20,
+          14
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "cellar-hall",
+      "type": "door",
+      "cells": [
+        [
+          26,
+          12
+        ],
+        [
+          26,
+          13
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "hall-crypt",
+      "type": "door",
+      "cells": [
+        [
+          19,
+          10
+        ],
+        [
+          20,
+          10
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "crypt-pens",
+      "type": "door",
+      "cells": [
+        [
+          19,
+          6
+        ],
+        [
+          20,
+          6
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "crypt-corridor",
+      "type": "door",
+      "cells": [
+        [
+          16,
+          5
+        ],
+        [
+          16,
+          6
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "armory-door",
+      "type": "door",
+      "cells": [
+        [
+          16,
+          3
+        ],
+        [
+          17,
+          3
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "north-cell",
+      "type": "door",
+      "cells": [
+        [
+          21,
+          4
+        ],
+        [
+          21,
+          5
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "south-cell",
+      "type": "door",
+      "cells": [
+        [
+          21,
+          7
+        ],
+        [
+          21,
+          8
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "guard-door",
+      "type": "door",
+      "cells": [
+        [
+          3,
+          15
+        ],
+        [
+          3,
+          16
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "common-south",
+      "type": "door",
+      "cells": [
+        [
+          3,
+          12
+        ],
+        [
+          3,
+          13
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "common-north",
+      "type": "door",
+      "cells": [
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "workshop-door",
+      "type": "door",
+      "cells": [
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "quarters-door",
+      "type": "door",
+      "cells": [
+        [
+          5,
+          4
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "cellar-secret",
+      "type": "door",
+      "cells": [
+        [
+          19,
+          18
+        ],
+        [
+          20,
+          18
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "storeroom-secret",
+      "type": "door",
+      "cells": [
+        [
+          14,
+          4
+        ],
+        [
+          15,
+          4
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "quarters-secret",
+      "type": "door",
+      "cells": [
+        [
+          9,
+          3
+        ],
+        [
+          10,
+          3
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "stair-secret",
+      "type": "door",
+      "cells": [
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ]
+      ],
+      "elevationFt": 0,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 0,
+      "topFt": 0,
+      "tags": [
+        "door"
+      ]
+    },
+    {
+      "id": "north-landing-overpass",
+      "type": "platform",
+      "cells": [
+        [
+          26,
+          13
+        ]
+      ],
+      "elevationFt": 15,
+      "traversable": true,
+      "occupiable": true,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 14,
+      "topFt": 15,
+      "tags": [
+        "landing",
+        "door-beneath"
+      ]
+    }
+  ],
+  "blockers": [],
+  "spatialRules": {
+    "defaultElevationTransitionRule": {
+      "thresholdFeet": 999,
+      "effect": "none",
+      "movement": "flat_2d_only",
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksDiagonalCornerCutting": false,
+      "coverFromLowToHigh": "none",
+      "coverFromHighToLow": "none",
+      "transitionType": "flat",
+      "traversalRequirement": "none"
+    },
+    "defaultAirspaceTopFt": 40,
+    "defaultActorVolumeHeightFt": 5,
+    "verticalTraversalIncrementFt": 5
+  },
+  "edgeOverrides": [
+    {
+      "id": "edge-19-14-20-14",
+      "a": [
+        19,
+        14
+      ],
+      "b": [
+        20,
+        14
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-16-16-15-16",
+      "a": [
+        16,
+        16
+      ],
+      "b": [
+        15,
+        16
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-19-6-20-6",
+      "a": [
+        19,
+        6
+      ],
+      "b": [
+        20,
+        6
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-17-5-17-6",
+      "a": [
+        17,
+        5
+      ],
+      "b": [
+        17,
+        6
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-9-19-9",
+      "a": [
+        20,
+        9
+      ],
+      "b": [
+        19,
+        9
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-19-11-20-11",
+      "a": [
+        19,
+        11
+      ],
+      "b": [
+        20,
+        11
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-8-19-8",
+      "a": [
+        20,
+        8
+      ],
+      "b": [
+        19,
+        8
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-16-5-16-6",
+      "a": [
+        16,
+        5
+      ],
+      "b": [
+        16,
+        6
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-18-5-18-6",
+      "a": [
+        18,
+        5
+      ],
+      "b": [
+        18,
+        6
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-7-19-7",
+      "a": [
+        20,
+        7
+      ],
+      "b": [
+        19,
+        7
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-19-10-20-10",
+      "a": [
+        19,
+        10
+      ],
+      "b": [
+        20,
+        10
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-21-9-21-10",
+      "a": [
+        21,
+        9
+      ],
+      "b": [
+        21,
+        10
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-9-20-10",
+      "a": [
+        20,
+        9
+      ],
+      "b": [
+        20,
+        10
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-22-9-22-10",
+      "a": [
+        22,
+        9
+      ],
+      "b": [
+        22,
+        10
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-16-3-17-3",
+      "a": [
+        16,
+        3
+      ],
+      "b": [
+        17,
+        3
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-17-5-16-5",
+      "a": [
+        17,
+        5
+      ],
+      "b": [
+        16,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-17-4-16-4",
+      "a": [
+        17,
+        4
+      ],
+      "b": [
+        16,
+        4
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-4-16-4-15",
+      "a": [
+        4,
+        16
+      ],
+      "b": [
+        4,
+        15
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-3-15-3-16",
+      "a": [
+        3,
+        15
+      ],
+      "b": [
+        3,
+        16
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-5-16-5-15",
+      "a": [
+        5,
+        16
+      ],
+      "b": [
+        5,
+        15
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-6-16-6-15",
+      "a": [
+        6,
+        16
+      ],
+      "b": [
+        6,
+        15
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-6-8-6-7",
+      "a": [
+        6,
+        8
+      ],
+      "b": [
+        6,
+        7
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-4-7-4-8",
+      "a": [
+        4,
+        7
+      ],
+      "b": [
+        4,
+        8
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-3-12-3-13",
+      "a": [
+        3,
+        12
+      ],
+      "b": [
+        3,
+        13
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-5-8-5-7",
+      "a": [
+        5,
+        8
+      ],
+      "b": [
+        5,
+        7
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-6-5-5-5",
+      "a": [
+        6,
+        5
+      ],
+      "b": [
+        5,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-5-4-6-4",
+      "a": [
+        5,
+        4
+      ],
+      "b": [
+        6,
+        4
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-4-6-4-7",
+      "a": [
+        4,
+        6
+      ],
+      "b": [
+        4,
+        7
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-5-6-5-7",
+      "a": [
+        5,
+        6
+      ],
+      "b": [
+        5,
+        7
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-6-3-5-3",
+      "a": [
+        6,
+        3
+      ],
+      "b": [
+        5,
+        3
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-9-3-10-3",
+      "a": [
+        9,
+        3
+      ],
+      "b": [
+        10,
+        3
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-9-5-10-5",
+      "a": [
+        9,
+        5
+      ],
+      "b": [
+        10,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-9-4-10-4",
+      "a": [
+        9,
+        4
+      ],
+      "b": [
+        10,
+        4
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-3-11-3",
+      "a": [
+        10,
+        3
+      ],
+      "b": [
+        11,
+        3
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-14-3-15-3",
+      "a": [
+        14,
+        3
+      ],
+      "b": [
+        15,
+        3
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-4-11-4",
+      "a": [
+        10,
+        4
+      ],
+      "b": [
+        11,
+        4
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-14-4-15-4",
+      "a": [
+        14,
+        4
+      ],
+      "b": [
+        15,
+        4
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-5-11-5",
+      "a": [
+        10,
+        5
+      ],
+      "b": [
+        11,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-14-5-15-5",
+      "a": [
+        14,
+        5
+      ],
+      "b": [
+        15,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-4-20-5",
+      "a": [
+        20,
+        4
+      ],
+      "b": [
+        20,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-20-7-20-8",
+      "a": [
+        20,
+        7
+      ],
+      "b": [
+        20,
+        8
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-21-4-21-5",
+      "a": [
+        21,
+        4
+      ],
+      "b": [
+        21,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-21-7-21-8",
+      "a": [
+        21,
+        7
+      ],
+      "b": [
+        21,
+        8
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-22-4-22-5",
+      "a": [
+        22,
+        4
+      ],
+      "b": [
+        22,
+        5
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-22-7-22-8",
+      "a": [
+        22,
+        7
+      ],
+      "b": [
+        22,
+        8
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-26-11-26-12",
+      "a": [
+        26,
+        11
+      ],
+      "b": [
+        26,
+        12
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-26-12-26-13",
+      "a": [
+        26,
+        12
+      ],
+      "b": [
+        26,
+        13
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-15-4-16-4",
+      "a": [
+        15,
+        4
+      ],
+      "b": [
+        16,
+        4
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-11-5-11-6",
+      "a": [
+        11,
+        5
+      ],
+      "b": [
+        11,
+        6
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-6-11-6",
+      "a": [
+        10,
+        6
+      ],
+      "b": [
+        11,
+        6
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-11-14-12-14",
+      "a": [
+        11,
+        14
+      ],
+      "b": [
+        12,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-26-14-27-14",
+      "a": [
+        26,
+        14
+      ],
+      "b": [
+        27,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-7-12-7",
+      "a": [
+        11,
+        7
+      ],
+      "b": [
+        12,
+        7
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-16-11-17",
+      "a": [
+        11,
+        16
+      ],
+      "b": [
+        11,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-26-16-27-16",
+      "a": [
+        26,
+        16
+      ],
+      "b": [
+        27,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-9-12-9",
+      "a": [
+        11,
+        9
+      ],
+      "b": [
+        12,
+        9
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-22-14-22-15",
+      "a": [
+        22,
+        14
+      ],
+      "b": [
+        22,
+        15
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-10-15-10-16",
+      "a": [
+        10,
+        15
+      ],
+      "b": [
+        10,
+        16
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-25-13-25-14",
+      "a": [
+        25,
+        13
+      ],
+      "b": [
+        25,
+        14
+      ],
+      "transitionType": "slope",
+      "traversalRequirement": "none",
+      "heightChangeFt": -10,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-22-16-23-16",
+      "a": [
+        22,
+        16
+      ],
+      "b": [
+        23,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-22-16-22-17",
+      "a": [
+        22,
+        16
+      ],
+      "b": [
+        22,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-25-17-26-17",
+      "a": [
+        25,
+        17
+      ],
+      "b": [
+        26,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-25-17-25-18",
+      "a": [
+        25,
+        17
+      ],
+      "b": [
+        25,
+        18
+      ],
+      "transitionType": "slope",
+      "traversalRequirement": "none",
+      "heightChangeFt": 10,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-16-11-16",
+      "a": [
+        10,
+        16
+      ],
+      "b": [
+        11,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-25-14-26-14",
+      "a": [
+        25,
+        14
+      ],
+      "b": [
+        26,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-25-14-25-15",
+      "a": [
+        25,
+        14
+      ],
+      "b": [
+        25,
+        15
+      ],
+      "transitionType": "slope",
+      "traversalRequirement": "none",
+      "heightChangeFt": -5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-9-11-10-11",
+      "a": [
+        9,
+        11
+      ],
+      "b": [
+        10,
+        11
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-25-16-25-17",
+      "a": [
+        25,
+        16
+      ],
+      "b": [
+        25,
+        17
+      ],
+      "transitionType": "slope",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-9-13-10-13",
+      "a": [
+        9,
+        13
+      ],
+      "b": [
+        10,
+        13
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-24-13-25-13",
+      "a": [
+        24,
+        13
+      ],
+      "b": [
+        25,
+        13
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-21-14-21-15",
+      "a": [
+        21,
+        14
+      ],
+      "b": [
+        21,
+        15
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-10-15-9-15",
+      "a": [
+        10,
+        15
+      ],
+      "b": [
+        9,
+        15
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-21-16-21-17",
+      "a": [
+        21,
+        16
+      ],
+      "b": [
+        21,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-10-6-10-7",
+      "a": [
+        10,
+        6
+      ],
+      "b": [
+        10,
+        7
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-9-8-10-8",
+      "a": [
+        9,
+        8
+      ],
+      "b": [
+        10,
+        8
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-24-17-25-17",
+      "a": [
+        24,
+        17
+      ],
+      "b": [
+        25,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-9-10-10-10",
+      "a": [
+        9,
+        10
+      ],
+      "b": [
+        10,
+        10
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-9-12-10-12",
+      "a": [
+        9,
+        12
+      ],
+      "b": [
+        10,
+        12
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-24-14-25-14",
+      "a": [
+        24,
+        14
+      ],
+      "b": [
+        25,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-12-15-12-16",
+      "a": [
+        12,
+        15
+      ],
+      "b": [
+        12,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-9-7-10-7",
+      "a": [
+        9,
+        7
+      ],
+      "b": [
+        10,
+        7
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-10-9-9-9",
+      "a": [
+        10,
+        9
+      ],
+      "b": [
+        9,
+        9
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-24-18-25-18",
+      "a": [
+        24,
+        18
+      ],
+      "b": [
+        25,
+        18
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-20-14-20-15",
+      "a": [
+        20,
+        14
+      ],
+      "b": [
+        20,
+        15
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-11-12-11",
+      "a": [
+        11,
+        11
+      ],
+      "b": [
+        12,
+        11
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-20-16-20-17",
+      "a": [
+        20,
+        16
+      ],
+      "b": [
+        20,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-13-12-13",
+      "a": [
+        11,
+        13
+      ],
+      "b": [
+        12,
+        13
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-6-11-7",
+      "a": [
+        11,
+        6
+      ],
+      "b": [
+        11,
+        7
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-15-12-15",
+      "a": [
+        11,
+        15
+      ],
+      "b": [
+        12,
+        15
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-26-15-27-15",
+      "a": [
+        26,
+        15
+      ],
+      "b": [
+        27,
+        15
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-12-16-13-16",
+      "a": [
+        12,
+        16
+      ],
+      "b": [
+        13,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-8-12-8",
+      "a": [
+        11,
+        8
+      ],
+      "b": [
+        12,
+        8
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-17-12-17",
+      "a": [
+        11,
+        17
+      ],
+      "b": [
+        12,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-26-17-27-17",
+      "a": [
+        26,
+        17
+      ],
+      "b": [
+        27,
+        17
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-26-17-26-18",
+      "a": [
+        26,
+        17
+      ],
+      "b": [
+        26,
+        18
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 15,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-22-15-23-15",
+      "a": [
+        22,
+        15
+      ],
+      "b": [
+        23,
+        15
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 8,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-12-12-12",
+      "a": [
+        11,
+        12
+      ],
+      "b": [
+        12,
+        12
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": 20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-9-10-9",
+      "a": [
+        11,
+        9
+      ],
+      "b": [
+        10,
+        9
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-9-10-10",
+      "a": [
+        10,
+        9
+      ],
+      "b": [
+        10,
+        10
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-10-9-10-8",
+      "a": [
+        10,
+        9
+      ],
+      "b": [
+        10,
+        8
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-9-11-10",
+      "a": [
+        11,
+        9
+      ],
+      "b": [
+        11,
+        10
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-9-11-8",
+      "a": [
+        11,
+        9
+      ],
+      "b": [
+        11,
+        8
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-15-10-15",
+      "a": [
+        11,
+        15
+      ],
+      "b": [
+        10,
+        15
+      ],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-15-10-14",
+      "a": [
+        10,
+        15
+      ],
+      "b": [
+        10,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-15-11-16",
+      "a": [
+        11,
+        15
+      ],
+      "b": [
+        11,
+        16
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-11-15-11-14",
+      "a": [
+        11,
+        15
+      ],
+      "b": [
+        11,
+        14
+      ],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": true
+    },
+    {
+      "id": "edge-19-18-20-18",
+      "a": [
+        19,
+        18
+      ],
+      "b": [
+        20,
+        18
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "edge-10-5-10-6",
+      "a": [
+        10,
+        5
+      ],
+      "b": [
+        10,
+        6
+      ],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "requiresVerticalConfirmation": false
+    }
+  ],
+  "spawnZones": {
+    "manor": {
+      "cells": [
+        [
+          27,
+          15,
+          15
+        ],
+        [
+          27,
+          16,
+          15
+        ],
+        [
+          27,
+          14,
+          15
+        ],
+        [
+          27,
+          17,
+          15
+        ]
+      ]
+    },
+    "tunnel": {
+      "cells": [
+        [
+          10,
+          19
+        ],
+        [
+          10,
+          18
+        ],
+        [
+          10,
+          17
+        ],
+        [
+          9,
+          16
+        ]
+      ]
+    }
+  },
+  "integrationHints": {
+    "battlefieldStateKey": "battlefield",
+    "recommendedQueries": [
+      "getTile(x, y)",
+      "hasLineOfSight(observer, target)",
+      "getVisibleCells(actor, timeOfDay)",
+      "previewMove(actor, destination, options)"
+    ],
+    "publicSyncFields": [
+      "grid",
+      "backgroundImage",
+      "terrainRegions",
+      "visionDefaults",
+      "knownDynamicOverlays"
+    ]
+  }
+}

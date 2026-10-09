@@ -5589,3 +5589,130 @@
 - Verification passed:
   - `python -m py_compile shared_types\encounter_models.py shared_types\battlefield.py rules_engine\monster_loader.py rules_engine\battlefield_loader.py monster_runtime\compiler.py`
   - `python -m unittest tests.test_monster_pipeline.MonsterPipelineTests.test_monster_records_and_actors_preserve_token_image_identity tests.test_battlefield_map.BattlefieldMapIntegrationTests.test_goblin_ambush_map_uses_pabtso_player_background tests.test_web_server.SessionWebServerTests.test_monster_map_tokens_include_visible_catalog_icon_urls -v`
+
+## 2026-09-28 - Upstream Refresh, Workflow Audit, and NAACL Readiness
+
+### Scope
+- Refresh remote refs and pull the configured upstream only when integration preserves the existing staged, unstaged, and untracked work.
+- Identify the newest relevant project branch explicitly; keep branch-selection ambiguity visible.
+- Map the actual application and research/data workflows from source code, not just design notes.
+- Verify current NAACL/ARR submission guidance and relevant primary-source prior work.
+- Produce an evidence-backed readiness assessment and prioritized research plan; do not implement application changes or start paid model jobs.
+
+### Steps
+- [x] Inspect branch/upstream state and preserve local work while refreshing remotes.
+- [x] Verify the selected checkout/revision against the current remote head.
+- [x] Trace startup, ingestion, character setup, player/DM interaction, deterministic resolution, visibility, logging, dataset generation, and evaluation.
+- [x] Run appropriate local verification and distinguish checked behavior from untested claims.
+- [x] Check official submission requirements and compare the research idea with close prior work.
+- [x] Document workflow, gaps, a proposed experimental design, and submission milestones.
+- [x] Record review and request summary.
+
+### Verification Plan
+- Read-only Git status/divergence checks before and after any fast-forward-only pull.
+- Inspect dependency and test configuration before selecting commands; avoid live LLM calls and mutable campaign sessions.
+- Verify architectural claims against exact source entry points and tests.
+- Cite official venue/ARR guidance and original research publications, with dates where confirmed.
+
+### Review
+- Initial checkout preserved: dnd-newagent-migration at 80c4150, with existing staged/unstaged/untracked work. The configured upstream has been removed from the live remote, so its fast-forward-only pull stopped without integration.
+- Newest fetched main/newdndagents revision: 6c65520aa6043ea3a2ef83f851671f827385bf07. Audited in the managed checkout C:/Users/Shengqi Li/.codex/worktrees/workflow-naacl-review/DND-newagent; no application source edits.
+- User confirmed this is a substantial extension/rearchitecture of Setting the DC and requested primary-agent-only work. Remaining delegated work was stopped; subsequent work is solo.
+- Primary-agent measurements: 733/183 SFT split; all 91 eval conversations overlap training; 49 eval input prompts and 12 full examples overlap training. Of 180 preferences, 168 use differing source observation contexts. A synthetic generic-LLM-player probe reproduces private-recipient context leakage.
+- Verification: Python/JavaScript syntax checks and 85 focused offline tests passed. Full offline unittest discovery was stopped at the approximately 20-minute audit budget while still active; its result remains unverified. The partial log is saved and no full-suite pass is claimed. Source, data-split, preference, and privacy audits are complete; fixes and publication experiments remain future work.
+- Report: D:/DND-newagent/docs/PROJECT-WORKFLOW-AND-NAACL-READINESS.md. Official NAACL 2027 main ARR deadline is October 12, 2026; demo deadline is December 4, 2026.
+
+## 2026-09-29 - DungeonBench Comparison and Research Differentiation
+### Scope
+- Read DungeonBench's task contract, evaluation, and limitations from the primary paper and inspect linked artifacts if available.
+- Separate measured evidence, deliberate scope choices, unresolved review questions, and project-specific opportunities.
+- Propose controlled experiments that distinguish the Setting the DC extension without overstating implemented or verified capabilities.
+- Continue in the primary agent only; make no application changes or external model calls.
+### Steps
+- [x] Verify the paper's observation/action interface, tracks, protocol, and stated limitations.
+- [x] Check available primary artifact links and empirical support for any criticism.
+- [x] Map concrete differences and propose a controlled comparison protocol.
+- [x] Record findings, verification limits, and summary.
+### Review
+- Reviewed DungeonBench v1, particularly Sections 3-5 and appendices, against the project audit at revision 6c65520. Primary source: https://arxiv.org/html/2607.29577v1.
+- Assessment concerns the published experimental evidence, not uninspected implementation quality. A targeted artifact search did not locate an author-linked code repository; no reproduction of their results is claimed.
+- Recommended research target: communication-grounded execution under partial observability, measured through matched action/observation conditions, separate communication ablations, and held-out scenario families.
+- Proposed resource-planning control: compare the same encounter sequence with persistent versus reset resources. The illustrative independent probability calculation 0.8^4 = 0.4096 is not a reanalysis of their episodes.
+- Existing split, preference-label, and model-context privacy issues remain prerequisites. No application edits, model inference, new tests, or delegated work were performed for this comparison.
+
+## 2026-10-09 - Phandalin Arrival and Redbrand Arc Design
+### Scope
+- Extend the existing LMOP campaign from arrival in Phandalin through discoverable Redbrand leads and entry into the hideout, with actual player-map art and authoritative interactions.
+- Reuse the current Cragmaw movement, geometry, vision, token, and web projection work; preserve all existing staged, unstaged, and untracked changes.
+- Keep campaign content outside the generic rules engine and keep unrevealed entrances, traps, NPC knowledge, and encounter state private.
+- Work in the primary agent only. Design approval precedes application implementation.
+### Design Checklist
+- [x] Review operating rules, lessons, existing Cragmaw implementation, and available worktrees.
+- [x] Find the current Phandalin travel restriction and inspect town/hideout map assets in the configured mirror.
+- [ ] Confirm the first playable milestone with the user: connected arrival-to-hideout slice versus full chapter or map-only work.
+- [ ] Resolve the campaign/map source edition and record exact art/grid metadata in the approved specification.
+- [ ] Present the flow, state boundaries, failure cases, and verification plan for approval.
+- [ ] Write and self-review the approved design, then obtain document review before implementation planning.
+### Proposed Implementation Sequence (Subject to Design Approval)
+- [ ] Connect regional travel and Cragmaw aftermath to a real Phandalin arrival scene, removing obsolete playtest-only blocking in the selected campaign flow.
+- [ ] Add a town-location map and NPC interactions with multiple discoverable leads toward the Redbrands, retaining player choice.
+- [ ] Add hideout map geometry, both entry routes, doors, walls, visibility, room state, and scoped encounters through existing typed runtime paths.
+- [ ] Verify story-to-map-to-combat transitions, retained party state, replayable events, privacy, and browser behavior.
+### Verification Plan
+- Test arrival from supported prior states and a clearly labeled direct-start manual fixture.
+- Test that a revealed clue unlocks only the appropriate route/knowledge and that selecting a destination does not silently force travel or combat.
+- Test map transitions preserve the party, resources, authoritative location, and event history.
+- Test representative full-map paths, blocked walls/closed doors, secret entrance visibility, and player versus DM projections.
+- Run relevant existing Cragmaw, travel, story, map, and web tests; capture a browser smoke and raw interaction transcript.
+### Review
+- Initial design discovery only; no application code changed.
+- Current checkout: D:/DND-newagent at 80c4150 with substantial local Cragmaw work. The attached audit checkout at 6c65520 does not include those local map enhancements.
+- Source mirror: D:/5etools-mirror-2.github.io. Both LMOP and PaBTSO town/hideout player assets exist; current Cragmaw art is LMOP, while regional travel uses PaBTSO art.
+- Existing campaign documents and StorytellingSession explicitly block Phandalin in the post-ambush Cragmaw slice; the regional map names Phandalin but has no arrival scene hook.
+
+## 2026-10-09 - Approved Phandalin/Redbrand implementation
+- [x] User approved implementation; use LMoP story/maps and complete Redbrand arc in stages.
+- [x] Preserve local Cragmaw changes in codex/phandalin-redbrands managed worktree; 33 baseline tests passed.
+- [x] Write and self-review detailed design/plan in docs/superpowers/plans/2026-10-09-phandalin-redbrands.md.
+- [x] Implement and test assets/types.
+- [x] Implement and test rules-owned site transitions.
+- [x] Implement and test connected session/encounter progression.
+- [x] Implement and test browser projection/privacy.
+- [x] Run regressions, browser smoke, review and record results.
+
+### Integration re-plan (2026-10-09)
+- [x] Fix the verified LMoP monster content gap: older attack tags were skipped, leaving enemies inert. Add exact source-schema parsing, explicit 2024 spell loadouts/slot pools, source-owned multiattack/gaze capabilities, and execution tests.
+- [x] Complete pending-reaction movement resumption so hazards apply after, not before, the movement commit.
+- [x] Route web map/travel APIs through the underlying story runtime while retaining the full-demo wrapper for input/trajectory recording.
+- [x] Re-run full arc/replay and browser verification after these prerequisites; no map-only completion claim.
+
+### Implementation review — 2026-10-09
+- Implemented in `C:/Users/Shengqi Li/.codex/worktrees/workflow-naacl-review/DND-newagent`, branch `codex/phandalin-redbrands`, based on 80c4150 plus preserved local Cragmaw work. Original application-source hashes remain unchanged. No commit/push/merge.
+- Added authored six-POI town navigation, regional arrival, both discoverable approaches, twelve-room map geometry, seventeen doors, seven scoped encounters, nothic negotiation, Droop/key information, prisoner rescue, Glasstaff/evidence and in-session revisits.
+- Mechanics use typed transactional site actions and existing kernel movement/attacks/saves/falls/slots/initiative. Explicit object-interaction costs reuse the kernel. Fixed scoped completion/opportunity participation, main-entrance under-landing access, old source attack parsing, and actual full-demo map API routing.
+- Verification: 186 tests passed in 216.034 seconds across site/session, Cragmaw, travel, story, full manual wrapper, web, monster pipeline, battlefield, visibility, frontend chat and encounter kernel. Python compile: 18 files. JavaScript syntax and git diff whitespace checks pass; line-ending warnings only.
+- Full-arc fixture passes 627-event replay with complete site/encounter state equality. It uses a boosted test-only actor and passive enemy turns; separate tests execute source monster attacks, Multiattack, Magic Missile, Hold Person and Misty Step. No balance or live-model claim.
+- Browser proof: town markers have no overlaps in the checked viewport; both entrances and movement work; player/DM views differ; Nothic token loads at 280 px from the full mirror. Raw inputs/outputs, screenshots, and replay artifacts are saved under worktree/tasks.
+- Live local fixture: HTTP 8020 / WS 8780, PID 39932, isolated campaign-release copy and explicit full-mirror base URL. Returned the party to Phandalin after the smoke route.
+- Preserved original dirty checkout and restored existing regression tests' DM-memory writes in the worktree from baseline. Continued solo as requested; no subagents.
+- Scope limits are explicit in docs/PHANDALIN-REDBRANDS.md: optional Chapter 2 quests, scripted retreat/reinforcements, numeric reward/loot transfer, narrow-ledge trap bypass, teleport/forced-relocation trap entry, full elapsed-time effect lifecycle, and restart/save-game persistence remain outside this delivered slice.
+
+
+## 2026-10-09 - Push Phandalin and Redbrand Feature Branch
+### Scope
+- User requested pushing the delivered feature. Publish codex/phandalin-redbrands to origin without merging the original dirty checkout or opening a pull request.
+- Include the required Cragmaw, vision, story-runtime and web-demo prerequisites so the pushed tree is self-contained; exclude secrets, local mirror, generated sessions, and unrelated reward/research work.
+### Steps
+- [x] Inspect branch, remote destination, baseline dependencies, and file scope.
+- [ ] Stage an explicit file list and verify an exported index snapshot independently of unstaged local work.
+- [ ] Commit the verified changes and push the named branch without force.
+- [ ] Verify the remote commit and record the result.
+### Verification Plan
+- Run the relevant 186-test regression suite plus prerequisite DM, exploration/social, connector, and Fog Cloud tests from the index snapshot.
+- Compile changed Python files, check JavaScript syntax and staged whitespace, inspect staged filenames and credential patterns.
+- Compare the local commit with git ls-remote and confirm the original application-source baseline hashes remain unchanged.
+
+### Snapshot Review and Revised Verification
+- The initial exported-index run found thirteen tests relying on local mirror configuration, plus an unrelated party-connector update importing the uncommitted reward grader. No application defect was demonstrated by those failures.
+- Keep the entire connector/reward-grading update outside this feature commit. Verify the unchanged committed connector instead.
+- Supply the exported snapshot with a test-only .env containing the explicit full-mirror URL and a recorded deterministic seed, never the user's credentials or copied data. Re-export the corrected index and rerun verification before commit/push.

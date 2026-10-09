@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from shared_types.effects import CheckRequest, ResolutionContext
 from shared_types.encounter_events import StoryActionDeclaredEvent
+from shared_types.encounter_models import ActorSide
 from shared_types.errors import EncounterValidationError
 from shared_types.models import Ability
 from shared_types.spellcasting import SpellPerceptibilityProfile
@@ -15,7 +16,7 @@ from shared_types.storytelling import StoryCheckRequestState
 from session_server import build_lmop_story_demo_session
 from session_server.story_orchestrator import present_story_snapshot
 from shared_types.storytelling import RuntimeMode, StoryTranscriptEntry, StoryTranscriptVisibility
-from shared_types.travel import TravelStatus
+from shared_types.travel import HexCoord, TravelStatus
 from tests.test_encounter_kernel import LOCAL_MIRROR_BASE_URL
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +81,33 @@ class StorytellingSessionTests(unittest.TestCase):
             campaign_root=self.campaign_root,
         )
 
+    def _move_to_post_ambush_cragmaw_slice(self, session) -> None:
+        travel_state = session.story_state.travel_state
+        self.assertIsNotNone(travel_state)
+        assert travel_state is not None
+        session.story_state.current_scene_id = 'scene-02-trail-aftermath'
+        session.story_state.canonical_location_id = 'triboar-trail'
+        session.story_state.current_party_goals = (
+            'Follow the goblin trail toward Cragmaw Hideout.',
+            'Rescue Sildar Hallwinter and learn where Gundren was taken.',
+        )
+        session.story_state.open_loops = (
+            'Where did the goblins take Gundren Rockseeker?',
+            'What waits at the Cragmaw Hideout?',
+        )
+        session.story_state.metadata['story_slice'] = 'post-ambush-cragmaw'
+        session.story_state.metadata['retrieval_tags'] = 'triboar-trail,cragmaw-hideout,goblin-trail'
+        session.story_state.metadata['nearby_tags'] = 'trail,forest,cragmaw-hideout'
+        session.story_state.travel_state = replace(
+            travel_state,
+            party_coord=HexCoord(5, 0),
+            discovered_hexes=tuple(dict.fromkeys(travel_state.discovered_hexes + (HexCoord(5, 0), HexCoord(5, -1)))),
+            discovered_landmark_ids=tuple(dict.fromkeys(travel_state.discovered_landmark_ids + ('ambush-horses', 'cragmaw-trail-signs'))),
+            known_location_ids=tuple(dict.fromkeys(travel_state.known_location_ids + ('cragmaw-hideout',))),
+            current_scene_id='scene-02-trail-aftermath',
+            current_location_id='triboar-trail',
+        )
+
     def test_demo_bootstrap_starts_in_waterdeep_with_four_players(self) -> None:
         session = self._build_session([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}])
         self.assertEqual(session.story_state.current_scene_id, 'scene-waterdeep-gundren-briefing')
@@ -87,6 +115,70 @@ class StorytellingSessionTests(unittest.TestCase):
         self.assertEqual(session.story_state.runtime_mode, RuntimeMode.STORYTELLING)
         self.assertEqual(sorted(actor_id for actor_id, actor in session.state.actors.items() if actor.side.value == 'player'), ['player-1', 'player-2', 'player-3', 'player-4'])
         self.assertEqual(sorted(actor_id for actor_id, actor in session.state.actors.items() if actor.side.value == 'monster'), ['monster-goblin-1', 'monster-goblin-2', 'monster-goblin-3', 'monster-goblin-4'])
+
+    def test_post_ambush_allows_phandalin_and_cragmaw_routes(self) -> None:
+        session = self._build_session([])
+        self._move_to_post_ambush_cragmaw_slice(session)
+
+        session.travel_plan_route('player-1-controller', destination_location_id='phandalin')
+        self.assertEqual(session.story_state.travel_state.planned_route.destination,HexCoord(6,0))
+
+        route = session.travel_preview_route('player-1-controller', destination_location_id='cragmaw-hideout')
+        self.assertIn('Cragmaw', route.destination_label)
+        self.assertEqual(route.destination, HexCoord(5, -1))
+
+    def test_regional_phandalin_arrival_after_ambush_opens_town(self) -> None:
+        session = self._build_session([])
+        self._move_to_post_ambush_cragmaw_slice(session)
+        session.travel_plan_route('player-1-controller',destination_location_id='phandalin')
+        session.travel_advance('player-1-controller',steps=1)
+        self.assertEqual(session.story_state.canonical_location_id,'phandalin')
+        self.assertTrue(session.campaign_site.active)
+
+    def test_storytelling_context_includes_cragmaw_bargain_and_condition_notes(self) -> None:
+        session = self._build_session([])
+        self._move_to_post_ambush_cragmaw_slice(session)
+        session.story_state.current_scene_id = 'scene-cragmaw-goblin-den'
+        session.story_state.canonical_location_id = 'cragmaw-hideout'
+        session.story_state.metadata['visible_npc_ids'] = 'yeemik,sildar-hallwinter'
+        for actor in session.state.actors.values():
+            if actor.side == ActorSide.PLAYER:
+                actor.current_hit_points = actor.max_hit_points
+
+        notes = getattr(session.storytelling_context(), 'dm_context_notes', ())
+        self.assertTrue(any('Yeemik bargain unavailable' in note for note in notes))
+        self.assertTrue(any('party condition' in note.casefold() for note in notes))
+
+        session.story_state.metadata['cragmaw_rivalry_clue_found'] = 'true'
+        notes = getattr(session.storytelling_context(), 'dm_context_notes', ())
+        self.assertTrue(any('Yeemik bargain available' in note for note in notes))
+
+        for actor in session.state.actors.values():
+            if actor.side == ActorSide.PLAYER:
+                actor.current_hit_points = 1
+        notes = getattr(session.storytelling_context(), 'dm_context_notes', ())
+        self.assertTrue(any('too weak' in note and 'Yeemik refuses' in note for note in notes))
+
+    def test_monster_condition_context_filters_by_int_wis(self) -> None:
+        session = self._build_session([])
+        self._move_to_post_ambush_cragmaw_slice(session)
+        session.story_state.current_scene_id = 'scene-cragmaw-goblin-den'
+        session.story_state.canonical_location_id = 'cragmaw-hideout'
+        session.story_state.metadata['visible_npc_ids'] = 'monster-goblin-1'
+        session.story_state.metadata['dm_condition_observer_actor_id'] = 'monster-goblin-1'
+        session.state.actors['player-1'].current_hit_points = 0
+        session.state.actors['player-2'].current_hit_points = 2
+        session.state.actors['monster-goblin-1'].ability_scores[Ability.INT] = 7
+        session.state.actors['monster-goblin-1'].ability_scores[Ability.WIS] = 8
+
+        low_notes = getattr(session.storytelling_context(), 'dm_context_notes', ())
+        self.assertTrue(any('obvious wounds only' in note for note in low_notes))
+        self.assertFalse(any('spell-slot' in note or 'prepared resources' in note for note in low_notes))
+
+        session.state.actors['monster-goblin-1'].ability_scores[Ability.INT] = 16
+        session.state.actors['monster-goblin-1'].ability_scores[Ability.WIS] = 14
+        high_notes = getattr(session.storytelling_context(), 'dm_context_notes', ())
+        self.assertTrue(any('prepared resources' in note or 'spell-slot' in note for note in high_notes))
 
     def test_system_open_scene_adds_waterdeep_intro(self) -> None:
         session = self._build_session([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}])
@@ -505,9 +597,14 @@ class StorytellingSessionTests(unittest.TestCase):
 
     def test_travel_route_and_advance_interrupt_at_lmop_ambush_hook(self) -> None:
         session = self._build_session([{'output_text': '{"decision_type":"stay_in_storytelling","reason":"hold"}'}])
+        self.assertEqual(session.storytelling_context().visible_npc_ids, ('gundren-rockseeker', 'sildar-hallwinter'))
         session.travel_plan_route('player-1-controller', destination_location_id='phandalin')
         self.assertEqual(session.story_state.travel_state.status, TravelStatus.ROUTE_PLANNED)
-        session.travel_advance('player-1-controller', steps=5)
+        session.travel_advance('player-1-controller', steps=1)
+        self.assertEqual(session.story_state.current_scene_id, 'scene-00-high-road-journey')
+        self.assertEqual(session.story_state.canonical_location_id, 'high-road')
+        self.assertEqual(session.storytelling_context().visible_npc_ids, ())
+        session.travel_advance('player-1-controller', steps=4)
         travel_state = session.story_state.travel_state
         assert travel_state is not None
         self.assertEqual((travel_state.party_coord.q, travel_state.party_coord.r), (5, 0))

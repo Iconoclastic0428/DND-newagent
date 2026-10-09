@@ -1,0 +1,2883 @@
+{
+  "schema_version": 1,
+  "site_id": "phandalin-redbrands",
+  "town_location_id": "phandalin",
+  "dungeon_location_id": "redbrand-hideout",
+  "town_image": "assets/maps/phandalin-player.webp",
+  "town_width_px": 4000,
+  "town_height_px": 2788,
+  "battlefield_path": "data/maps/redbrand_hideout_map.json",
+  "arrival_text": "The road opens onto Phandalin: timber buildings, busy wagons and the ruined manor on the eastern hill. Choose where to visit. The Redbrands are a lead, not a forced destination.",
+  "places": [
+    {
+      "place_id": "barthens-provisions",
+      "name": "Barthen's Provisions",
+      "x": 0.518,
+      "y": 0.294,
+      "description": "A trading post beside the north road.",
+      "conversations": [
+        {
+          "npc_id": "elmar-barthen",
+          "label": "Ask Barthen about the town",
+          "text": "Barthen welcomes the caravan. He describes the Redbrands' demands and points you toward Stonehill Inn and Tresendar Manor.",
+          "grants": [
+            "redbrand-trouble-known",
+            "redbrand-base-known"
+          ]
+        }
+      ]
+    },
+    {
+      "place_id": "stonehill-inn",
+      "name": "Stonehill Inn",
+      "x": 0.455,
+      "y": 0.399,
+      "description": "A modest inn with a busy common room.",
+      "conversations": [
+        {
+          "npc_id": "toblen-stonehill",
+          "label": "Speak with Toblen",
+          "text": "Toblen reports that the Redbrands murdered Thel Dendrar and took his family. Their usual haunt is the Sleeping Giant; their base is beneath Tresendar Manor.",
+          "grants": [
+            "redbrand-trouble-known",
+            "redbrand-base-known",
+            "missing-family-known"
+          ]
+        }
+      ]
+    },
+    {
+      "place_id": "townmasters-hall",
+      "name": "Townmaster's Hall",
+      "x": 0.433,
+      "y": 0.507,
+      "description": "Public notices hang outside the town hall.",
+      "conversations": [
+        {
+          "npc_id": "harbin-wester",
+          "label": "Question Harbin",
+          "text": "Harbin minimizes the gang's danger, but admits that armed Redbrands shelter around Tresendar Manor. You may investigate without accepting his advice.",
+          "grants": [
+            "redbrand-base-known"
+          ]
+        }
+      ]
+    },
+    {
+      "place_id": "alderleaf-farm",
+      "name": "Alderleaf Farm",
+      "x": 0.656,
+      "y": 0.665,
+      "description": "A family farm near the southeastern woods.",
+      "conversations": [
+        {
+          "npc_id": "carp-alderleaf",
+          "label": "Ask Carp about the woods",
+          "text": "Carp describes a hidden tunnel in the woods south of Tresendar Manor and the Redbrands he saw using it. He marks the approach on your map.",
+          "grants": [
+            "secret-tunnel-known",
+            "redbrand-base-known"
+          ]
+        }
+      ]
+    },
+    {
+      "place_id": "sleeping-giant",
+      "name": "The Sleeping Giant",
+      "x": 0.619,
+      "y": 0.405,
+      "description": "A rough tavern frequented by scarlet-cloaked toughs.",
+      "conversations": [
+        {
+          "npc_id": "grista",
+          "label": "Ask Grista about the Redbrands",
+          "text": "Grista identifies the gang's base beneath the ruined manor and their leader, a wizard called Glasstaff. The people here are wary of outsiders.",
+          "grants": [
+            "redbrand-base-known",
+            "glasstaff-known"
+          ]
+        }
+      ]
+    },
+    {
+      "place_id": "tresendar-manor",
+      "name": "Tresendar Manor",
+      "x": 0.879,
+      "y": 0.38,
+      "description": "The ruined manor stands above the eastern edge of town.",
+      "conversations": [
+        {
+          "npc_id": "manor-tracks",
+          "label": "Inspect the manor ruins",
+          "text": "Fresh tracks lead down a stone stair beside the ruined kitchen. A door at the bottom opens onto the hideout's cellar landing.",
+          "grants": [
+            "manor-entrance-known",
+            "redbrand-base-known"
+          ]
+        }
+      ]
+    }
+  ],
+  "entrances": [
+    {
+      "entrance_id": "manor",
+      "label": "Manor cellar entrance",
+      "place_id": "tresendar-manor",
+      "required_flag": "manor-entrance-known",
+      "positions": [
+        [
+          27,
+          13,
+          15
+        ],
+        [
+          27,
+          14,
+          15
+        ],
+        [
+          27,
+          15,
+          15
+        ],
+        [
+          27,
+          16,
+          15
+        ]
+      ]
+    },
+    {
+      "entrance_id": "tunnel",
+      "label": "Concealed woodland tunnel",
+      "place_id": "tresendar-manor",
+      "required_flag": "secret-tunnel-known",
+      "positions": [
+        [
+          10,
+          16
+        ],
+        [
+          10,
+          17
+        ],
+        [
+          10,
+          18
+        ],
+        [
+          10,
+          19
+        ]
+      ]
+    }
+  ],
+  "rooms": [
+    {
+      "room_id": "cellar",
+      "name": "Cellar",
+      "cells": [
+        [
+          20,
+          13
+        ],
+        [
+          20,
+          14
+        ],
+        [
+          20,
+          15
+        ],
+        [
+          20,
+          16
+        ],
+        [
+          20,
+          17
+        ],
+        [
+          20,
+          18
+        ],
+        [
+          21,
+          13
+        ],
+        [
+          21,
+          14
+        ],
+        [
+          21,
+          15
+        ],
+        [
+          21,
+          16
+        ],
+        [
+          21,
+          17
+        ],
+        [
+          21,
+          18
+        ],
+        [
+          22,
+          13
+        ],
+        [
+          22,
+          14
+        ],
+        [
+          22,
+          15
+        ],
+        [
+          22,
+          16
+        ],
+        [
+          22,
+          17
+        ],
+        [
+          22,
+          18
+        ],
+        [
+          23,
+          13
+        ],
+        [
+          23,
+          14
+        ],
+        [
+          23,
+          15
+        ],
+        [
+          23,
+          16
+        ],
+        [
+          23,
+          17
+        ],
+        [
+          23,
+          18
+        ],
+        [
+          24,
+          13
+        ],
+        [
+          24,
+          14
+        ],
+        [
+          24,
+          15
+        ],
+        [
+          24,
+          16
+        ],
+        [
+          24,
+          17
+        ],
+        [
+          24,
+          18
+        ],
+        [
+          25,
+          13
+        ],
+        [
+          25,
+          14
+        ],
+        [
+          25,
+          15
+        ],
+        [
+          25,
+          16
+        ],
+        [
+          25,
+          17
+        ],
+        [
+          25,
+          18
+        ],
+        [
+          26,
+          12
+        ],
+        [
+          26,
+          13
+        ],
+        [
+          26,
+          14
+        ],
+        [
+          26,
+          15
+        ],
+        [
+          26,
+          16
+        ],
+        [
+          26,
+          17
+        ],
+        [
+          26,
+          18
+        ],
+        [
+          27,
+          13
+        ],
+        [
+          27,
+          14
+        ],
+        [
+          27,
+          15
+        ],
+        [
+          27,
+          16
+        ],
+        [
+          27,
+          17
+        ],
+        [
+          27,
+          18
+        ]
+      ],
+      "description": "A narrow landing overlooks a cellar with two stairways, supply barrels and a stone cistern."
+    },
+    {
+      "room_id": "barracks",
+      "name": "Barracks",
+      "cells": [
+        [
+          16,
+          13
+        ],
+        [
+          16,
+          14
+        ],
+        [
+          16,
+          15
+        ],
+        [
+          16,
+          16
+        ],
+        [
+          17,
+          13
+        ],
+        [
+          17,
+          14
+        ],
+        [
+          17,
+          15
+        ],
+        [
+          17,
+          16
+        ],
+        [
+          18,
+          13
+        ],
+        [
+          18,
+          14
+        ],
+        [
+          18,
+          15
+        ],
+        [
+          18,
+          16
+        ],
+        [
+          19,
+          14
+        ]
+      ],
+      "description": "Bunks and fresh provisions occupy this storage room."
+    },
+    {
+      "room_id": "trapped-hall",
+      "name": "Trapped Hall",
+      "cells": [
+        [
+          20,
+          10
+        ],
+        [
+          20,
+          11
+        ],
+        [
+          21,
+          10
+        ],
+        [
+          21,
+          11
+        ],
+        [
+          22,
+          10
+        ],
+        [
+          22,
+          11
+        ],
+        [
+          23,
+          10
+        ],
+        [
+          23,
+          11
+        ],
+        [
+          24,
+          10
+        ],
+        [
+          24,
+          11
+        ],
+        [
+          25,
+          10
+        ],
+        [
+          25,
+          11
+        ],
+        [
+          26,
+          10
+        ],
+        [
+          26,
+          11
+        ],
+        [
+          26,
+          12
+        ],
+        [
+          27,
+          10
+        ],
+        [
+          27,
+          11
+        ]
+      ],
+      "description": "Dust covers the passage leading west to copper-clad doors."
+    },
+    {
+      "room_id": "crypt",
+      "name": "Tresendar Crypts",
+      "cells": [
+        [
+          16,
+          6
+        ],
+        [
+          16,
+          7
+        ],
+        [
+          16,
+          8
+        ],
+        [
+          16,
+          9
+        ],
+        [
+          16,
+          10
+        ],
+        [
+          16,
+          11
+        ],
+        [
+          17,
+          6
+        ],
+        [
+          17,
+          7
+        ],
+        [
+          17,
+          8
+        ],
+        [
+          17,
+          9
+        ],
+        [
+          17,
+          10
+        ],
+        [
+          17,
+          11
+        ],
+        [
+          18,
+          6
+        ],
+        [
+          18,
+          7
+        ],
+        [
+          18,
+          8
+        ],
+        [
+          18,
+          9
+        ],
+        [
+          18,
+          10
+        ],
+        [
+          18,
+          11
+        ],
+        [
+          19,
+          6
+        ],
+        [
+          19,
+          7
+        ],
+        [
+          19,
+          8
+        ],
+        [
+          19,
+          9
+        ],
+        [
+          19,
+          10
+        ],
+        [
+          19,
+          11
+        ]
+      ],
+      "description": "Three stone sarcophagi stand among carved columns and silent skeletal sentries."
+    },
+    {
+      "room_id": "pens",
+      "name": "Prisoner Pens",
+      "cells": [
+        [
+          20,
+          3
+        ],
+        [
+          20,
+          4
+        ],
+        [
+          20,
+          5
+        ],
+        [
+          20,
+          6
+        ],
+        [
+          20,
+          7
+        ],
+        [
+          20,
+          8
+        ],
+        [
+          20,
+          9
+        ],
+        [
+          21,
+          3
+        ],
+        [
+          21,
+          4
+        ],
+        [
+          21,
+          5
+        ],
+        [
+          21,
+          6
+        ],
+        [
+          21,
+          7
+        ],
+        [
+          21,
+          8
+        ],
+        [
+          21,
+          9
+        ],
+        [
+          22,
+          3
+        ],
+        [
+          22,
+          4
+        ],
+        [
+          22,
+          5
+        ],
+        [
+          22,
+          6
+        ],
+        [
+          22,
+          7
+        ],
+        [
+          22,
+          8
+        ],
+        [
+          22,
+          9
+        ]
+      ],
+      "description": "Iron bars divide a long chamber into cells. Frightened captives wait inside."
+    },
+    {
+      "room_id": "armory",
+      "name": "Armory",
+      "cells": [
+        [
+          17,
+          3
+        ],
+        [
+          17,
+          4
+        ],
+        [
+          17,
+          5
+        ],
+        [
+          18,
+          3
+        ],
+        [
+          18,
+          4
+        ],
+        [
+          18,
+          5
+        ]
+      ],
+      "description": "Weapon racks line the walls; red cloaks hang beside the entrance."
+    },
+    {
+      "room_id": "storeroom",
+      "name": "Storeroom",
+      "cells": [
+        [
+          11,
+          3
+        ],
+        [
+          11,
+          4
+        ],
+        [
+          11,
+          5
+        ],
+        [
+          12,
+          3
+        ],
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          5
+        ],
+        [
+          13,
+          3
+        ],
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ],
+        [
+          14,
+          3
+        ],
+        [
+          14,
+          4
+        ],
+        [
+          14,
+          5
+        ],
+        [
+          15,
+          3
+        ]
+      ],
+      "description": "Packing straw, stolen cargo and tools fill the northern end of the cavern."
+    },
+    {
+      "room_id": "crevasse",
+      "name": "Crevasse",
+      "cells": [
+        [
+          8,
+          11
+        ],
+        [
+          8,
+          12
+        ],
+        [
+          8,
+          13
+        ],
+        [
+          8,
+          14
+        ],
+        [
+          8,
+          15
+        ],
+        [
+          8,
+          16
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          9,
+          16
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          10,
+          14
+        ],
+        [
+          10,
+          15
+        ],
+        [
+          10,
+          16
+        ],
+        [
+          10,
+          17
+        ],
+        [
+          10,
+          18
+        ],
+        [
+          10,
+          19
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          11,
+          15
+        ],
+        [
+          11,
+          16
+        ],
+        [
+          11,
+          17
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          12,
+          7
+        ],
+        [
+          12,
+          8
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          12,
+          13
+        ],
+        [
+          12,
+          14
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          12,
+          16
+        ],
+        [
+          12,
+          17
+        ],
+        [
+          13,
+          6
+        ],
+        [
+          13,
+          7
+        ],
+        [
+          13,
+          8
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          13,
+          10
+        ],
+        [
+          13,
+          11
+        ],
+        [
+          13,
+          12
+        ],
+        [
+          13,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          13,
+          16
+        ],
+        [
+          14,
+          7
+        ],
+        [
+          14,
+          8
+        ],
+        [
+          14,
+          9
+        ]
+      ],
+      "description": "Two narrow wooden bridges span a deep, cold fissure. A voice presses into your thoughts from the shadows."
+    },
+    {
+      "room_id": "guard-barracks",
+      "name": "Guard Barracks",
+      "cells": [
+        [
+          2,
+          16
+        ],
+        [
+          2,
+          17
+        ],
+        [
+          2,
+          18
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          3,
+          17
+        ],
+        [
+          3,
+          18
+        ],
+        [
+          4,
+          16
+        ],
+        [
+          4,
+          17
+        ],
+        [
+          4,
+          18
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          6,
+          16
+        ],
+        [
+          6,
+          17
+        ],
+        [
+          6,
+          18
+        ]
+      ],
+      "description": "Four crude beds fill a foul-smelling barracks; a frightened goblin cowers nearby."
+    },
+    {
+      "room_id": "common-room",
+      "name": "Common Room",
+      "cells": [
+        [
+          2,
+          8
+        ],
+        [
+          2,
+          9
+        ],
+        [
+          2,
+          10
+        ],
+        [
+          2,
+          11
+        ],
+        [
+          2,
+          12
+        ],
+        [
+          3,
+          8
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          3,
+          12
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          9
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          4,
+          11
+        ],
+        [
+          4,
+          12
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          5,
+          11
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "description": "Ale barrels and mismatched tables surround a noisy game of dice."
+    },
+    {
+      "room_id": "workshop",
+      "name": "Wizard's Workshop",
+      "cells": [
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "description": "Glass vessels bubble on a workbench. A rat watches from beneath the furniture."
+    },
+    {
+      "room_id": "quarters",
+      "name": "Glasstaff's Quarters",
+      "cells": [
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          8,
+          3
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "description": "Red drapes frame a desk, bed and unlocked chest in a private chamber."
+    }
+  ],
+  "doors": [
+    {
+      "door_id": "cellar-barracks",
+      "label": "Barracks door",
+      "cells": [
+        [
+          19,
+          14
+        ],
+        [
+          20,
+          14
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "cellar-hall",
+      "label": "Hall door",
+      "cells": [
+        [
+          26,
+          12
+        ],
+        [
+          26,
+          13
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "hall-crypt",
+      "label": "Copper double doors",
+      "cells": [
+        [
+          19,
+          10
+        ],
+        [
+          20,
+          10
+        ],
+        [
+          19,
+          11
+        ],
+        [
+          20,
+          11
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "crypt-pens",
+      "label": "Pens door",
+      "cells": [
+        [
+          19,
+          6
+        ],
+        [
+          20,
+          6
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "crypt-corridor",
+      "label": "Northern door",
+      "cells": [
+        [
+          16,
+          5
+        ],
+        [
+          16,
+          6
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "armory-door",
+      "label": "Locked armory door",
+      "cells": [
+        [
+          16,
+          3
+        ],
+        [
+          17,
+          3
+        ]
+      ],
+      "secret": false,
+      "locked": true,
+      "force_dc": 20,
+      "key_flag": "master-key"
+    },
+    {
+      "door_id": "north-cell",
+      "label": "North cell gate",
+      "cells": [
+        [
+          21,
+          4
+        ],
+        [
+          21,
+          5
+        ]
+      ],
+      "secret": false,
+      "locked": true,
+      "force_dc": 22,
+      "key_flag": "master-key"
+    },
+    {
+      "door_id": "south-cell",
+      "label": "South cell gate",
+      "cells": [
+        [
+          21,
+          7
+        ],
+        [
+          21,
+          8
+        ]
+      ],
+      "secret": false,
+      "locked": true,
+      "force_dc": 22,
+      "key_flag": "master-key"
+    },
+    {
+      "door_id": "guard-door",
+      "label": "Guard barracks door",
+      "cells": [
+        [
+          3,
+          15
+        ],
+        [
+          3,
+          16
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "common-south",
+      "label": "Common room south door",
+      "cells": [
+        [
+          3,
+          12
+        ],
+        [
+          3,
+          13
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "common-north",
+      "label": "Common room north door",
+      "cells": [
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "workshop-door",
+      "label": "Workshop door",
+      "cells": [
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "quarters-door",
+      "label": "Quarters door",
+      "cells": [
+        [
+          5,
+          4
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "secret": false,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "cellar-secret",
+      "label": "Concealed cellar panel",
+      "cells": [
+        [
+          19,
+          18
+        ],
+        [
+          20,
+          18
+        ]
+      ],
+      "secret": true,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "storeroom-secret",
+      "label": "Concealed eastern panel",
+      "cells": [
+        [
+          14,
+          4
+        ],
+        [
+          15,
+          4
+        ]
+      ],
+      "secret": true,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "quarters-secret",
+      "label": "Concealed quarters panel",
+      "cells": [
+        [
+          9,
+          3
+        ],
+        [
+          10,
+          3
+        ]
+      ],
+      "secret": true,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    },
+    {
+      "door_id": "stair-secret",
+      "label": "Concealed stair panel",
+      "cells": [
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ]
+      ],
+      "secret": true,
+      "locked": false,
+      "force_dc": 20,
+      "key_flag": null
+    }
+  ],
+  "encounters": [
+    {
+      "encounter_id": "redbrand-barracks",
+      "room_id": "barracks",
+      "label": "Redbrand Ruffian",
+      "monsters": [
+        {
+          "actor_id": "redbrand-barracks-1",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Ruffian 1",
+          "position": [
+            16,
+            13
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "redbrand-barracks-2",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Ruffian 2",
+          "position": [
+            18,
+            13
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "redbrand-barracks-3",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Ruffian 3",
+          "position": [
+            17,
+            15
+          ],
+          "conditions": []
+        }
+      ],
+      "trigger_cells": [
+        [
+          16,
+          13
+        ],
+        [
+          16,
+          14
+        ],
+        [
+          16,
+          15
+        ],
+        [
+          16,
+          16
+        ],
+        [
+          17,
+          13
+        ],
+        [
+          17,
+          14
+        ],
+        [
+          17,
+          15
+        ],
+        [
+          17,
+          16
+        ],
+        [
+          18,
+          13
+        ],
+        [
+          18,
+          14
+        ],
+        [
+          18,
+          15
+        ],
+        [
+          18,
+          16
+        ],
+        [
+          19,
+          14
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "barracks-cleared"
+      ],
+      "bypass_flag": null
+    },
+    {
+      "encounter_id": "crypt-skeletons",
+      "room_id": "crypt",
+      "label": "Skeleton",
+      "monsters": [
+        {
+          "actor_id": "crypt-skeletons-1",
+          "monster_id": "skeleton",
+          "name": "Skeleton 1",
+          "position": [
+            16,
+            8
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "crypt-skeletons-2",
+          "monster_id": "skeleton",
+          "name": "Skeleton 2",
+          "position": [
+            19,
+            8
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "crypt-skeletons-3",
+          "monster_id": "skeleton",
+          "name": "Skeleton 3",
+          "position": [
+            16,
+            10
+          ],
+          "conditions": []
+        }
+      ],
+      "trigger_cells": [
+        [
+          16,
+          6
+        ],
+        [
+          16,
+          7
+        ],
+        [
+          17,
+          6
+        ],
+        [
+          17,
+          7
+        ],
+        [
+          17,
+          8
+        ],
+        [
+          18,
+          6
+        ],
+        [
+          18,
+          7
+        ],
+        [
+          18,
+          8
+        ],
+        [
+          19,
+          6
+        ],
+        [
+          19,
+          7
+        ],
+        [
+          19,
+          8
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "crypt-cleared"
+      ],
+      "bypass_flag": "crypt-password-known"
+    },
+    {
+      "encounter_id": "prison-guards",
+      "room_id": "pens",
+      "label": "Redbrand Guard",
+      "monsters": [
+        {
+          "actor_id": "prison-guards-1",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Guard 1",
+          "position": [
+            21,
+            6
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "prison-guards-2",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Guard 2",
+          "position": [
+            22,
+            7
+          ],
+          "conditions": []
+        }
+      ],
+      "trigger_cells": [
+        [
+          20,
+          3
+        ],
+        [
+          20,
+          4
+        ],
+        [
+          20,
+          5
+        ],
+        [
+          20,
+          6
+        ],
+        [
+          20,
+          7
+        ],
+        [
+          20,
+          8
+        ],
+        [
+          20,
+          9
+        ],
+        [
+          21,
+          3
+        ],
+        [
+          21,
+          4
+        ],
+        [
+          21,
+          5
+        ],
+        [
+          21,
+          6
+        ],
+        [
+          21,
+          7
+        ],
+        [
+          21,
+          8
+        ],
+        [
+          21,
+          9
+        ],
+        [
+          22,
+          3
+        ],
+        [
+          22,
+          4
+        ],
+        [
+          22,
+          5
+        ],
+        [
+          22,
+          6
+        ],
+        [
+          22,
+          7
+        ],
+        [
+          22,
+          8
+        ],
+        [
+          22,
+          9
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "prison-guards-cleared"
+      ],
+      "bypass_flag": null
+    },
+    {
+      "encounter_id": "nothic",
+      "room_id": "crevasse",
+      "label": "Nothic",
+      "monsters": [
+        {
+          "actor_id": "nothic-1",
+          "monster_id": "nothic",
+          "name": "Nothic",
+          "position": [
+            8,
+            13
+          ],
+          "conditions": []
+        }
+      ],
+      "trigger_cells": [
+        [
+          8,
+          11
+        ],
+        [
+          8,
+          12
+        ],
+        [
+          8,
+          13
+        ],
+        [
+          8,
+          14
+        ],
+        [
+          8,
+          15
+        ],
+        [
+          8,
+          16
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          9,
+          16
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          10,
+          14
+        ],
+        [
+          10,
+          15
+        ],
+        [
+          10,
+          16
+        ],
+        [
+          10,
+          17
+        ],
+        [
+          10,
+          18
+        ],
+        [
+          10,
+          19
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          11,
+          15
+        ],
+        [
+          11,
+          16
+        ],
+        [
+          11,
+          17
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          12,
+          7
+        ],
+        [
+          12,
+          8
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          12,
+          13
+        ],
+        [
+          12,
+          14
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          12,
+          16
+        ],
+        [
+          12,
+          17
+        ],
+        [
+          13,
+          6
+        ],
+        [
+          13,
+          7
+        ],
+        [
+          13,
+          8
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          13,
+          10
+        ],
+        [
+          13,
+          11
+        ],
+        [
+          13,
+          12
+        ],
+        [
+          13,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          13,
+          16
+        ],
+        [
+          14,
+          7
+        ],
+        [
+          14,
+          8
+        ],
+        [
+          14,
+          9
+        ]
+      ],
+      "automatic": false,
+      "resolved_grants": [
+        "nothic-resolved"
+      ],
+      "bypass_flag": "nothic-truce"
+    },
+    {
+      "encounter_id": "bugbear-guards",
+      "room_id": "guard-barracks",
+      "label": "Bugbear",
+      "monsters": [
+        {
+          "actor_id": "bugbear-guards-1",
+          "monster_id": "bugbear",
+          "name": "Bugbear 1",
+          "position": [
+            2,
+            16
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "bugbear-guards-2",
+          "monster_id": "bugbear",
+          "name": "Bugbear 2",
+          "position": [
+            6,
+            16
+          ],
+          "conditions": []
+        },
+        {
+          "actor_id": "bugbear-guards-3",
+          "monster_id": "bugbear",
+          "name": "Bugbear 3",
+          "position": [
+            4,
+            18
+          ],
+          "conditions": []
+        }
+      ],
+      "trigger_cells": [
+        [
+          2,
+          16
+        ],
+        [
+          2,
+          17
+        ],
+        [
+          2,
+          18
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          3,
+          17
+        ],
+        [
+          3,
+          18
+        ],
+        [
+          4,
+          16
+        ],
+        [
+          4,
+          17
+        ],
+        [
+          4,
+          18
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          6,
+          16
+        ],
+        [
+          6,
+          17
+        ],
+        [
+          6,
+          18
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "bugbears-cleared"
+      ],
+      "bypass_flag": null
+    },
+    {
+      "encounter_id": "redbrand-common",
+      "room_id": "common-room",
+      "label": "Redbrand Gambler",
+      "monsters": [
+        {
+          "actor_id": "redbrand-common-1",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Gambler 1",
+          "position": [
+            3,
+            9
+          ],
+          "conditions": [
+            "poisoned"
+          ]
+        },
+        {
+          "actor_id": "redbrand-common-2",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Gambler 2",
+          "position": [
+            4,
+            9
+          ],
+          "conditions": [
+            "poisoned"
+          ]
+        },
+        {
+          "actor_id": "redbrand-common-3",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Gambler 3",
+          "position": [
+            3,
+            10
+          ],
+          "conditions": [
+            "poisoned"
+          ]
+        },
+        {
+          "actor_id": "redbrand-common-4",
+          "monster_id": "redbrand-ruffian",
+          "name": "Redbrand Gambler 4",
+          "position": [
+            5,
+            10
+          ],
+          "conditions": [
+            "poisoned"
+          ]
+        }
+      ],
+      "trigger_cells": [
+        [
+          2,
+          8
+        ],
+        [
+          2,
+          9
+        ],
+        [
+          2,
+          10
+        ],
+        [
+          2,
+          11
+        ],
+        [
+          2,
+          12
+        ],
+        [
+          3,
+          8
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          3,
+          12
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          9
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          4,
+          11
+        ],
+        [
+          4,
+          12
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          5,
+          11
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "common-room-cleared"
+      ],
+      "bypass_flag": null
+    },
+    {
+      "encounter_id": "glasstaff",
+      "room_id": "quarters",
+      "label": "Iarno Glasstaff",
+      "monsters": [
+        {
+          "actor_id": "glasstaff-1",
+          "monster_id": "evil-mage-lmop",
+          "name": "Iarno Glasstaff",
+          "position": [
+            8,
+            3
+          ],
+          "conditions": [],
+          "prepared_spell_ids": [
+            "light",
+            "mage-hand",
+            "shocking-grasp",
+            "charm-person",
+            "magic-missile",
+            "hold-person",
+            "misty-step"
+          ],
+          "spell_slot_counts": [
+            4,
+            3
+          ]
+        }
+      ],
+      "trigger_cells": [
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          8,
+          3
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "automatic": true,
+      "resolved_grants": [
+        "glasstaff-defeated",
+        "redbrands-broken"
+      ],
+      "bypass_flag": null
+    }
+  ],
+  "interactions": [
+    {
+      "interaction_id": "nothic-bargain",
+      "room_id": "crevasse",
+      "label": "Offer the nothic food and a truce",
+      "text": "The nothic accepts your promise of food and agrees to let you pass. It describes Glasstaff and the gang; the promise remains a debt.",
+      "grants": [
+        "nothic-truce",
+        "nothic-resolved",
+        "food-promised",
+        "glasstaff-known"
+      ],
+      "requires": [],
+      "kind": "parley",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": "nothic",
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "question-droop",
+      "room_id": "guard-barracks",
+      "label": "Reassure and question Droop",
+      "text": "Droop points out the concealed passages and warns that the southern bridge and eastern hall are trapped. He shares the crypt password, Illefarn.",
+      "grants": [
+        "secret-doors-known",
+        "crypt-password-known",
+        "trap-warning"
+      ],
+      "requires": [
+        "bugbears-cleared"
+      ],
+      "kind": "discover",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": [
+        "cellar-secret",
+        "storeroom-secret",
+        "quarters-secret",
+        "stair-secret"
+      ]
+    },
+    {
+      "interaction_id": "mosk-key",
+      "room_id": "guard-barracks",
+      "label": "Recover Mosk's key",
+      "text": "You recover an iron master key from the defeated guards.",
+      "grants": [
+        "master-key"
+      ],
+      "requires": [
+        "bugbears-cleared"
+      ],
+      "kind": "discover",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "free-prisoners",
+      "room_id": "pens",
+      "label": "Free the Dendrar family",
+      "text": "With the guards gone and both gates open, Mirna, Nars and Nilsa can follow you out. Mirna describes a family heirloom left in Thundertree.",
+      "grants": [
+        "prisoners-rescued",
+        "mirna-heirloom-known"
+      ],
+      "requires": [
+        "prison-guards-cleared"
+      ],
+      "kind": "rescue",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [
+        "north-cell",
+        "south-cell"
+      ],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "read-letter",
+      "room_id": "quarters",
+      "label": "Read the Black Spider's letter",
+      "text": "The letter names Iarno Albrek, ties him to the Black Spider and orders him to seize dwarf maps. It is evidence of his betrayal.",
+      "grants": [
+        "black-spider-letter",
+        "iarno-identity-known"
+      ],
+      "requires": [
+        "glasstaff-defeated"
+      ],
+      "kind": "discover",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "study-notes",
+      "room_id": "workshop",
+      "label": "Read the workshop's research",
+      "text": "The notes concern invisibility experiments. A dwarven journal records the Pact of Phandelver and the lost Forge of Spells.",
+      "grants": [
+        "forge-of-spells-known"
+      ],
+      "requires": [],
+      "kind": "discover",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "take-cloaks",
+      "room_id": "armory",
+      "label": "Collect scarlet disguises",
+      "text": "The armory holds scarlet cloaks. Wearing them avoids the crypt sentries, but does not guarantee that people accept the disguise.",
+      "grants": [
+        "crypt-password-known",
+        "redbrand-cloaks"
+      ],
+      "requires": [],
+      "kind": "discover",
+      "ability": null,
+      "skill": null,
+      "dc": null,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    },
+    {
+      "interaction_id": "search-cistern",
+      "room_id": "cellar",
+      "label": "Search the cistern",
+      "text": "You locate a submerged emergency pack and learn that the wizard prepared a second way out.",
+      "grants": [
+        "cistern-cache-known"
+      ],
+      "requires": [],
+      "kind": "discover",
+      "ability": "WIS",
+      "skill": "Perception",
+      "dc": 15,
+      "required_open_doors": [],
+      "required_living_encounter": null,
+      "reveals_doors": []
+    }
+  ],
+  "hazards": [
+    {
+      "hazard_id": "hall-pit",
+      "label": "Concealed pit",
+      "cells": [
+        [
+          22,
+          10
+        ],
+        [
+          23,
+          10
+        ],
+        [
+          22,
+          11
+        ],
+        [
+          23,
+          11
+        ]
+      ],
+      "detection_ability": "WIS",
+      "detection_skill": "Perception",
+      "detection_dc": 15,
+      "depth_ft": 20,
+      "save_dc": 15,
+      "weight_threshold_lb": 100,
+      "weight_threshold_inclusive": true
+    },
+    {
+      "hazard_id": "rigged-bridge",
+      "label": "Rigged southern bridge",
+      "cells": [
+        [
+          10,
+          15
+        ],
+        [
+          11,
+          15
+        ]
+      ],
+      "detection_ability": "INT",
+      "detection_skill": "Investigation",
+      "detection_dc": 15,
+      "depth_ft": 20,
+      "feature_id": "south-bridge",
+      "weight_threshold_lb": 50
+    }
+  ],
+  "chapter_id": "chapter-02",
+  "arrival_scene_id": "scene-phandalin-arrival",
+  "dungeon_scene_id": "scene-redbrand-hideout",
+  "arrival_goals": [
+    "Explore Phandalin and learn what has happened to Gundren.",
+    "Investigate the Redbrands and choose how to respond."
+  ],
+  "arrival_open_loops": [
+    "Who leads the Redbrands?",
+    "What became of the Dendrar family?"
+  ],
+  "return_grants": [
+    [
+      "prisoners-rescued",
+      "prisoners-safe"
+    ]
+  ]
+}

@@ -281,6 +281,12 @@ class NpcInfluenceProfile:
     display_name: str
     base_attitude: NpcAttitude
     base_stance: str
+    base_trust: int = 0
+    base_hostility: int = 0
+    base_leverage: int = 0
+    base_obligation: int = 0
+    base_fear: int = 0
+    base_interest: int = 0
     scene_ids: tuple[str, ...] = ()
     location_ids: tuple[str, ...] = ()
     approaches: tuple[SocialApproachDefinition, ...] = ()

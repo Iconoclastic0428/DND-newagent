@@ -49,9 +49,18 @@ class FogCloudLevel1SpellTests(EncounterLevel1SpellTestCase):
         assessment = assess_visibility(session.state, observer, target)
         self.assertEqual(assessment.visibility_state, ObserverVisibilityState.UNSEEN)
 
-    def test_creatures_outside_the_cloud_remain_visible(self) -> None:
+    def test_creatures_behind_the_cloud_are_not_visible(self) -> None:
         session = self._setup_session()
         session.state, _ = session.command_interface.execute(session.state, self.COMMAND)
+        observer = session.state.actors['player-1']
+        target = session.state.actors['monster-mage-1']
+        assessment = assess_visibility(session.state, observer, target)
+        self.assertEqual(assessment.visibility_state, ObserverVisibilityState.HIDDEN)
+
+    def test_creatures_outside_and_not_behind_the_cloud_remain_visible(self) -> None:
+        session = self._setup_session()
+        session.state.actors['monster-mage-1'].position = GridPosition(0, 10, 0)
+        session.state, _ = session.command_interface.execute(session.state, '/cast player-1 fog-cloud 5 0')
         observer = session.state.actors['player-1']
         target = session.state.actors['monster-mage-1']
         assessment = assess_visibility(session.state, observer, target)

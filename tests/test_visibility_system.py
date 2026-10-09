@@ -131,6 +131,7 @@ class VisibilitySystemTests(unittest.TestCase):
         self.assertEqual(unseen_token.visibility_state, 'unseen')
         self.assertEqual(unseen_token.name, 'Unseen contact')
         self.assertEqual(unseen_token.side, 'unknown')
+        self.assertIsNone(unseen_token.token_image_url)
 
     def test_inspect_cell_requires_current_visibility(self) -> None:
         session = self._build_session()

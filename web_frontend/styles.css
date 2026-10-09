@@ -297,7 +297,7 @@ button:disabled {
 }
 
 .map-grid.has-background .map-cell.not-visible {
-  background: rgba(8, 12, 18, 0.78);
+  background: #080c12;
   color: rgba(247, 242, 232, 0.32);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.26);
 }
@@ -759,3 +759,18 @@ button:disabled {
 
 
 
+
+/* Site navigation uses authored town POIs, not a fictitious tactical town grid. */
+.site-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; padding: .75rem; background: #f1e7d2; position: sticky; top: 0; left: 0; z-index: 4; }
+.site-heading { margin-right: .5rem; color: #513817; }
+.site-discoveries { flex-basis: 100%; font-size: .8rem; color: #513817; }
+.site-discoveries p { margin: .4rem 0; }
+.town-map { position: relative; min-width: 0; width: 100%; background-size: 100% 100%; background-repeat: no-repeat; }
+.town-place { position: absolute; transform: translate(-50%, -50%); max-width: 108px; padding: .45rem .65rem; border: 1px solid #e2c080; border-radius: 6px; background: #152332ed; color: #fff1cd; font-size: .78rem; box-shadow: 0 2px 6px #0008; cursor: pointer; }
+.town-place.current { background: #6b4818; outline: 3px solid #f0cb7e; }
+.town-place:hover { background: #344d65; }
+.town-place[data-place-id="stonehill-inn"] { transform: translate(-100%, -50%); }
+.town-place[data-place-id="sleeping-giant"] { transform: translate(0, -50%); }
+
+.site-weight { display: flex; align-items: center; gap: 8px; }
+.site-weight input { width: 7em; margin-left: 8px; }

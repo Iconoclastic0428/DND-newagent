@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--campaign-root', type=Path, help='Optional override for the campaign markdown root.')
     parser.add_argument('--base-url', help='Optional override for the 5etools mirror base URL.')
     parser.add_argument('--local-llm', action='store_true', help='Use a deterministic in-process LLM transport for local demo verification.')
+    parser.add_argument('--story-start', choices=('waterdeep', 'cragmaw', 'phandalin'), default='waterdeep', help='Starting story slice after characters are ready.')
     parser.add_argument(
         '--start-in-character-creation',
         action='store_true',
@@ -193,6 +194,7 @@ def main() -> int:
             env_path=args.env_path,
             client_transport=LocalDemoLLMTransport() if args.local_llm else None,
             precreate_characters=not args.start_in_character_creation and args.load_characters is None,
+            story_start=args.story_start,
             character_load_path=args.load_characters,
             character_save_path=args.save_characters,
             llm_player_agents=llm_player_agents,
@@ -209,6 +211,7 @@ def main() -> int:
             websocket_host=args.host,
             websocket_port=args.ws_port,
             automation_api_enabled=True,
+            mirror_base_url=args.base_url,
         )
         server.serve_forever()
         return 0

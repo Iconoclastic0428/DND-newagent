@@ -77,6 +77,13 @@ class ExplorationProcedureTests(unittest.TestCase):
         self.assertEqual(exploration.marching_order[0].position.value, 'scout')
         visible_npcs = session.exploration_engine.visible_npc_states(exploration)
         self.assertEqual([npc.npc_id for npc in visible_npcs], ['gundren-rockseeker', 'sildar-hallwinter'])
+        gundren = exploration.npc_states['gundren-rockseeker']
+        sildar = exploration.npc_states['sildar-hallwinter']
+        self.assertEqual(gundren.attitude.value, 'friendly')
+        self.assertEqual(gundren.trust, 5)
+        self.assertIn('former hires', gundren.current_stance)
+        self.assertEqual(sildar.trust, 0)
+        self.assertIn('does not personally know the party', sildar.current_stance)
 
     def test_marching_watch_and_role_state_persist_into_combat(self) -> None:
         session = self._build_session()

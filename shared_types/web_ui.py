@@ -482,6 +482,37 @@ class WebTravelRoutePreviewView:
 
 
 @dataclass(frozen=True)
+class WebSiteActionView:
+    action_id: str
+    label: str
+    command: str
+
+
+@dataclass(frozen=True)
+class WebTownPlaceView:
+    place_id: str
+    name: str
+    x: float
+    y: float
+    current: bool
+    command: str
+
+
+@dataclass(frozen=True)
+class WebCampaignSiteView:
+    site_id: str
+    in_dungeon: bool
+    place_id: str | None
+    town_image: str
+    town_width_px: int
+    town_height_px: int
+    places: tuple[WebTownPlaceView, ...]
+    actions: tuple[WebSiteActionView, ...]
+    discoveries: tuple[str, ...]
+    actor_body_weight_lb: float | None = None
+
+
+@dataclass(frozen=True)
 class WebSessionView:
     session_id: str
     controller_id: str
@@ -504,6 +535,7 @@ class WebSessionView:
     travel: WebTravelMapView | None
     chat_entries: tuple[WebChatEntryView, ...]
     character_cards: tuple[WebCharacterCardView, ...] = ()
+    site: WebCampaignSiteView | None = None
 
 
 @dataclass(frozen=True)

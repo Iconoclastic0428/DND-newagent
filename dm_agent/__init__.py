@@ -32,9 +32,11 @@ from .runtime import (
     ModeSwitchAction,
     ModeSwitchDecision,
     ModeSwitchDecisionType,
+    NpcRoleplayBrief,
     RetrievalSelection,
     RuntimeMode,
     StorytellingTurnContext,
+    build_npc_roleplay_brief,
 )
 
 __all__ = [
@@ -69,9 +71,11 @@ __all__ = [
     'ModeSwitchAction',
     'ModeSwitchDecision',
     'ModeSwitchDecisionType',
+    'NpcRoleplayBrief',
     'RetrievalSelection',
     'RuntimeMode',
     'StorytellingTurnContext',
+    'build_npc_roleplay_brief',
     'CampaignStateSummary',
     'DiscoveredSecretsSummary',
     'DmMemoryWriter',

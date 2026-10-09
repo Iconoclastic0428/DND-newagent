@@ -1,0 +1,510 @@
+{
+  "schemaVersion": "2.0.0",
+  "mapId": "cragmaw_hideout_player_v1",
+  "name": "Cragmaw Hideout",
+  "source": {
+    "moduleHint": "Lost Mine of Phandelver / Cragmaw Hideout",
+    "authoringMethod": "grid-aligned transcription from verified local 5e.tools generated map metadata",
+    "notes": [
+      "Uses the player-version Cragmaw Hideout image from the local 5e.tools mirror.",
+      "5e.tools generated map metadata: width 4500 px, height 3136 px, square grid size 150 px, offset (-4, -7).",
+      "The tactical grid is 30 x 21 five-foot squares.",
+      "The printed lower-left map legend/key is authored as non-playable stone wall cells.",
+      "Implicit elevation is authored for bridge-connected ledges, under-bridge passage, stairs, shelves, and the steep cliff edge.",
+      "Stone wall cells block movement, line of sight, line of effect, and grid vision."
+    ]
+  },
+  "backgroundImage": {
+    "url": "assets/maps/cragmaw-hideout-player.webp",
+    "widthPx": 4500,
+    "heightPx": 3136,
+    "gridType": "square",
+    "gridSizePx": 150,
+    "gridOffsetXPx": -4,
+    "gridOffsetYPx": -7,
+    "sourceInternalPath": "adventure/LMoP/Cragmaw Hideout (Player).webp"
+  },
+  "visionDefaults": {
+    "timeOfDay": "day",
+    "dayRadiusFt": 120,
+    "nightRadiusFt": 30
+  },
+  "grid": {
+    "cellSizeFeet": 5,
+    "width": 30,
+    "height": 21,
+    "origin": "top_left",
+    "coordinates": "x_right_y_down",
+    "playableBounds": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 29,
+      "maxY": 20
+    }
+  },
+  "defaults": {
+    "terrain": "stone_wall",
+    "elevationFt": 0,
+    "airspaceTopFt": 40
+  },
+  "terrainTypes": {
+    "stone_wall": {
+      "traversable": false,
+      "occupiable": false,
+      "movementCostFeetPer5Ft": 5,
+      "difficultTerrain": false,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": true,
+      "blocksLOE": true,
+      "baseCover": "total",
+      "tags": [
+        "wall",
+        "stone",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "cave_floor": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 5,
+      "difficultTerrain": false,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "none",
+      "tags": [
+        "floor",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "stream_water": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 10,
+      "difficultTerrain": true,
+      "lightlyObscured": false,
+      "lighting": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "none",
+      "tags": [
+        "water",
+        "stream",
+        "difficult-terrain",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    },
+    "briars": {
+      "traversable": true,
+      "occupiable": true,
+      "movementCostFeetPer5Ft": 10,
+      "difficultTerrain": true,
+      "lightlyObscured": true,
+      "lighting": "bright",
+      "obscurement": "light",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "baseCover": "half",
+      "tags": [
+        "briars",
+        "tree",
+        "brush",
+        "difficult-terrain",
+        "cave"
+      ],
+      "ceilingFt": 40,
+      "movementModes": [
+        "walk"
+      ]
+    }
+  },
+  "terrainRegions": [
+    {
+      "id": "cragmaw_hideout_floor_regions",
+      "terrain": "cave_floor",
+      "elevationFt": 0,
+      "cells": [[17,3],[18,3],[19,3],[20,3],[23,3],[24,3],[3,4],[4,4],[5,4],[15,4],[16,4],[17,4],[18,4],[19,4],[22,4],[23,4],[24,4],[25,4],[3,5],[4,5],[5,5],[8,5],[14,5],[15,5],[16,5],[22,5],[23,5],[24,5],[25,5],[26,5],[2,6],[3,6],[4,6],[5,6],[8,6],[9,6],[10,6],[11,6],[15,6],[21,6],[22,6],[23,6],[24,6],[25,6],[26,6],[27,6],[2,7],[3,7],[4,7],[5,7],[6,7],[21,7],[22,7],[23,7],[24,7],[25,7],[26,7],[27,7],[28,7],[3,8],[4,8],[5,8],[6,8],[7,8],[8,8],[21,8],[22,8],[23,8],[24,8],[25,8],[26,8],[27,8],[4,9],[5,9],[6,9],[7,9],[8,9],[15,9],[23,9],[24,9],[25,9],[26,9],[27,9],[6,10],[7,10],[8,10],[14,10],[15,10],[16,10],[24,10],[25,10],[14,11],[15,11],[16,11],[17,11],[20,11],[21,11],[23,11],[24,11],[16,12],[17,12],[20,12],[21,12],[22,12],[23,12],[24,12],[25,12],[7,13],[8,13],[9,13],[10,13],[13,13],[17,13],[21,13],[22,13],[23,13],[24,13],[25,13],[26,13],[27,13],[6,14],[7,14],[8,14],[9,14],[10,14],[12,14],[13,14],[22,14],[23,14],[24,14],[25,14],[26,14],[27,14],[6,15],[7,15],[8,15],[9,15],[12,15],[13,15],[14,15],[15,15],[16,15],[17,15],[23,15],[24,15],[25,15],[26,15],[6,16],[7,16],[8,16],[9,16],[11,16],[12,16],[13,16],[14,16],[15,16],[16,16],[17,16],[18,16],[23,16],[24,16],[25,16],[26,16],[6,17],[7,17],[8,17],[9,17],[11,17],[12,17],[13,17],[14,17],[15,17],[16,17],[17,17],[18,17],[19,17],[6,18],[7,18],[8,18],[9,18],[11,18],[12,18],[13,18],[14,18],[15,18],[16,18],[17,18],[18,18],[19,18],[6,19],[7,19],[8,19],[9,19],[11,19],[12,19],[13,19],[14,19],[15,19],[16,19],[17,19],[18,19],[19,19],[20,19]]
+    },
+    {
+      "id": "cragmaw_hideout_printed_legend_walls",
+      "terrain": "stone_wall",
+      "elevationFt": 0,
+      "cells": [[1,12],[2,12],[3,12],[4,12],[5,12],[1,13],[2,13],[3,13],[4,13],[5,13],[1,14],[2,14],[3,14],[4,14],[5,14],[1,15],[2,15],[3,15],[4,15],[5,15],[1,16],[2,16],[3,16],[4,16],[5,16],[1,17],[2,17],[3,17],[4,17],[5,17],[1,18],[2,18],[3,18],[4,18],[5,18],[1,19],[2,19],[3,19],[4,19],[5,19],[1,20],[2,20],[3,20],[4,20],[5,20]]
+    },
+    {
+      "id": "cragmaw_hideout_briars",
+      "terrain": "briars",
+      "elevationFt": 0,
+      "cells": [[7,13],[8,13],[9,13],[6,14],[7,14],[8,14],[9,14],[6,15],[12,15],[12,16],[12,17],[12,18],[13,18],[12,19],[13,19]]
+    },
+    {
+      "id": "cragmaw_hideout_stream_water",
+      "terrain": "stream_water",
+      "elevationFt": 0,
+      "cells": [[17,3],[18,3],[19,3],[20,3],[23,3],[24,3],[16,4],[17,4],[18,4],[19,4],[20,4],[21,4],[22,4],[23,4],[24,4],[25,4],[14,5],[22,5],[23,5],[24,5],[25,5],[26,5],[13,6],[14,6],[22,6],[23,6],[24,6],[25,6],[26,6],[27,6],[12,7],[13,7],[24,7],[25,7],[26,7],[27,7],[12,8],[26,8],[27,8],[12,9],[12,10],[12,11],[12,12],[12,13],[11,14],[12,14],[10,15],[11,15],[10,16],[11,16],[10,17],[11,17],[10,18],[11,18],[10,19],[11,19],[10,20],[11,20]]
+    },
+    {
+      "id": "cragmaw_hideout_under_bridge_floor",
+      "terrain": "cave_floor",
+      "elevationFt": 10,
+      "cells": [[15,4]]
+    },
+    {
+      "id": "cragmaw_hideout_under_bridge_water",
+      "terrain": "stream_water",
+      "elevationFt": 10,
+      "cells": [[16,4],[15,5],[16,5]]
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_low_start",
+      "terrain": "cave_floor",
+      "elevationFt": 0,
+      "cells": [[13,9]]
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_5ft",
+      "terrain": "cave_floor",
+      "elevationFt": 5,
+      "cells": [[14,8],[14,9]]
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_10ft",
+      "terrain": "cave_floor",
+      "elevationFt": 10,
+      "cells": [[15,7],[15,8]]
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_15ft",
+      "terrain": "cave_floor",
+      "elevationFt": 15,
+      "cells": [[16,6],[16,7]]
+    },
+    {
+      "id": "cragmaw_hideout_bridge_connected_20ft",
+      "terrain": "cave_floor",
+      "elevationFt": 20,
+      "cells": [[14,4],[17,5],[17,6],[18,6],[19,6],[20,5],[20,6]]
+    },
+    {
+      "id": "cragmaw_hideout_upper_tunnel_20ft",
+      "terrain": "cave_floor",
+      "elevationFt": 20,
+      "cells": [[18,7],[19,7]]
+    },
+    {
+      "id": "cragmaw_hideout_bridge_entrance_lower_20_7",
+      "terrain": "cave_floor",
+      "elevationFt": 0,
+      "cells": [[20,7]]
+    },
+    {
+      "id": "cragmaw_hideout_right_stair_lower_shelf_20ft",
+      "terrain": "cave_floor",
+      "elevationFt": 20,
+      "cells": [[23,10],[23,11],[23,12]]
+    },
+    {
+      "id": "cragmaw_hideout_right_stair_steps_25ft",
+      "terrain": "cave_floor",
+      "elevationFt": 25,
+      "cells": [[24,10],[25,10]]
+    },
+    {
+      "id": "cragmaw_hideout_right_upper_shelf_30ft",
+      "terrain": "cave_floor",
+      "elevationFt": 30,
+      "cells": [[24,11],[25,11],[24,12],[25,12],[24,13],[25,13]]
+    },
+    {
+      "id": "cragmaw_hideout_steep_cliff_upper_20ft",
+      "terrain": "cave_floor",
+      "elevationFt": 20,
+      "cells": [[18,12],[19,12],[20,12]]
+    },
+    {
+      "id": "cragmaw_hideout_steep_cliff_lower_0ft",
+      "terrain": "cave_floor",
+      "elevationFt": 0,
+      "cells": [[18,13],[19,13],[20,13]]
+    }
+  ],
+  "objects": [
+    {
+      "id": "cragmaw_hideout_bridge_deck",
+      "type": "bridge",
+      "cells": [[15,4],[16,4],[15,5],[16,5]],
+      "elevationFt": 20,
+      "traversable": true,
+      "occupiable": true,
+      "lightLevel": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 15,
+      "topFt": 20,
+      "movementCostOverrideFeetPer5Ft": null,
+      "rotationDeg": null,
+      "tags": ["bridge", "raised-deck", "cave"]
+    },
+    {
+      "id": "cragmaw_hideout_bridge_approach_20_7",
+      "type": "bridge-approach",
+      "cells": [[20,7]],
+      "elevationFt": 20,
+      "traversable": true,
+      "occupiable": true,
+      "lightLevel": "bright",
+      "obscurement": "none",
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "coverProvided": "none",
+      "bottomFt": 15,
+      "topFt": 20,
+      "movementCostOverrideFeetPer5Ft": null,
+      "rotationDeg": null,
+      "tags": ["bridge", "raised-approach", "cave"]
+    }
+  ],
+  "blockers": [],
+  "spatialRules": {
+    "defaultElevationTransitionRule": {
+      "thresholdFeet": 999,
+      "effect": "none",
+      "movement": "flat_2d_only",
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksDiagonalCornerCutting": false,
+      "coverFromLowToHigh": "none",
+      "coverFromHighToLow": "none",
+      "transitionType": "flat",
+      "traversalRequirement": "none"
+    },
+    "defaultAirspaceTopFt": 40,
+    "defaultActorVolumeHeightFt": 5,
+    "verticalTraversalIncrementFt": 5
+  },
+  "edgeOverrides": [
+    {
+      "id": "cragmaw_hideout_partial_water_wall_21_4_south",
+      "a": [21,4],
+      "b": [21,5],
+      "transitionType": "blocked",
+      "traversalRequirement": "blocked",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_13_9_to_14_8",
+      "a": [13,9],
+      "b": [14,8],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_under_bridge_stream_14_5_to_15_5",
+      "a": [14,5],
+      "b": [15,5],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 10,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_under_bridge_stream_16_5_to_17_4",
+      "a": [16,5],
+      "b": [17,4],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": -10,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_under_bridge_stream_16_4_to_17_4",
+      "a": [16,4],
+      "b": [17,4],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": -10,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_14_8_to_15_7",
+      "a": [14,8],
+      "b": [15,7],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_15_7_to_16_6",
+      "a": [15,7],
+      "b": [16,6],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_left_stair_16_6_to_17_6",
+      "a": [16,6],
+      "b": [17,6],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_wall_side_17_6_to_18_6",
+      "a": [17,6],
+      "b": [18,6],
+      "transitionType": "flat",
+      "traversalRequirement": "none",
+      "heightChangeFt": 0,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true
+    },
+    {
+      "id": "cragmaw_hideout_right_stair_23_10_to_24_10",
+      "a": [23,10],
+      "b": [24,10],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_right_stair_24_10_to_24_11",
+      "a": [24,10],
+      "b": [24,11],
+      "transitionType": "ramp",
+      "traversalRequirement": "none",
+      "heightChangeFt": 5,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": false,
+      "blocksLOE": false,
+      "requiresVerticalConfirmation": false
+    },
+    {
+      "id": "cragmaw_hideout_steep_cliff_18_12_south",
+      "a": [18,12],
+      "b": [18,13],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true
+    },
+    {
+      "id": "cragmaw_hideout_steep_cliff_19_12_south",
+      "a": [19,12],
+      "b": [19,13],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true
+    },
+    {
+      "id": "cragmaw_hideout_steep_cliff_20_12_south",
+      "a": [20,12],
+      "b": [20,13],
+      "transitionType": "climbable_ledge",
+      "traversalRequirement": "climb",
+      "heightChangeFt": -20,
+      "extraMovementCostFeet": 0,
+      "extraMovementCostFeetWithClimbSpeed": null,
+      "blocksLOS": true,
+      "blocksLOE": true
+    }
+  ],
+  "spawnZones": {
+    "players": {
+      "cells": [
+        [13,17],
+        [14,17],
+        [13,18],
+        [14,18]
+      ],
+      "note": "central lower cave floor for manual map-vision testing"
+    }
+  },
+  "integrationHints": {
+    "battlefieldStateKey": "battlefield",
+    "recommendedQueries": [
+      "getTile(x, y)",
+      "hasLineOfSight(observer, target)",
+      "getVisibleCells(actor, timeOfDay)",
+      "previewMove(actor, destination, options)"
+    ],
+    "publicSyncFields": [
+      "grid",
+      "backgroundImage",
+      "terrainRegions",
+      "visionDefaults",
+      "knownDynamicOverlays"
+    ]
+  }
+}

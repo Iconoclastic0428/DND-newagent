@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, is_dataclass, replace
 from enum import Enum
 from typing import Any
 from urllib.parse import quote
@@ -123,7 +123,8 @@ def project_story_session_view(session, controller_id: str, *, session_id: str) 
         summary_lines=tuple(view.summary_lines),
         action_groups=_project_action_groups(view.available_choices),
         prompt=_project_ui_prompt(prompt),
-        map=(_project_map(session, controller_id) if session.story_state.runtime_mode == RuntimeMode.COMBAT else None),
+        map=(_project_map(session, controller_id) if session.story_state.runtime_mode == RuntimeMode.COMBAT or (session.campaign_site is not None and session.campaign_site.state.progress.in_dungeon) else None),
+        site=(session.campaign_site.project(controller_id) if session.campaign_site is not None else None),
         travel=_project_travel_map(session, controller_id, binding.role),
         chat_entries=_project_story_chat_entries(session, controller_id, session_id=session_id),
         character_cards=_project_character_cards(session, controller_id, binding.role),
@@ -232,10 +233,13 @@ def inspect_cell(session, controller_id: str, *, x: int, y: int, z: int | None =
                     )
                 )
     persistent_features, apparent_overlays = _persistent_feature_projection(session, controller_id, binding.role)
+    site = getattr(session, 'campaign_site', None)
+    def known_feature(feature_id):
+        return site is None or not site.active or site.feature_is_known(feature_id, dm_view=binding.role == ControllerRole.DM)
     feature_ids = tuple(
         feature.feature_id
         for feature in battlefield.features.values()
-        if any(cell.x == x and cell.y == y for cell in feature.cells)
+        if known_feature(feature.feature_id) and any(cell.x == x and cell.y == y for cell in feature.cells)
     )
     persistent_feature_summaries = tuple(
         filter(
@@ -264,7 +268,7 @@ def inspect_cell(session, controller_id: str, *, x: int, y: int, z: int | None =
         blocks_loe=tile.blocks_loe,
         base_cover=tile.base_cover.value,
         supported_modes=tuple(mode.value for mode in tile.supported_modes),
-        object_ids=tile.object_ids + _ground_item_ids_at(session, x=x, y=y),
+        object_ids=tuple(fid for fid in tile.object_ids if known_feature(fid)) + _ground_item_ids_at(session, x=x, y=y),
         blocker_ids=tile.blocker_ids,
         tags=tile.tags,
         feature_ids=feature_ids,
@@ -278,7 +282,7 @@ def inspect_cell(session, controller_id: str, *, x: int, y: int, z: int | None =
     )
 
 def preview_path(session, controller_id: str, *, x: int, y: int, z: int | None = None, mode: str = 'walk') -> WebPathPreviewView:
-    actor = _combat_active_owned_actor(session, controller_id)
+    actor = _preview_actor(session, controller_id) if _site_exploration_active(session) else _combat_active_owned_actor(session, controller_id)
     if actor is None:
         raise EncounterPermissionError('Path preview requires the controller to own the active combat actor.')
     rules = _kernel_for_session(session).battlefield_rules
@@ -634,7 +638,19 @@ def _combat_active_owned_actor(session, controller_id: str):
 
 
 
+def _site_exploration_active(session):
+    site = getattr(session, 'campaign_site', None)
+    return site is not None and site.state.progress.in_dungeon and session.story_state.runtime_mode == RuntimeMode.STORYTELLING
+
+
 def _preview_actor(session, controller_id: str):
+    if _site_exploration_active(session):
+        from encounter_runtime.conditions import get_effective_speed
+        site = session.campaign_site
+        if _control_runtime(session).validate_controller(controller_id).role == ControllerRole.DM:
+            return None
+        actor = session.state.actors[site.actor_for(controller_id)]
+        return replace(actor, movement_spent_ft=0, dash_bonus_ft=0, remaining_movement_ft=get_effective_speed(actor))
     return _active_or_owned_actor(session, controller_id)
 
 
@@ -1116,6 +1132,9 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
     vision_modes = _controller_vision_modes(session, controller_id, binding.role)
     visible_cells = frozenset(vision_modes.keys())
     persistent_features, apparent_overlays = _persistent_feature_projection(session, controller_id, binding.role)
+    campaign_site = getattr(session, 'campaign_site', None)
+    def feature_known(feature_id):
+        return campaign_site is None or not campaign_site.active or campaign_site.feature_is_known(feature_id, dm_view=binding.role == ControllerRole.DM)
     sorted_tiles = sorted(battlefield.tiles.values(), key=lambda item: (item.position.y, item.position.x))
     cells = []
     for tile in sorted_tiles:
@@ -1124,6 +1143,9 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
         visible = vision_mode != 'none'
         inspectable = binding.role == ControllerRole.DM or (visible and _controller_can_inspect_position(session, controller_id, position))
         overlay = apparent_overlays.get((tile.position.x, tile.position.y, tile.elevation_ft), {'blocked': False, 'cover': None, 'tags': ()})
+        if campaign_site is not None and campaign_site.active and not inspectable:
+            cells.append(WebMapCellView(position=WebCoordinate(tile.position.x,tile.position.y),terrain_id='unknown',elevation_ft=0,ceiling_ft=0,traversable=False,occupiable=False,movement_cost_feet_per_5ft=0,difficult_terrain=False,lighting='darkness',obscurement='heavy',blocks_los=False,blocks_loe=False,base_cover='none',supported_modes=(),object_ids=(),blocker_ids=(),tags=(),visible=False,vision_mode='none'))
+            continue
         cells.append(
             WebMapCellView(
                 position=WebCoordinate(x=tile.position.x, y=tile.position.y, z=tile.elevation_ft),
@@ -1140,7 +1162,7 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
                 blocks_loe=tile.blocks_loe,
                 base_cover=tile.base_cover.value,
                 supported_modes=tuple(mode.value for mode in tile.supported_modes),
-                object_ids=((tile.object_ids + _ground_item_ids_at(session, x=tile.position.x, y=tile.position.y)) if inspectable else ()),
+                object_ids=(tuple(fid for fid in tile.object_ids if feature_known(fid)) + _ground_item_ids_at(session, x=tile.position.x, y=tile.position.y) if inspectable else ()),
                 blocker_ids=(tile.blocker_ids if inspectable else ()),
                 tags=(tile.tags if inspectable else ()),
                 apparent_blocked=bool(overlay['blocked']) if binding.role != ControllerRole.DM else False,
@@ -1166,7 +1188,7 @@ def _project_map(session, controller_id: str) -> WebMapView | None:
             tags=feature.tags,
         )
         for feature in battlefield.features.values()
-        if binding.role == ControllerRole.DM or any(GridPosition(cell.x, cell.y).horizontal() in visible_cells for cell in feature.cells)
+        if feature_known(feature.feature_id) and (binding.role == ControllerRole.DM or any(GridPosition(cell.x, cell.y).horizontal() in visible_cells for cell in feature.cells))
     )
     features = actual_features + persistent_features
     actor_ids = session.state.initiative_order or tuple(session.state.actors.keys())

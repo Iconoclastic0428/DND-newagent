@@ -49,6 +49,7 @@ class FullStoryDemoManualSession:
         env_path: str | Path = '.env',
         client_transport=None,
         precreate_characters: bool = False,
+        story_start: str = 'waterdeep',
         character_load_path: str | Path | None = None,
         character_save_path: str | Path | None = None,
         llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
@@ -60,6 +61,7 @@ class FullStoryDemoManualSession:
         self.campaign_root = campaign_root
         self.env_path = env_path
         self.client_transport = client_transport
+        self.story_start = story_start
         self.character_save_path = Path(character_save_path) if character_save_path is not None else None
         self.creation_kernel = build_default_kernel(base_url=base_url)
         self.creation_ui = SlashCommandInterface(self.creation_kernel)
@@ -354,6 +356,7 @@ class FullStoryDemoManualSession:
             campaign_root=self.campaign_root,
             env_path=self.env_path,
             client_transport=self.client_transport,
+            story_start=self.story_start,
         )
         self.story_session.llm_feedback_sink = self.llm_feedback_sink
         self.story_session.system_open_scene()
@@ -719,6 +722,16 @@ class FullStoryDemoManualSession:
             return
         if state.phase != EncounterPhase.COMPLETE:
             return
+        story_outcome = self.story_session.resolve_completed_combat_story_outcome()
+        if story_outcome in {'continued', 'captured'}:
+            return
+        if story_outcome == 'game-ended':
+            self._completion_state = _CompletionState(
+                result_summary='All player characters are unconscious.',
+                detail_summary='Demo result: defeat. All player characters are unconscious and no capture, rescue, or other special survival condition is available.',
+            )
+            self._record_demo_completion(success=False)
+            return
         if state.winning_side == ActorSide.PLAYER:
             self._completion_state = _CompletionState(
                 result_summary='The party survived the goblin ambush.',
@@ -792,6 +805,7 @@ def build_full_story_demo_manual_session(
     env_path: str | Path = '.env',
     client_transport=None,
     precreate_characters: bool = False,
+    story_start: str = 'waterdeep',
     character_load_path: str | Path | None = None,
     character_save_path: str | Path | None = None,
     llm_player_agents: tuple[LLMPlayerAgent, ...] = (),
@@ -805,6 +819,7 @@ def build_full_story_demo_manual_session(
         env_path=env_path,
         client_transport=client_transport,
         precreate_characters=precreate_characters,
+        story_start=story_start,
         character_load_path=character_load_path,
         character_save_path=character_save_path,
         llm_player_agents=llm_player_agents,
@@ -822,6 +837,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--env-path', type=Path, default=Path('.env'), help='Path to the local .env file.')
     parser.add_argument('--save-characters', type=Path, help='Write confirmed character records to this JSON party file.')
     parser.add_argument('--load-characters', type=Path, help='Load confirmed character records from this JSON party file and start the story immediately.')
+    parser.add_argument('--story-start', choices=('waterdeep', 'cragmaw'), default='waterdeep', help='Starting story slice after characters are ready.')
     return parser.parse_args()
 
 
@@ -831,6 +847,7 @@ def main() -> int:
         session = build_full_story_demo_manual_session(
             campaign_root=args.campaign_root,
             env_path=args.env_path,
+            story_start=args.story_start,
             character_load_path=args.load_characters,
             character_save_path=args.save_characters,
         )

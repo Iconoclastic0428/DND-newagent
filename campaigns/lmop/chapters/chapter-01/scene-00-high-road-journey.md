@@ -20,7 +20,7 @@ token_budget_hint: small
 ---
 
 # Public Summary
-The party spends several days on the High Road with Gundren's wagon, then turns east onto the Triboar Trail toward Phandalin.
+The party spends several days on the High Road with Gundren's wagon, without Gundren or Sildar traveling alongside them, then turns east onto the Triboar Trail toward Phandalin.
 
 # Read Aloud
 The city falls behind you. For days the High Road is wind, wheels, leather creaks, and the steady work of keeping a wagon moving. At last the route bends east, and the narrower Triboar Trail draws you toward rougher country and older dangers.
@@ -35,8 +35,8 @@ This scene is the bridge into the official road sequence. The local official tex
 
 # Important Actors
 - The party
-- Gundren Rockseeker if he has not already ridden ahead in the current telling
-- Sildar Hallwinter if he remains visible before riding ahead
+- Gundren Rockseeker is ahead of the party and offstage; do not give him road-scene dialogue.
+- Sildar Hallwinter is riding with Gundren and is offstage; do not give him road-scene dialogue.
 
 # Keyed Features
 - Wagon, draft animals, and cargo lashings
@@ -45,7 +45,7 @@ This scene is the bridge into the official road sequence. The local official tex
 
 # Triggers
 - If the party discusses watches, marching order, or scouting, travel checks may be appropriate
-- If the party accepts Gundren's plan to ride ahead with Sildar, move them offstage before the ambush
+- Keep Gundren and Sildar offstage during the road journey unless a later scene explicitly brings them back
 - Once the party has had enough road interaction, advance to the ambush scene
 
 # Likely Checks
@@ -62,4 +62,3 @@ This scene is the bridge into the official road sequence. The local official tex
 
 # Linked Scenes
 - [Goblin Ambush on Triboar Trail](scene-01-goblin-ambush.md)
-

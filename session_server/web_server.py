@@ -10,7 +10,7 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve as ws_serve
@@ -53,6 +53,7 @@ class _FrontendHttpHandler(SimpleHTTPRequestHandler):
         automation_state_provider,
         automation_input_handler,
         automation_prompt_response_handler,
+        mirror_root: Path | None,
         **kwargs,
     ):
         self._config_provider = config_provider
@@ -60,6 +61,7 @@ class _FrontendHttpHandler(SimpleHTTPRequestHandler):
         self._automation_state_provider = automation_state_provider
         self._automation_input_handler = automation_input_handler
         self._automation_prompt_response_handler = automation_prompt_response_handler
+        self._mirror_root = mirror_root
         super().__init__(*args, directory=directory, **kwargs)
 
     def end_headers(self) -> None:
@@ -70,6 +72,9 @@ class _FrontendHttpHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+        if parsed.path.startswith('/mirror/'):
+            self._serve_mirror_asset(parsed.path.removeprefix('/mirror/'))
+            return
         if parsed.path == '/config.json':
             payload = json.dumps(self._config_provider()).encode('utf-8')
             self.send_response(HTTPStatus.OK)
@@ -97,6 +102,32 @@ class _FrontendHttpHandler(SimpleHTTPRequestHandler):
         if parsed.path in {'', '/'}:
             self.path = '/index.html'
         return super().do_GET()
+
+    def _serve_mirror_asset(self, relative_path: str) -> None:
+        if self._mirror_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND, 'Local mirror serving is not configured.')
+            return
+        decoded_path = unquote(relative_path).replace('\\', '/')
+        parts = tuple(part for part in decoded_path.split('/') if part)
+        if not parts or any(part == '..' for part in parts):
+            self.send_error(HTTPStatus.BAD_REQUEST, 'Invalid mirror asset path.')
+            return
+        asset_path = (self._mirror_root / Path(*parts)).resolve()
+        try:
+            asset_path.relative_to(self._mirror_root)
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST, 'Mirror asset path escapes the configured root.')
+            return
+        if not asset_path.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND, 'Mirror asset was not found.')
+            return
+        payload = asset_path.read_bytes()
+        content_type = 'image/webp' if asset_path.suffix.lower() == '.webp' else self.guess_type(str(asset_path))
+        self.send_response(HTTPStatus.OK)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
@@ -172,6 +203,7 @@ class SessionWebServer:
         websocket_port: int = 8767,
         static_root: str | Path | None = None,
         automation_api_enabled: bool = False,
+        mirror_base_url: str | None = None,
     ) -> None:
         self.session = session
         self.session_id = session_id
@@ -180,6 +212,7 @@ class SessionWebServer:
         self.websocket_host = websocket_host
         self.websocket_port = websocket_port
         self.static_root = Path(static_root or Path(__file__).resolve().parents[1] / 'web_frontend').resolve()
+        self.mirror_root = _mirror_root_from_base_url(mirror_base_url)
         self.controller_grants = {grant.controller_id: grant for grant in controller_grants}
         self.automation_api_enabled = automation_api_enabled
         self._http_server: ThreadingHTTPServer | None = None
@@ -231,6 +264,7 @@ class SessionWebServer:
             websocket_port=websocket_port,
             static_root=static_root,
             automation_api_enabled=automation_api_enabled,
+            mirror_base_url=base_url,
         )
 
     def start(self) -> None:
@@ -286,6 +320,7 @@ class SessionWebServer:
             automation_state_provider=self.automation_snapshot,
             automation_input_handler=self.automation_submit_input,
             automation_prompt_response_handler=self.automation_respond_to_prompt,
+            mirror_root=self.mirror_root,
         )
         self._http_server = ThreadingHTTPServer((self.http_host, self.http_port), handler)
         self.http_port = self._http_server.server_address[1]
@@ -484,14 +519,14 @@ class SessionWebServer:
             if z is not None:
                 z = _require_int(z, 'z')
             with self._state_lock:
-                payload = inspect_cell(self.session, controller_id, x=x, y=y, z=z)
+                payload = inspect_cell(self._runtime_session(), controller_id, x=x, y=y, z=z)
             self._send_to_controller(controller_id, {'type': 'inspection', 'inspection': payload})
             return
         if message_type == 'inspect_travel_hex':
             q = _require_int(message.get('q'), 'q')
             r = _require_int(message.get('r'), 'r')
             with self._state_lock:
-                payload = inspect_travel_hex(self.session, controller_id, q=q, r=r)
+                payload = inspect_travel_hex(self._runtime_session(), controller_id, q=q, r=r)
             self._send_to_controller(controller_id, {'type': 'inspection', 'inspection': payload})
             return
         if message_type == 'preview_move':
@@ -504,7 +539,7 @@ class SessionWebServer:
             if not isinstance(mode, str):
                 raise EncounterPermissionError('Move preview requires string `mode`.')
             with self._state_lock:
-                payload = preview_path(self.session, controller_id, x=x, y=y, z=z, mode=mode)
+                payload = preview_path(self._runtime_session(), controller_id, x=x, y=y, z=z, mode=mode)
             self._send_to_controller(controller_id, {'type': 'path_preview', 'preview': payload})
             return
         if message_type == 'travel_route_preview':
@@ -518,7 +553,7 @@ class SessionWebServer:
             if destination_location_id is not None and not isinstance(destination_location_id, str):
                 raise EncounterPermissionError('Travel route preview requires string `destination_location_id` when present.')
             with self._state_lock:
-                payload = preview_travel_route(self.session, controller_id, q=q, r=r, destination_location_id=destination_location_id)
+                payload = preview_travel_route(self._runtime_session(), controller_id, q=q, r=r, destination_location_id=destination_location_id)
             self._send_to_controller(controller_id, {'type': 'path_preview', 'preview': payload})
             return
         if message_type == 'move_proposal':
@@ -551,9 +586,9 @@ class SessionWebServer:
             if q is not None or r is not None:
                 destination_coord = HexCoord(_require_int(q, 'q'), _require_int(r, 'r'))
             with self._state_lock:
-                if not hasattr(self.session, 'travel_plan_route'):
+                if not hasattr(self._runtime_session(), 'travel_plan_route'):
                     raise EncounterPermissionError('This session does not support travel route planning.')
-                self.session.travel_plan_route(controller_id, destination_coord=destination_coord, destination_location_id=destination_location_id)
+                self._runtime_session().travel_plan_route(controller_id, destination_coord=destination_coord, destination_location_id=destination_location_id)
                 self._broadcast_updates()
             return
         if message_type == 'travel_set_pace':
@@ -561,37 +596,37 @@ class SessionWebServer:
             if not isinstance(raw_pace, str):
                 raise EncounterPermissionError('Travel pace changes require string `pace`.')
             with self._state_lock:
-                if not hasattr(self.session, 'travel_set_pace'):
+                if not hasattr(self._runtime_session(), 'travel_set_pace'):
                     raise EncounterPermissionError('This session does not support travel pace changes.')
-                self.session.travel_set_pace(controller_id, TravelPace(raw_pace.lower()))
+                self._runtime_session().travel_set_pace(controller_id, TravelPace(raw_pace.lower()))
                 self._broadcast_updates()
             return
         if message_type == 'travel_advance':
             steps = message.get('steps', 1)
             with self._state_lock:
-                if not hasattr(self.session, 'travel_advance'):
+                if not hasattr(self._runtime_session(), 'travel_advance'):
                     raise EncounterPermissionError('This session does not support travel advancement.')
-                self.session.travel_advance(controller_id, steps=_require_int(steps, 'steps'))
+                self._runtime_session().travel_advance(controller_id, steps=_require_int(steps, 'steps'))
                 self._broadcast_updates()
             return
         if message_type == 'travel_resume':
             with self._state_lock:
-                if not hasattr(self.session, 'travel_resume'):
+                if not hasattr(self._runtime_session(), 'travel_resume'):
                     raise EncounterPermissionError('This session does not support travel resumption.')
-                self.session.travel_resume(controller_id)
+                self._runtime_session().travel_resume(controller_id)
                 self._broadcast_updates()
             return
         if message_type == 'travel_engage':
             with self._state_lock:
-                if not hasattr(self.session, 'travel_engage_pending_hook'):
+                if not hasattr(self._runtime_session(), 'travel_engage_pending_hook'):
                     raise EncounterPermissionError('This session does not support travel hook engagement.')
-                self.session.travel_engage_pending_hook(controller_id)
+                self._runtime_session().travel_engage_pending_hook(controller_id)
                 self._broadcast_updates()
             return
         raise EncounterPermissionError(f'Unknown web message type: {message_type!r}.')
 
     def _command_from_action_proposal(self, controller_id: str, message: dict[str, object]) -> str:
-        active_actor_id = self.session.state.active_actor_id
+        active_actor_id = self._runtime_session().state.active_actor_id
         if active_actor_id is None:
             raise EncounterPermissionError('There is no active actor to act with.')
         owner = self._control_runtime().controller_for_actor(active_actor_id)
@@ -613,7 +648,7 @@ class SessionWebServer:
             y = _require_int(y, 'y')
         if z is not None:
             z = _require_int(z, 'z')
-        actor = self.session.state.actors[active_actor_id]
+        actor = self._runtime_session().state.actors[active_actor_id]
         if group_id == 'attacks':
             if target_actor_id is None:
                 raise EncounterPermissionError('Attack proposals require `target_actor_id`.')
@@ -657,7 +692,10 @@ class SessionWebServer:
         raise EncounterPermissionError(f'Unsupported action proposal group: {group_id}.')
 
     def _command_from_move_proposal(self, controller_id: str, *, x: int, y: int, z: int | None, mode: str) -> str:
-        active_actor_id = self.session.state.active_actor_id
+        active_actor_id = self._runtime_session().state.active_actor_id
+        site = getattr(self._runtime_session(), 'campaign_site', None)
+        if site is not None and site.state.progress.in_dungeon and self._runtime_session().state.phase.value == 'ready':
+            active_actor_id = site.actor_for(controller_id)
         if active_actor_id is None:
             raise EncounterPermissionError('There is no active actor to move.')
         owner = self._control_runtime().controller_for_actor(active_actor_id)
@@ -690,6 +728,14 @@ class SessionWebServer:
             self._send_view(controller_id)
         for controller_id in list(self._clients):
             self._send_prompt_if_any(controller_id)
+
+    def _runtime_session(self):
+        """Map APIs operate on mechanics; inputs still pass through the recording wrapper."""
+        if hasattr(self.session,'story_session'):
+            if self.session.story_session is None:
+                raise EncounterPermissionError('Finish character creation before using the map.')
+            return self.session.story_session
+        return self.session
 
     def _control_runtime(self):
         if hasattr(self.session, 'encounter_session'):
@@ -832,6 +878,18 @@ def _require_int(value: object, field_name: str) -> int:
     if not isinstance(value, int):
         raise EncounterPermissionError(f'`{field_name}` must be an integer.')
     return value
+
+
+def _mirror_root_from_base_url(base_url: str | None) -> Path | None:
+    if base_url is None or not base_url.strip():
+        return None
+    parsed = urlsplit(base_url)
+    if parsed.scheme not in {'', 'file'}:
+        return None
+    raw_path = unquote(parsed.path if parsed.scheme == 'file' else base_url)
+    if len(raw_path) >= 3 and raw_path[0] == '/' and raw_path[2] == ':':
+        raw_path = raw_path[1:]
+    return Path(raw_path).resolve()
 
 
 def _allocate_port(host: str) -> int:

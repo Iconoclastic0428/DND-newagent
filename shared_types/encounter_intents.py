@@ -30,6 +30,16 @@ class MoveActorIntent(EncounterIntent):
 
 
 @dataclass(frozen=True)
+class ExploreMoveIntent(EncounterIntent):
+    """One six-second exploration move using the actor's actual speed."""
+    actor_id: str
+    x: int
+    y: int
+    z: int | None = None
+    movement_intent_mode: MovementIntentMode = MovementIntentMode.SAME_PLANE
+
+
+@dataclass(frozen=True)
 class MountActorIntent(EncounterIntent):
     actor_id: str
     mount_actor_id: str

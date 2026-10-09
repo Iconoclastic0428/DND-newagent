@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 
 from character_creation import build_default_kernel
@@ -8,7 +9,7 @@ from dm_agent.memory import DmMemoryWriter
 from dm_agent.runtime import DMStorytellingRuntime
 from encounter_runtime import build_default_encounter_runtime
 from player_interface import EncounterSlashCommandInterface, SlashCommandInterface
-from rules_engine.battlefield_loader import DEFAULT_GOBLIN_AMBUSH_MAP_PATH, load_battlefield_state_from_json
+from rules_engine.battlefield_loader import CRAGMAW_HIDEOUT_MAP_PATH, DEFAULT_GOBLIN_AMBUSH_MAP_PATH, load_battlefield_state_from_json
 from rules_engine.exploration import ExplorationProcedureEngine
 from rules_engine.social import SocialConsequenceEngine
 from rules_engine.hexmap_loader import HexMapLoader
@@ -16,10 +17,10 @@ from rules_engine.travel import HexTravelEngine
 from session_server.encounter_session import EncounterSession
 from session_server.storytelling_session import StorytellingSession
 from shared_types.encounter_control import ControllerBinding, ControllerRole
-from shared_types.encounter_models import CharacterPlacement, GridPosition, MonsterPlacement
+from shared_types.encounter_models import CharacterPlacement, EncounterPhase, GridPosition, MonsterPlacement
 from shared_types.models import CharacterRecord
 from shared_types.storytelling import RuntimeMode, StoryRuntimeState
-from shared_types.travel import HexCoord
+from shared_types.travel import HexCoord, TravelStatus, unique_coords, unique_strings
 
 
 def build_default_character_record(*, base_url: str | None = None):
@@ -98,6 +99,17 @@ def _story_demo_control_runtime(runtime):
     return runtime.build_control_runtime(controllers=controllers, actor_controllers=actor_controllers)
 
 
+def _cragmaw_map_demo_control_runtime(runtime):
+    controllers = {
+        'dm': ControllerBinding(controller_id='dm', role=ControllerRole.DM, label='DM'),
+        'player-1-controller': ControllerBinding(controller_id='player-1-controller', role=ControllerRole.PLAYER, label='Player 1'),
+    }
+    actor_controllers = {
+        'player-1': 'player-1-controller',
+    }
+    return runtime.build_control_runtime(controllers=controllers, actor_controllers=actor_controllers)
+
+
 def build_default_encounter_session(*, base_url: str | None = None) -> EncounterSession:
     runtime = build_default_encounter_runtime(base_url=base_url)
     record = build_default_character_record(base_url=base_url)
@@ -138,6 +150,32 @@ def build_goblin_ambush_encounter_session(*, base_url: str | None = None, map_pa
     return EncounterSession(
         state=state,
         control_runtime=_control_runtime(runtime),
+        command_interface=EncounterSlashCommandInterface(runtime.kernel),
+        runtime_services=runtime,
+    )
+
+
+def build_cragmaw_hideout_map_demo_session(*, base_url: str | None = None, map_path: str | None = None) -> EncounterSession:
+    runtime = build_default_encounter_runtime(base_url=base_url)
+    record = build_default_character_record(base_url=base_url)
+    battlefield = load_battlefield_state_from_json(map_path or CRAGMAW_HIDEOUT_MAP_PATH)
+    player_start = battlefield.spawn_zones['players'][0]
+    state = runtime.new_state(
+        characters=(CharacterPlacement(actor_id='player-1', record=record, position=player_start),),
+        monsters=(),
+        battlefield=battlefield,
+    )
+    state.phase = EncounterPhase.IN_PROGRESS
+    state.round_number = 1
+    state.initiative_order = ('player-1',)
+    state.active_actor_id = 'player-1'
+    player = state.actors['player-1']
+    player.name = 'Map Demo Player'
+    player.speed_ft = max(player.speed_ft, 999)
+    player.remaining_movement_ft = 999
+    return EncounterSession(
+        state=state,
+        control_runtime=_cragmaw_map_demo_control_runtime(runtime),
         command_interface=EncounterSlashCommandInterface(runtime.kernel),
         runtime_services=runtime,
     )
@@ -256,6 +294,7 @@ def build_lmop_story_demo_session_from_records(
     campaign_root: str | Path | None = None,
     env_path: str | Path = '.env',
     client_transport=None,
+    story_start: str = 'waterdeep',
 ) -> StorytellingSession:
     encounter_session = build_lmop_story_demo_encounter_session_from_records(
         player_records=player_records,
@@ -308,7 +347,7 @@ def build_lmop_story_demo_session_from_records(
     story_state.social_state = social_engine.initial_state(exploration_state=exploration_state, current_location_id=story_state.canonical_location_id)
     dm_runtime = DMStorytellingRuntime.from_env(env_path=env_path, client_transport=client_transport)
     memory_writer = DmMemoryWriter(campaign_path.parent, campaign_id='lmop', campaign_root=campaign_path)
-    return StorytellingSession(
+    session = StorytellingSession(
         encounter_session=encounter_session,
         story_state=story_state,
         campaign_root=campaign_path,
@@ -318,6 +357,62 @@ def build_lmop_story_demo_session_from_records(
         exploration_engine=exploration_engine,
         social_engine=social_engine,
     )
+    from campaign_ingestion.site_loader import load_campaign_site
+    from rules_engine.campaign_sites import CampaignSiteEngine
+    from .campaign_site_session import CampaignSiteSession
+    definition = load_campaign_site(campaign_path / 'sites' / 'phandalin-redbrands.json')
+    session.campaign_site = CampaignSiteSession(session, CampaignSiteEngine(definition, kernel=encounter_session.control_runtime.kernel, asset_root=Path(__file__).resolve().parents[1]))
+    _configure_lmop_story_start(session, story_start=story_start)
+    return session
+
+
+def _configure_lmop_story_start(session: StorytellingSession, *, story_start: str) -> None:
+    normalized = story_start.strip().casefold()
+    if normalized in {'', 'waterdeep', 'default'}:
+        return
+    if normalized == 'phandalin':
+        session.story_state.canonical_location_id = 'phandalin'
+        travel = session.story_state.travel_state
+        session.story_state.travel_state = replace(travel, party_coord=HexCoord(6, 0), current_location_id='phandalin', current_scene_id='scene-phandalin-arrival', planned_route=None, pending_hook=None, status=TravelStatus.IDLE)
+        session.campaign_site.arrive()
+        return
+    if normalized not in {'cragmaw', 'cragmaw-hideout'}:
+        raise RuntimeError(f'Unknown LMoP story start: {story_start!r}.')
+    session.story_state.current_scene_id = 'scene-cragmaw-cave-mouth'
+    session.story_state.canonical_location_id = 'cragmaw-hideout'
+    session.story_state.current_party_goals = (
+        'Enter Cragmaw Hideout and find Sildar Hallwinter.',
+        'Learn where Gundren Rockseeker and the map were taken.',
+    )
+    session.story_state.open_loops = (
+        'Where is Sildar held inside Cragmaw Hideout?',
+        'Who commands the goblins in the cave?',
+        'Where did the goblins take Gundren and his map?',
+    )
+    session.story_state.recent_summary = 'The party has followed the goblin trail to Cragmaw Hideout.'
+    session.story_state.metadata.update({
+        'story_slice': 'post-ambush-cragmaw',
+        'party_defeat_capture_scene_id': 'scene-cragmaw-kennel-prison',
+        'retrieval_tags': 'cragmaw-hideout,cave-mouth,goblins,wolves,klarg,yeemik,sildar',
+        'nearby_tags': 'cave,stream,forest,goblins,wolves',
+        'visible_npc_ids': 'cragmaw-goblin,cragmaw-wolf',
+        'party_beliefs': 'The goblin trail led to Cragmaw Hideout.|Gundren and Sildar were taken by Cragmaw goblins.',
+    })
+    travel_state = session.story_state.travel_state
+    if travel_state is not None:
+        session.story_state.travel_state = replace(
+            travel_state,
+            party_coord=HexCoord(5, -1),
+            discovered_hexes=unique_coords(travel_state.discovered_hexes + (HexCoord(5, 0), HexCoord(5, -1))),
+            discovered_landmark_ids=unique_strings(travel_state.discovered_landmark_ids + ('ambush-horses', 'cragmaw-trail-signs')),
+            known_location_ids=unique_strings(travel_state.known_location_ids + ('triboar-trail', 'cragmaw-hideout')),
+            status=TravelStatus.IDLE,
+            planned_route=None,
+            pending_hook=None,
+            current_scene_id='scene-cragmaw-cave-mouth',
+            current_location_id='cragmaw-hideout',
+        )
+    session._refresh_exploration_context(sync_memory=False)
 
 
 def build_lmop_story_demo_session(
@@ -326,6 +421,7 @@ def build_lmop_story_demo_session(
     campaign_root: str | Path | None = None,
     env_path: str | Path = '.env',
     client_transport=None,
+    story_start: str = 'waterdeep',
 ) -> StorytellingSession:
     base_record = build_default_character_record(base_url=base_url)
     player_records = tuple(
@@ -338,5 +434,6 @@ def build_lmop_story_demo_session(
         campaign_root=campaign_root,
         env_path=env_path,
         client_transport=client_transport,
+        story_start=story_start,
     )
 

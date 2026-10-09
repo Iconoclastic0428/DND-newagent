@@ -24,6 +24,13 @@ function localEntryGeneration(entry) {
   return Number.isInteger(entry.authoritative_generation) ? entry.authoritative_generation : 0;
 }
 
+function isTransientThinkingEntry(entry) {
+  if (entry.category === 'thinking') {
+    return true;
+  }
+  return entry.category === 'system' && String(entry.text || '').trim() === 'DM is thinking...';
+}
+
 export function noteAuthoritativeChat(chatFeed, authoritativeEntries) {
   const nextFingerprint = authoritativeChatFingerprint(authoritativeEntries || []);
   if (nextFingerprint === chatFeed.authoritativeFingerprint) {
@@ -32,7 +39,7 @@ export function noteAuthoritativeChat(chatFeed, authoritativeEntries) {
   chatFeed.authoritativeFingerprint = nextFingerprint;
   chatFeed.authoritativeGeneration += 1;
   chatFeed.localEntries = chatFeed.localEntries.filter(entry => (
-    entry.category !== 'thinking' || localEntryGeneration(entry) >= chatFeed.authoritativeGeneration
+    !isTransientThinkingEntry(entry) || localEntryGeneration(entry) >= chatFeed.authoritativeGeneration
   ));
 }
 

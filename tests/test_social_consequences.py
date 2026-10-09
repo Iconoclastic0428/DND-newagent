@@ -116,6 +116,13 @@ class SocialConsequencesTests(unittest.TestCase):
             social.relationships['relationship:gundren-rockseeker:party'].attitude,
             exploration.npc_states['gundren-rockseeker'].attitude,
         )
+        gundren = social.relationships['relationship:gundren-rockseeker:party']
+        sildar = social.relationships['relationship:sildar-hallwinter:party']
+        self.assertEqual(gundren.trust, 5)
+        self.assertEqual(gundren.willingness.value, 'willing')
+        self.assertIn('former hires', gundren.current_stance)
+        self.assertEqual(sildar.trust, 0)
+        self.assertIn('does not personally know the party', sildar.current_stance)
 
     def test_story_spell_witness_packet_includes_norms_and_relationship_context(self) -> None:
         session = self._build_session([self._ignore_payload()])
@@ -125,7 +132,7 @@ class SocialConsequencesTests(unittest.TestCase):
         self.assertIn('norm:waterdeep-public-order', gundren.applicable_norm_ids)
         self.assertIn('guarded_magic', gundren.norm_tags)
         self.assertIn('public_order_sensitive', gundren.norm_tags)
-        self.assertEqual(gundren.relationship_trust, 0)
+        self.assertEqual(gundren.relationship_trust, 5)
         self.assertEqual(gundren.relationship_suspicion, 0)
         self.assertEqual(gundren.relationship_fear, 0)
         self.assertEqual(gundren.relationship_respect, 0)
@@ -213,6 +220,10 @@ class SocialConsequencesTests(unittest.TestCase):
         playbook = playbook_path.read_text(encoding='utf-8')
         self.assertIn('Waterdeep Watch', campaign_state)
         self.assertIn('Trust and Leverage', playbook)
+        self.assertIn('Roleplay Contract', playbook)
+        self.assertIn('Gundren has employed the party before', playbook)
+        self.assertIn('Journey Availability', playbook)
+        self.assertIn('Gundren does not travel with the party after the Waterdeep briefing', playbook)
         self.assertIn('Current willingness', playbook)
         self.assertIn('Detect Magic was cast in story mode at waterdeep.', playbook)
 

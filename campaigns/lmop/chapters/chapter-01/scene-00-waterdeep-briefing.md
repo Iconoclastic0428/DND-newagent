@@ -19,16 +19,18 @@ token_budget_hint: small
 ---
 
 # Public Summary
-Gundren Rockseeker meets the party in Waterdeep to hire them for a wagon escort to Phandalin. He offers each character 10 gp when the supplies reach Barthen's Provisions.
+Gundren Rockseeker meets the party in Waterdeep as a previous employer hiring trusted former hands for a new wagon escort mission to Phandalin. He offers each character 10 gp when the supplies reach Barthen's Provisions; Sildar Hallwinter is present but does not know the party personally.
 
 # Read Aloud
 A stout dwarf with dust still caught in his beard leans over a table in a busy Waterdeep taproom, eyes bright with impatient energy. Gundren Rockseeker wastes little time: he has a wagon to move north, a destination in Phandalin, and coin for anyone willing to guard the road.
 
 # Hidden DM Notes
-The official hook remains the same: Gundren hires the party to escort supplies to Phandalin for 10 gp each, while he and Sildar ride ahead to handle business. This demo begins that conversation in Waterdeep instead of Neverwinter, but it preserves the official contract and the same eventual road-to-ambush sequence.
+The official hook remains the same: Gundren hires the party to escort supplies to Phandalin for 10 gp each, while he and Sildar ride ahead to handle business. This demo begins that conversation in Waterdeep instead of Neverwinter, but it preserves the official contract and the same eventual road-to-ambush sequence. Gundren should sound familiar with the party because they worked for him before; Sildar should sound professional and unfamiliar because he has no prior relationship with them.
 
 # Scene Goals
 - Let the party meet Gundren and Sildar before the job starts
+- Establish Gundren as a prior employer offering a new mission
+- Establish that Sildar is meeting the party for the first time
 - Establish the 10 gp escort contract and the destination in Phandalin
 - Give the party room to ask about the route, danger, and Gundren's excitement
 
@@ -40,7 +42,7 @@ The official hook remains the same: Gundren hires the party to escort supplies t
 - Private table with a rolled route map and freight list
 - Wagon contract naming Barthen's Provisions in Phandalin
 - Stable yard outside where the loaded wagon is waiting
-- Sildar and Gundren is going to leave immediately, while players are going to leave tomorrow
+- Sildar and Gundren leave ahead of the party after the briefing; the players start with the wagon separately and do not travel with either NPC
 
 # Triggers
 - If the party agrees to the job, advance to the High Road journey

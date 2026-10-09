@@ -202,6 +202,7 @@ from shared_types.encounter_intents import (
     EncounterIntent,
     GrappleIntent,
     MoveActorIntent,
+    ExploreMoveIntent,
     ObjectInteractionIntent,
     ShoveIntent,
     StandFromProneIntent,
@@ -633,6 +634,10 @@ class EncounterKernel:
     def _resolve_intent(self, state: EncounterState, intent: EncounterIntent) -> list[object]:
         if isinstance(intent, StartEncounterIntent):
             return self._resolve_start(state, intent)
+        if isinstance(intent, ExploreMoveIntent):
+            if state.phase != EncounterPhase.READY:
+                raise EncounterValidationError("Exploration movement requires being outside combat.")
+            return self._resolve_move(state, intent, exploration=True)
         if isinstance(intent, MoveActorIntent):
             return self._resolve_move(state, intent)
         if isinstance(intent, MountActorIntent):
@@ -765,11 +770,22 @@ class EncounterKernel:
         events.append(EncounterStartedEvent(initiative_order=order, initiative_rolls=initiative_rolls, initiative_totals=initiative_totals, random_counter_used=random_counter_used, first_actor_id=order[0]))
         return events
 
-    def _resolve_move(self, state: EncounterState, intent: MoveActorIntent) -> list[object]:
-        actor = self._require_active_actor(state, intent.actor_id)
+    def _resolve_move(self, state: EncounterState, intent: MoveActorIntent | ExploreMoveIntent, *, exploration: bool = False) -> list[object]:
+        actor = self._require_actor(state, intent.actor_id) if exploration else self._require_active_actor(state, intent.actor_id)
+        if exploration:
+            actor = replace(actor, movement_spent_ft=0, dash_bonus_ft=0, remaining_movement_ft=get_effective_speed(actor))
         self._require_conscious(actor)
-        destination_z = actor.position.z if intent.z is None else intent.z
-        destination = GridPosition(intent.x, intent.y, destination_z)
+        requested_destination = GridPosition(intent.x, intent.y, actor.position.z if intent.z is None else intent.z)
+        destination = self.battlefield_rules.resolve_ground_destination(
+            state,
+            actor,
+            intent.x,
+            intent.y,
+            intent.z,
+            movement_intent_mode=intent.movement_intent_mode,
+        )
+        if destination == actor.position and requested_destination != destination:
+            return []
         validate_frightened_movement(actor, state, destination)
         for effect in state.active_effects.values():
             if actor.actor_id not in effect.target_actor_ids or effect.definition.cannot_willingly_move_beyond_source_ft is None:
@@ -791,6 +807,7 @@ class EncounterKernel:
             MovementPreviewOutcome.REACHABLE_WITH_FLY,
         } or preview.plan is None:
             raise EncounterValidationError(preview.detail)
+        destination = preview.destination
         legality = self.battlefield_rules.movement_legality(state, actor, destination, movement_intent_mode=intent.movement_intent_mode)
         movement_cost, remaining_after, movement_mode, movement_spent_after = self._resolve_path_budget(state, actor, legality.plan)
         pending_movement = PendingMovementState(
@@ -801,9 +818,9 @@ class EncounterKernel:
             remaining_movement_ft_after=remaining_after,
             movement_mode=movement_mode,
             movement_spent_ft_after=movement_spent_after,
-            consume_turn_movement=True,
+            consume_turn_movement=not exploration,
         )
-        reaction_options = self._sorted_reaction_options(
+        reaction_options = () if exploration else self._sorted_reaction_options(
             discover_leave_reach_reactions(
                 state,
                 moving_actor_id=actor.actor_id,
@@ -846,7 +863,7 @@ class EncounterKernel:
                     remaining_movement_ft=remaining_after,
                     movement_mode=movement_mode,
                     movement_spent_ft=movement_spent_after,
-                    consume_turn_movement=True,
+                    consume_turn_movement=not exploration,
                 ),
                 RelocationResolvedEvent(
                     actor_id=actor.actor_id,
@@ -864,21 +881,27 @@ class EncounterKernel:
                 ),
             ]
         )
-        self._append_ready_trigger_window_if_any(
-            state,
-            events,
-            trigger_actor_id=actor.actor_id,
-            from_position=actor.position,
-            to_position=destination,
-        )
+        if exploration:
+            events.append(TimeAdvancedEvent(elapsed_seconds=6, activity_type=RestActivityType.EXERTION))
+        else:
+            self._append_ready_trigger_window_if_any(
+                state, events, trigger_actor_id=actor.actor_id,
+                from_position=actor.position, to_position=destination,
+            )
         return events
 
     def _resolve_stand_from_prone(self, state: EncounterState, intent: StandFromProneIntent) -> list[object]:
-        actor = self._require_active_actor(state, intent.actor_id)
+        exploration = state.phase == EncounterPhase.READY
+        actor = self._require_actor(state, intent.actor_id) if exploration else self._require_active_actor(state, intent.actor_id)
+        if exploration:
+            actor = replace(actor, movement_spent_ft=0, dash_bonus_ft=0, remaining_movement_ft=get_effective_speed(actor))
         self._require_conscious(actor)
         if not has_condition(actor, ConditionType.PRONE):
             raise EncounterValidationError('The actor is not prone.')
         legality = self.battlefield_rules.stand_legality(actor, effective_speed_ft=get_effective_speed(actor))
+        if exploration:
+            return [ConditionRemovedEvent(actor_id=actor.actor_id,condition_type=ConditionType.PRONE),
+                    TimeAdvancedEvent(elapsed_seconds=6,activity_type=RestActivityType.EXERTION)]
         return [
             MoveDeclaredEvent(actor_id=actor.actor_id, from_position=actor.position, to_position=actor.position),
             ConditionRemovedEvent(actor_id=actor.actor_id, condition_type=ConditionType.PRONE),
@@ -1022,7 +1045,14 @@ class EncounterKernel:
         elif intent.response_kind == ReadyResponseKind.MOVE:
             if intent.x is None or intent.y is None:
                 raise EncounterValidationError('Readied movement requires a deterministic destination.')
-            destination = GridPosition(intent.x, intent.y, actor.position.z if intent.z is None else intent.z)
+            destination = self.battlefield_rules.resolve_ground_destination(
+                state,
+                actor,
+                intent.x,
+                intent.y,
+                intent.z,
+                movement_intent_mode=intent.movement_intent_mode,
+            )
             preview_actor = copy.deepcopy(actor)
             preview_actor.movement_spent_ft = 0
             preview_actor.remaining_movement_ft = preview_actor.max_path_speed_ft
@@ -1034,6 +1064,7 @@ class EncounterKernel:
                 MovementPreviewOutcome.REACHABLE_WITH_FLY,
             }:
                 raise EncounterValidationError('The chosen readied movement destination is not reachable within Speed.')
+            destination = preview.destination
             response = ReadyResponseState(response_kind=ReadyResponseKind.MOVE, destination=destination, movement_intent_mode=intent.movement_intent_mode)
             detail = f'move to ({destination.x},{destination.y},{destination.z}) when {trigger_actor.name} moves'
         elif intent.response_kind == ReadyResponseKind.SPELL:
@@ -1262,6 +1293,7 @@ class EncounterKernel:
             MovementPreviewOutcome.REACHABLE_WITH_FLY,
         }:
             raise EncounterValidationError('The readied movement destination is no longer reachable.')
+        destination = preview.destination
         legality = self.battlefield_rules.movement_legality(
             state,
             preview_actor,
@@ -4336,6 +4368,8 @@ class EncounterKernel:
                 self._apply_event(state, follow_up)
             for follow_up in self._effect_reconciliation_events(state, actor_id=event.actor_id):
                 self._apply_event(state, follow_up)
+            from .vision import warm_actor_grid_vision_traces
+            warm_actor_grid_vision_traces(state, actor)
             return
         if isinstance(event, MovementSpentEvent):
             actor = state.actors[event.actor_id]
@@ -4720,7 +4754,7 @@ class EncounterKernel:
             zero_hp_instance_id = self._zero_hit_points_unconscious_instance_id(actor.actor_id)
             if any(instance.instance_id == zero_hp_instance_id for instance in actor.condition_instances):
                 self._apply_event(state, self._condition_removed_event_for_instance(actor.actor_id, zero_hp_instance_id))
-            surviving_sides = {current_actor.side for current_actor in state.actors.values() if self._actor_counts_as_surviving(current_actor)}
+            surviving_sides = {state.actors[actor_id].side for actor_id in state.initiative_order if self._actor_counts_as_surviving(state.actors[actor_id])}
             if state.phase == EncounterPhase.IN_PROGRESS and len(surviving_sides) == 1:
                 self._apply_event(state, EncounterCompletedEvent(winning_side=next(iter(surviving_sides))))
             return
@@ -5055,6 +5089,12 @@ class EncounterKernel:
                 actor.concentrating_effect_id = None
             return
         if isinstance(event, RelocationResolvedEvent):
+            return
+        if isinstance(event, PositionChangedEvent):
+            actor = state.actors.get(event.actor_id)
+            if actor is not None:
+                from .vision import warm_actor_grid_vision_traces
+                warm_actor_grid_vision_traces(state, actor)
             return
         if isinstance(event, FallStartedEvent):
             return
