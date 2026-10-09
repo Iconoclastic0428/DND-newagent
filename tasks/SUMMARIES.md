@@ -1748,3 +1748,12 @@ Verification for the level-2 defense-buff trio completed: Barkskin, Enhance Abil
 - Verification: final 186-test relevant regression run passed; 18-file Python compilation, JavaScript syntax and git diff whitespace checks passed. Full-arc 627-event replay reconstructs complete state. Browser smoke verified town guidance, both entrances, movement, return, visibility and loaded monster art. No live-provider or encounter-balance test is claimed.
 - Delivery: branch codex/phandalin-redbrands in C:/Users/Shengqi Li/.codex/worktrees/workflow-naacl-review/DND-newagent; original D:/DND-newagent application changes preserved byte-for-byte. No commit, merge, push, or delegated work.
 - Running demo: http://127.0.0.1:8020/?portal=player-1-controller&autoconnect=1, PID39932, isolated campaign copy, local canned transport. Instructions, exact source metadata and remaining scope limitations: docs/PHANDALIN-REDBRANDS.md in that worktree.
+
+
+## 2026-10-09 - Publish Phandalin and Redbrand Feature
+- Request: push the delivered implementation.
+- Published feature commit `ad0fad2c1636d7b15e80ee4b0801d645cb5f9980` on `origin/codex/phandalin-redbrands` at https://github.com/Iconoclastic0428/DND-newagent. The remote branch SHA was checked with `git ls-remote` and matched the local commit.
+- Included the connected town/hideout implementation and required Cragmaw geometry, vision, story-runtime and demo prerequisites in an explicit 81-file commit. Kept generated campaign sessions, provider credentials, local mirror data, browser artifacts, and unrelated connector/reward/research changes outside the push.
+- Verification: **333 tests passed in 295.269 seconds** from an exported index snapshot, including the full-arc replay. All 39 changed Python files compile; both JavaScript syntax checks, staged whitespace, dependency-identity, and credential-pattern checks pass.
+- The initial clean-snapshot check exposed a local-mirror configuration requirement and an unrelated connector/reward dependency. The final snapshot used a test-only .env with an explicit mirror URL and recorded deterministic seed; the unrelated change set stayed out of the commit. No application fallback was added.
+- Original application-source baseline hashes remain unchanged. Managed worktree and live demo retained. No force push, merge, or pull request creation.

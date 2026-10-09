@@ -5704,9 +5704,9 @@
 - Include the required Cragmaw, vision, story-runtime and web-demo prerequisites so the pushed tree is self-contained; exclude secrets, local mirror, generated sessions, and unrelated reward/research work.
 ### Steps
 - [x] Inspect branch, remote destination, baseline dependencies, and file scope.
-- [ ] Stage an explicit file list and verify an exported index snapshot independently of unstaged local work.
-- [ ] Commit the verified changes and push the named branch without force.
-- [ ] Verify the remote commit and record the result.
+- [x] Stage an explicit file list and verify an exported index snapshot independently of unstaged local work.
+- [x] Commit the verified changes and push the named branch without force.
+- [x] Verify the remote commit and record the result.
 ### Verification Plan
 - Run the relevant 186-test regression suite plus prerequisite DM, exploration/social, connector, and Fog Cloud tests from the index snapshot.
 - Compile changed Python files, check JavaScript syntax and staged whitespace, inspect staged filenames and credential patterns.
@@ -5716,3 +5716,8 @@
 - The initial exported-index run found thirteen tests relying on local mirror configuration, plus an unrelated party-connector update importing the uncommitted reward grader. No application defect was demonstrated by those failures.
 - Keep the entire connector/reward-grading update outside this feature commit. Verify the unchanged committed connector instead.
 - Supply the exported snapshot with a test-only .env containing the explicit full-mirror URL and a recorded deterministic seed, never the user's credentials or copied data. Re-export the corrected index and rerun verification before commit/push.
+
+### Review
+- Published feature commit `ad0fad2c1636d7b15e80ee4b0801d645cb5f9980` to origin/codex/phandalin-redbrands; remote SHA equals local SHA.
+- Final clean-index verification passed 333 tests in 295.269 seconds. Python compile (39 changed files), JavaScript syntax (2 files), staged whitespace and credential-pattern checks passed.
+- The original application source is unchanged; runtime memory, external mirror, generated evidence and unrelated reward/connector changes remain local. No merge or PR.
